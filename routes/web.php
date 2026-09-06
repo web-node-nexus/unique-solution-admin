@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\PaymentCheckoutController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -10,3 +11,6 @@ Route::get('/', function () {
 
     return redirect()->route('admin.login');
 });
+
+Route::get('/pay/{order}', [PaymentCheckoutController::class, 'show'])->name('pay.show');
+Route::post('/pay/{order}/confirm', [PaymentCheckoutController::class, 'confirm'])->name('pay.confirm');

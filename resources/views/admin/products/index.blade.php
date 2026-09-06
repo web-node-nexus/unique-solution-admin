@@ -53,7 +53,7 @@
                             <th>Name</th>
                             <th>Category</th>
                             <th>Brand</th>
-                            <th>Price</th>
+                            <th>MRP</th>
                             <th>Variants</th>
                             <th>Status</th>
                             <th style="width: 180px;">Actions</th>

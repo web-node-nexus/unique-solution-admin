@@ -18,6 +18,7 @@ class Product extends Model
         'slug',
         'description',
         'base_price',
+        'sale_price',
         'warranty_info',
         'status',
         'is_featured',
@@ -30,6 +31,7 @@ class Product extends Model
     {
         return [
             'base_price' => 'decimal:2',
+            'sale_price' => 'decimal:2',
             'is_featured' => 'boolean',
             'deleted_at' => 'datetime',
         ];

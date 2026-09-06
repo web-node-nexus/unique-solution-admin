@@ -115,10 +115,7 @@ class ProductController extends Controller
     {
         $this->authorize('create', Product::class);
 
-        return view('admin.products.create', [
-            'categories' => Category::query()->where('status', true)->orderBy('name')->get(),
-            'brands' => Brand::query()->where('status', true)->orderBy('name')->get(),
-        ]);
+        return view('admin.products.create', $this->productFormCatalog());
     }
 
     public function store(StoreProductRequest $request): RedirectResponse
@@ -152,11 +149,9 @@ class ProductController extends Controller
 
         $product->load(['images', 'variants.attributeValues', 'variants.images']);
 
-        return view('admin.products.edit', [
+        return view('admin.products.edit', array_merge($this->productFormCatalog(), [
             'product' => $product,
-            'categories' => Category::query()->where('status', true)->orderBy('name')->get(),
-            'brands' => Brand::query()->where('status', true)->orderBy('name')->get(),
-        ]);
+        ]));
     }
 
     public function update(UpdateProductRequest $request, Product $product): RedirectResponse
@@ -315,5 +310,43 @@ class ProductController extends Controller
             'message' => 'Product updated.',
             'product' => $product->fresh(),
         ]);
+    }
+
+    /**
+     * @return array{categories: \Illuminate\Support\Collection, brands: \Illuminate\Support\Collection, categoryBrandMap: array<int, list<int>>}
+     */
+    private function productFormCatalog(): array
+    {
+        $categories = Category::query()->where('status', true)->orderBy('name')->get();
+        $brands = Brand::query()
+            ->where('status', true)
+            ->with('categories:id,name')
+            ->orderBy('name')
+            ->get(['id', 'name', 'category_id', 'warranty']);
+
+        $categoryBrandMap = [];
+        foreach ($categories as $category) {
+            $match = array_flip(Category::relatedIds((int) $category->id));
+            $categoryBrandMap[$category->id] = $brands
+                ->filter(function (Brand $brand) use ($match) {
+                    foreach ($brand->mappedCategoryIds() as $id) {
+                        if (isset($match[$id])) {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                })
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all();
+        }
+
+        return [
+            'categories' => $categories,
+            'brands' => $brands,
+            'categoryBrandMap' => $categoryBrandMap,
+        ];
     }
 }

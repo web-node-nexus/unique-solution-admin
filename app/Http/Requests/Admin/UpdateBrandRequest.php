@@ -26,14 +26,30 @@ class UpdateBrandRequest extends FormRequest
                 'max:255',
                 Rule::unique('brands', 'name')->ignore($brandId),
             ],
+            'category_ids' => ['required', 'array', 'min:1'],
+            'category_ids.*' => ['integer', 'exists:categories,id'],
             'logo' => ['nullable', 'image', 'max:2048'],
             'warranty' => ['nullable', 'string', 'max:10000000'],
             'status' => ['sometimes', 'boolean'],
         ];
     }
 
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'category_ids' => 'categories',
+        ];
+    }
+
     protected function prepareForValidation(): void
     {
+        if ($this->filled('category_id') && ! $this->has('category_ids')) {
+            $this->merge(['category_ids' => [(int) $this->input('category_id')]]);
+        }
+
         if ($this->has('status')) {
             $this->merge(['status' => filter_var($this->status, FILTER_VALIDATE_BOOLEAN)]);
         }

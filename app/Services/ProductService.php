@@ -31,6 +31,7 @@ class ProductService
                 'slug' => $this->uniqueSlug($data['slug'] ?? $data['name']),
                 'description' => $data['description'] ?? null,
                 'base_price' => $data['base_price'],
+                'sale_price' => $data['sale_price'] ?? null,
                 'warranty_info' => $data['warranty_info'] ?? null,
                 'status' => $data['status'] ?? 'active',
                 'is_featured' => (bool) ($data['is_featured'] ?? false),
@@ -63,6 +64,7 @@ class ProductService
                     : $product->slug,
                 'description' => array_key_exists('description', $data) ? $data['description'] : $product->description,
                 'base_price' => $data['base_price'] ?? $product->base_price,
+                'sale_price' => array_key_exists('sale_price', $data) ? $data['sale_price'] : $product->sale_price,
                 'warranty_info' => array_key_exists('warranty_info', $data) ? $data['warranty_info'] : $product->warranty_info,
                 'status' => $data['status'] ?? $product->status,
                 'is_featured' => array_key_exists('is_featured', $data)
@@ -111,6 +113,7 @@ class ProductService
                 'slug' => $this->uniqueSlug($name),
                 'description' => $product->description,
                 'base_price' => $product->base_price,
+                'sale_price' => $product->sale_price,
                 'warranty_info' => $product->warranty_info,
                 'status' => $product->status,
                 'is_featured' => false,

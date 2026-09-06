@@ -19,11 +19,28 @@ class StoreProductRequest extends FormRequest
     {
         return [
             'category_id' => ['required', 'integer', 'exists:categories,id'],
-            'brand_id' => ['nullable', 'integer', 'exists:brands,id'],
+            'brand_id' => [
+                'nullable',
+                'integer',
+                'exists:brands,id',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (! $value) {
+                        return;
+                    }
+                    $categoryId = (int) $this->input('category_id');
+                    if (! $categoryId) {
+                        return;
+                    }
+                    if (! \App\Models\Brand::query()->forCategory($categoryId)->whereKey($value)->exists()) {
+                        $fail('The selected brand is not mapped to this category.');
+                    }
+                },
+            ],
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', 'unique:products,slug'],
             'description' => ['nullable', 'string', 'max:10000000'],
             'base_price' => ['required', 'numeric', 'min:0'],
+            'sale_price' => ['nullable', 'numeric', 'min:0', 'lte:base_price'],
             'warranty_info' => ['nullable', 'string', 'max:10000000'],
             'gallery_order' => ['nullable', 'array'],
             'gallery_order.*' => ['nullable', 'string', 'max:40'],
@@ -51,6 +68,10 @@ class StoreProductRequest extends FormRequest
     {
         if ($this->has('is_featured')) {
             $this->merge(['is_featured' => filter_var($this->is_featured, FILTER_VALIDATE_BOOLEAN)]);
+        }
+
+        if ($this->input('sale_price') === '' || $this->input('sale_price') === null) {
+            $this->merge(['sale_price' => null]);
         }
     }
 }

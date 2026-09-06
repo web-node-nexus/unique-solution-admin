@@ -40,5 +40,14 @@ class AppServiceProvider extends ServiceProvider
                 ->customers()
                 ->findOrFail($value);
         });
+
+        $appUrl = (string) config('app.url');
+        if ($appUrl !== '') {
+            \Illuminate\Support\Facades\URL::forceRootUrl(rtrim($appUrl, '/'));
+            $scheme = parse_url($appUrl, PHP_URL_SCHEME);
+            if (is_string($scheme) && $scheme !== '') {
+                \Illuminate\Support\Facades\URL::forceScheme($scheme);
+            }
+        }
     }
 }

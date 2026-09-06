@@ -23,7 +23,7 @@ class CatalogSeeder extends Seeder
         $categories = $this->seedCategories();
         $attributes = $this->seedAttributes();
         $this->mapCategoryAttributes($categories, $attributes);
-        $brands = $this->seedBrands();
+        $brands = $this->seedBrands($categories);
         $this->seedProducts($categories, $brands, $attributes, $variantGenerator, $admin?->id);
     }
 
@@ -268,25 +268,44 @@ class CatalogSeeder extends Seeder
     }
 
     /**
+     * @param  array<string, Category>  $categories
      * @return array<string, Brand>
      */
-    private function seedBrands(): array
+    private function seedBrands(array $categories): array
     {
-        $names = [
-            'Samsung', 'LG', 'Sony', 'Apple', 'Dell',
-            'Whirlpool', 'Voltas', 'Mi', 'OnePlus', 'Panasonic',
+        $assignments = [
+            'Samsung' => ['Mobile Phones', 'Televisions', 'Refrigerators', 'Washing Machines', 'Air Conditioners', 'Microwaves'],
+            'LG' => ['Mobile Phones', 'Televisions', 'Refrigerators', 'Washing Machines', 'Air Conditioners', 'Microwaves'],
+            'Sony' => ['Mobile Phones', 'Televisions'],
+            'Apple' => ['Mobile Phones'],
+            'Dell' => ['Laptops'],
+            'Whirlpool' => ['Refrigerators', 'Washing Machines', 'Microwaves'],
+            'Voltas' => ['Air Conditioners'],
+            'Mi' => ['Mobile Phones', 'Televisions'],
+            'OnePlus' => ['Mobile Phones'],
+            'Panasonic' => ['Televisions', 'Refrigerators', 'Air Conditioners', 'Washing Machines', 'Microwaves'],
         ];
 
         $map = [];
 
-        foreach ($names as $name) {
-            $map[$name] = Brand::query()->updateOrCreate(
+        foreach ($assignments as $name => $categoryNames) {
+            $ids = [];
+            foreach ($categoryNames as $categoryName) {
+                if (isset($categories[$categoryName])) {
+                    $ids[] = (int) $categories[$categoryName]->id;
+                }
+            }
+
+            $brand = Brand::query()->updateOrCreate(
                 ['name' => $name],
                 [
                     'logo' => null,
                     'status' => true,
+                    'category_id' => $ids[0] ?? null,
                 ]
             );
+            $brand->syncCategories($ids);
+            $map[$name] = $brand;
         }
 
         return $map;

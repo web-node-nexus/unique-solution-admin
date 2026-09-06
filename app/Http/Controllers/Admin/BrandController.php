@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreBrandRequest;
 use App\Http\Requests\Admin\UpdateBrandRequest;
 use App\Models\Brand;
+use App\Models\Category;
 use App\Services\ImageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -28,7 +29,10 @@ class BrandController extends Controller
     {
         $this->authorize('viewAny', Brand::class);
 
-        $query = Brand::query()->withCount('products')->latest();
+        $query = Brand::query()
+            ->with(['category:id,name', 'categories:id,name'])
+            ->withCount('products')
+            ->latest();
 
         return DataTables::of($query)
             ->addColumn('logo_html', function (Brand $brand) {
@@ -38,7 +42,15 @@ class BrandController extends Controller
 
                 $url = asset('storage/'.$brand->logo);
 
-                return '<img src="'.$url.'" alt="" height="32">';
+                return '<img src="'.$url.'" alt="" class="rounded border" style="width:40px;height:40px;object-fit:cover;">';
+            })
+            ->addColumn('category_name', function (Brand $brand) {
+                $names = $brand->categories->pluck('name')->filter()->values();
+                if ($names->isEmpty() && $brand->category) {
+                    $names = collect([$brand->category->name]);
+                }
+
+                return $names->isEmpty() ? '—' : e($names->implode(', '));
             })
             ->addColumn('status', function (Brand $brand) {
                 $badge = $brand->status ? 'success' : 'secondary';
@@ -67,19 +79,30 @@ class BrandController extends Controller
     {
         $this->authorize('create', Brand::class);
 
-        return view('admin.brands.create');
+        return view('admin.brands.create', [
+            'categories' => Category::query()
+                ->where('status', true)
+                ->with('parent:id,name')
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get(['id', 'name', 'parent_id']),
+        ]);
     }
 
     public function store(StoreBrandRequest $request): RedirectResponse
     {
         $data = $request->validated();
+        $categoryIds = $data['category_ids'] ?? [];
+        unset($data['category_ids']);
         $data['status'] = $data['status'] ?? true;
+        $data['category_id'] = $categoryIds[0] ?? null;
 
         if ($request->hasFile('logo')) {
             $data['logo'] = $this->imageService->upload($request->file('logo'), 'brands');
         }
 
         $brand = Brand::query()->create($data);
+        $brand->syncCategories($categoryIds);
 
         activity_log('created', 'brands', "Created brand #{$brand->id}: {$brand->name}");
 
@@ -92,12 +115,23 @@ class BrandController extends Controller
     {
         $this->authorize('update', $brand);
 
-        return view('admin.brands.edit', compact('brand'));
+        return view('admin.brands.edit', [
+            'brand' => $brand->load('categories:id'),
+            'categories' => Category::query()
+                ->where('status', true)
+                ->with('parent:id,name')
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get(['id', 'name', 'parent_id']),
+        ]);
     }
 
     public function update(UpdateBrandRequest $request, Brand $brand): RedirectResponse
     {
         $data = $request->validated();
+        $categoryIds = $data['category_ids'] ?? [];
+        unset($data['category_ids']);
+        $data['category_id'] = $categoryIds[0] ?? null;
 
         if ($request->hasFile('logo')) {
             $this->imageService->delete($brand->logo);
@@ -105,6 +139,7 @@ class BrandController extends Controller
         }
 
         $brand->update($data);
+        $brand->syncCategories($categoryIds);
 
         activity_log('updated', 'brands', "Updated brand #{$brand->id}: {$brand->name}");
 

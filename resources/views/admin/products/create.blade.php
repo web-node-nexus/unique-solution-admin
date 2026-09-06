@@ -75,17 +75,14 @@
                         <div class="col-md-3">
                             <label for="brand_id" class="form-label">Brand</label>
                             <select name="brand_id" id="brand_id"
-                                    class="form-select @error('brand_id') is-invalid @enderror">
-                                <option value="">— None —</option>
-                                @foreach ($brands as $brand)
-                                    <option value="{{ $brand->id }}" @selected(old('brand_id') == $brand->id)>
-                                        {{ $brand->name }}
-                                    </option>
-                                @endforeach
+                                    class="form-select @error('brand_id') is-invalid @enderror"
+                                    @disabled(! old('category_id'))>
+                                <option value="">{{ old('category_id') ? '— Select brand —' : 'Select category first' }}</option>
                             </select>
                             @error('brand_id')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
+                            <div class="form-text">Brands are filtered by the selected category.</div>
                         </div>
 
                         <div class="col-12">
@@ -106,13 +103,23 @@
                         </div>
 
                         <div class="col-md-3">
-                            <label for="base_price" class="form-label">Base price <span class="text-danger">*</span></label>
+                            <label for="base_price" class="form-label">MRP <span class="text-danger">*</span></label>
                             <input type="number" name="base_price" id="base_price" step="0.01" min="0"
                                    class="form-control @error('base_price') is-invalid @enderror"
-                                   value="{{ old('base_price') }}" required>
+                                   value="{{ old('base_price') }}" placeholder="e.g. 29999" required>
                             @error('base_price')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
+                        </div>
+                        <div class="col-md-3">
+                            <label for="sale_price" class="form-label">Sale price</label>
+                            <input type="number" name="sale_price" id="sale_price" step="0.01" min="0"
+                                   class="form-control @error('sale_price') is-invalid @enderror"
+                                   value="{{ old('sale_price') }}" placeholder="e.g. 24999">
+                            @error('sale_price')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                            <div class="form-text">Leave blank if not on sale. Must be ≤ MRP.</div>
                         </div>
                         <div class="col-md-3">
                             <label for="status" class="form-label">Status <span class="text-danger">*</span></label>
@@ -210,7 +217,6 @@
                 <div class="card-body">
                     <div id="variantsEmptyHint" class="text-muted small mb-3">
                         Click <strong>Generate Variants</strong> to build SKUs from your selected attribute values.
-                        You can also add a single default variant with no attributes.
                     </div>
                     <div class="table-responsive">
                         <table class="table table-sm align-middle" id="variantsTable">
@@ -218,8 +224,8 @@
                                 <tr>
                                     <th>Attributes</th>
                                     <th style="min-width: 140px;">SKU</th>
-                                    <th style="min-width: 100px;">Price</th>
-                                    <th style="min-width: 100px;">Discount</th>
+                                    <th style="min-width: 100px;">MRP</th>
+                                    <th style="min-width: 100px;">Sale price</th>
                                     <th style="min-width: 90px;">Stock</th>
                                     <th style="min-width: 130px;">Image</th>
                                     <th></th>
@@ -228,9 +234,6 @@
                             <tbody id="variantsBody"></tbody>
                         </table>
                     </div>
-                    <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="btnAddDefaultVariant">
-                        <i class="bi bi-plus-lg me-1"></i>Add default variant
-                    </button>
                 </div>
             </div>
         </div>
@@ -247,8 +250,10 @@
                         <dd class="col-sm-9" data-review="category">—</dd>
                         <dt class="col-sm-3">Brand</dt>
                         <dd class="col-sm-9" data-review="brand">—</dd>
-                        <dt class="col-sm-3">Base price</dt>
+                        <dt class="col-sm-3">MRP</dt>
                         <dd class="col-sm-9" data-review="base_price">—</dd>
+                        <dt class="col-sm-3">Sale price</dt>
+                        <dd class="col-sm-9" data-review="sale_price">—</dd>
                         <dt class="col-sm-3">Status</dt>
                         <dd class="col-sm-9" data-review="status">—</dd>
                         <dt class="col-sm-3">Featured</dt>
@@ -269,8 +274,8 @@
                                 <tr>
                                     <th>Attributes</th>
                                     <th>SKU</th>
-                                    <th>Price</th>
-                                    <th>Discount</th>
+                                    <th>MRP</th>
+                                    <th>Sale price</th>
                                     <th>Stock</th>
                                 </tr>
                             </thead>
@@ -431,6 +436,7 @@
 @endpush
 
 @push('scripts')
+@include('admin.partials.brand-dependent-dropdown')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const TOTAL_STEPS = 4;
@@ -500,8 +506,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 return false;
             }
             if (basePrice === '' || Number(basePrice) < 0) {
-                toastr.error('Enter a valid base price');
+                toastr.error('Enter a valid MRP');
                 document.getElementById('base_price').focus();
+                return false;
+            }
+            const salePrice = document.getElementById('sale_price').value;
+            if (salePrice !== '' && Number(salePrice) > Number(basePrice)) {
+                toastr.error('Sale price cannot be greater than MRP');
+                document.getElementById('sale_price').focus();
                 return false;
             }
             if (!status) {
@@ -653,6 +665,7 @@ document.addEventListener('DOMContentLoaded', function () {
         variantsBody.innerHTML = '';
         variantIndex = 0;
         document.getElementById('variantsEmptyHint')?.classList.remove('d-none');
+        filterBrandsByCategory(this.value);
     });
 
     function setWarrantyEditorContent(html) {
@@ -745,7 +758,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const label = combo.length
             ? combo.map(function (v) { return v.attrName + ': ' + v.label; }).join(' / ')
             : 'Default';
-        const basePrice = document.getElementById('base_price').value || '0';
+        const mrp = document.getElementById('base_price').value || '0';
+        const salePrice = document.getElementById('sale_price')?.value || '';
         const sku = opts.sku || suggestSku(combo);
         const tr = document.createElement('tr');
         tr.setAttribute('data-variant-row', '');
@@ -762,8 +776,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 hiddenAttrs +
             '</td>' +
             '<td><input type="text" class="form-control form-control-sm v-sku" name="variants[' + i + '][sku]" value="' + escapeHtml(sku) + '"></td>' +
-            '<td><input type="number" step="0.01" min="0" class="form-control form-control-sm v-price" name="variants[' + i + '][price]" value="' + escapeHtml(String(opts.price != null ? opts.price : basePrice)) + '" required></td>' +
-            '<td><input type="number" step="0.01" min="0" class="form-control form-control-sm" name="variants[' + i + '][discount_price]" value="' + escapeHtml(String(opts.discount_price != null ? opts.discount_price : '')) + '"></td>' +
+            '<td><input type="number" step="0.01" min="0" class="form-control form-control-sm v-price" name="variants[' + i + '][price]" value="' + escapeHtml(String(opts.price != null ? opts.price : mrp)) + '" required></td>' +
+            '<td><input type="number" step="0.01" min="0" class="form-control form-control-sm" name="variants[' + i + '][discount_price]" value="' + escapeHtml(String(opts.discount_price != null ? opts.discount_price : salePrice)) + '"></td>' +
             '<td><input type="number" min="0" class="form-control form-control-sm" name="variants[' + i + '][stock_quantity]" value="' + escapeHtml(String(opts.stock_quantity != null ? opts.stock_quantity : 0)) + '"></td>' +
             '<td><input type="file" accept="image/*" class="form-control form-control-sm" name="variants[' + i + '][image]"></td>' +
             '<td><button type="button" class="btn btn-sm btn-outline-danger btn-remove-variant" title="Remove"><i class="bi bi-trash"></i></button></td>';
@@ -781,7 +795,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (!groups.length) {
             addVariantRow([]);
-            toastr.info('No attribute values selected — added a default variant');
+            toastr.info('No attribute values selected — added one variant');
             return;
         }
 
@@ -792,10 +806,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     document.getElementById('btnGenerateVariants').addEventListener('click', generateVariants);
-
-    document.getElementById('btnAddDefaultVariant').addEventListener('click', function () {
-        addVariantRow([]);
-    });
 
     variantsBody.addEventListener('click', function (e) {
         const btn = e.target.closest('.btn-remove-variant');
@@ -829,6 +839,8 @@ document.addEventListener('DOMContentLoaded', function () {
             brandSelect.value ? (brandSelect.options[brandSelect.selectedIndex]?.text || '—') : 'None';
         document.querySelector('[data-review="base_price"]').textContent =
             document.getElementById('base_price').value || '—';
+        document.querySelector('[data-review="sale_price"]').textContent =
+            document.getElementById('sale_price').value || '—';
         document.querySelector('[data-review="status"]').textContent =
             document.getElementById('status').value || '—';
         document.querySelector('[data-review="featured"]').textContent =
@@ -902,6 +914,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const initialCategory = document.getElementById('category_id').value;
     if (initialCategory) {
         loadCategoryAttributes(initialCategory);
+        filterBrandsByCategory(initialCategory, {
+            keepBrandId: @json(old('brand_id')),
+            forceKeep: true,
+        });
+    } else {
+        filterBrandsByCategory('');
     }
 
     showStep(1);

@@ -4,7 +4,7 @@
 
 @section('content')
     @include('admin.partials.page-header', [
-        'title' => 'Categories',
+        'title' => 'Category Management',
         'breadcrumbs' => ['Catalog' => null, 'Categories'],
         'actions' => auth()->user()?->can('categories.create')
             ? '<a href="'.route('admin.categories.create').'" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Add Category</a>'
@@ -35,7 +35,8 @@
                     <thead>
                         <tr>
                             <th style="width: 40px;"></th>
-                            <th>Name</th>
+                            <th style="width: 72px;">Image</th>
+                            <th>Category Name</th>
                             <th>Parent</th>
                             <th>Products</th>
                             <th>Sort</th>
@@ -76,7 +77,7 @@ document.addEventListener('DOMContentLoaded', function () {
         processing: true,
         serverSide: true,
         pageLength: 50,
-        order: [[4, 'asc']],
+        order: [[5, 'asc']],
         rowId: 'DT_RowId',
         ajax: {
             url: @json(route('admin.categories.datatable')),
@@ -86,6 +87,7 @@ document.addEventListener('DOMContentLoaded', function () {
         },
         columns: [
             { data: 'reorder', name: 'reorder', orderable: false, searchable: false, className: 'text-center' },
+            { data: 'image_html', name: 'image_html', orderable: false, searchable: false },
             { data: 'name', name: 'name' },
             { data: 'parent_name', name: 'parent_name', orderable: false },
             { data: 'products_count', name: 'products_count', searchable: false },
@@ -95,7 +97,7 @@ document.addEventListener('DOMContentLoaded', function () {
         ],
         language: {
             search: '',
-            searchPlaceholder: 'Search…',
+            searchPlaceholder: 'Search category name…',
             lengthMenu: '_MENU_ per page',
             emptyTable: 'No categories found',
         },

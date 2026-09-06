@@ -58,6 +58,55 @@ class Category extends Model
         return $this->hasMany(Product::class);
     }
 
+    public function brands(): BelongsToMany
+    {
+        return $this->belongsToMany(Brand::class, 'brand_category')
+            ->withTimestamps();
+    }
+
+    /**
+     * Selected category + ancestors + nested descendants.
+     * Used so "Android Phones" still matches brands mapped to "Mobile Phones".
+     *
+     * @return list<int>
+     */
+    public static function relatedIds(int $categoryId): array
+    {
+        $ids = static::treeIds($categoryId);
+        $parentId = static::query()->whereKey($categoryId)->value('parent_id');
+
+        while ($parentId) {
+            $ids[] = (int) $parentId;
+            $parentId = static::query()->whereKey($parentId)->value('parent_id');
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    /**
+     * This category id plus all nested descendants (breadth-first).
+     *
+     * @return list<int>
+     */
+    public static function treeIds(int $categoryId): array
+    {
+        $ids = [$categoryId];
+        $frontier = [$categoryId];
+
+        while ($frontier !== []) {
+            $children = static::query()
+                ->whereIn('parent_id', $frontier)
+                ->pluck('id')
+                ->all();
+            $frontier = $children;
+            foreach ($children as $childId) {
+                $ids[] = (int) $childId;
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
     protected function imageUrl(): CastAttribute
     {
         return CastAttribute::get(function (): ?string {

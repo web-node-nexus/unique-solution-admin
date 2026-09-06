@@ -22,10 +22,10 @@
 
                 <div class="row g-3">
                     <div class="col-md-6">
-                        <label for="name" class="form-label">Name <span class="text-danger">*</span></label>
+                        <label for="name" class="form-label">Category Name <span class="text-danger">*</span></label>
                         <input type="text" name="name" id="name"
                                class="form-control @error('name') is-invalid @enderror"
-                               value="{{ old('name', $category->name) }}" required>
+                               value="{{ old('name', $category->name) }}" placeholder="e.g. Smartphones & Mobiles" required>
                         @error('name')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
@@ -49,7 +49,7 @@
                     </div>
 
                     <div class="col-md-6">
-                        <label for="image" class="form-label">Category image</label>
+                        <label for="image" class="form-label">Category Image Upload</label>
                         <input type="file" name="image" id="image" accept="image/*"
                                class="form-control @error('image') is-invalid @enderror">
                         @error('image')
@@ -79,7 +79,7 @@
                     </div>
 
                     <div class="col-md-3">
-                        <label for="status" class="form-label">Status</label>
+                        <label for="status" class="form-label">Status <span class="text-danger">*</span></label>
                         <select name="status" id="status"
                                 class="form-select @error('status') is-invalid @enderror">
                             <option value="1" @selected(old('status', $category->status ? '1' : '0') == '1')>Active</option>

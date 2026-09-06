@@ -4,7 +4,7 @@
 
 @section('content')
     @include('admin.partials.page-header', [
-        'title' => 'Brands',
+        'title' => 'Brand Management',
         'breadcrumbs' => ['Catalog' => null, 'Brands'],
         'actions' => auth()->user()?->can('brands.create')
             ? '<a href="'.route('admin.brands.create').'" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Add Brand</a>'
@@ -18,7 +18,8 @@
                     <thead>
                         <tr>
                             <th style="width: 72px;">Logo</th>
-                            <th>Name</th>
+                            <th>Brand Name</th>
+                            <th>Categories</th>
                             <th>Products</th>
                             <th>Status</th>
                             <th style="width: 120px;">Actions</th>
@@ -43,13 +44,14 @@ document.addEventListener('DOMContentLoaded', function () {
         columns: [
             { data: 'logo_html', name: 'logo_html', orderable: false, searchable: false },
             { data: 'name', name: 'name' },
+            { data: 'category_name', name: 'category_name', orderable: false, searchable: false },
             { data: 'products_count', name: 'products_count', searchable: false },
             { data: 'status', name: 'status', orderable: false, searchable: false },
             { data: 'action', name: 'action', orderable: false, searchable: false },
         ],
         language: {
             search: '',
-            searchPlaceholder: 'Search…',
+            searchPlaceholder: 'Search brand name…',
             lengthMenu: '_MENU_ per page',
             emptyTable: 'No brands found',
         },

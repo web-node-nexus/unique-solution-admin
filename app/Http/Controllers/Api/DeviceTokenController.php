@@ -40,9 +40,11 @@ class DeviceTokenController extends Controller
 
     public function destroy(Request $request): JsonResponse
     {
-        $data = $request->validate([
-            'token' => ['required', 'string', 'max:512'],
-        ]);
+        $token = $request->input('token') ?? $request->query('token');
+        $data = validator(
+            ['token' => $token],
+            ['token' => ['required', 'string', 'max:512']]
+        )->validate();
 
         DeviceToken::query()->where('token', $data['token'])->delete();
 

@@ -74,8 +74,10 @@
                         <dt class="col-sm-3">Brand</dt>
                         <dd class="col-sm-9">{{ $product->brand?->name ?? '—' }}</dd>
 
-                        <dt class="col-sm-3">Base price</dt>
+                        <dt class="col-sm-3">MRP</dt>
                         <dd class="col-sm-9">{{ format_money($product->base_price) }}</dd>
+                        <dt class="col-sm-3">Sale price</dt>
+                        <dd class="col-sm-9">{{ $product->sale_price !== null ? format_money($product->sale_price) : '—' }}</dd>
 
                         <dt class="col-sm-3">Featured</dt>
                         <dd class="col-sm-9">{{ $product->is_featured ? 'Yes' : 'No' }}</dd>
@@ -129,8 +131,8 @@
                                 <th>Image</th>
                                 <th>SKU</th>
                                 <th>Attributes</th>
-                                <th>Price</th>
-                                <th>Discount</th>
+                                <th>MRP</th>
+                                <th>Sale price</th>
                                 <th>Stock</th>
                                 <th>Status</th>
                             </tr>

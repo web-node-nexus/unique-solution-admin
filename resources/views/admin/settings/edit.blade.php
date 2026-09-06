@@ -72,6 +72,22 @@
                         <input type="text" name="currency_symbol" id="currency_symbol" class="form-control"
                                value="{{ old('currency_symbol', $settings['currency_symbol'] ?? '₹') }}">
                     </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="delivery_eta_days">Delivery ETA (days)</label>
+                        <input type="number" min="1" max="60" name="delivery_eta_days" id="delivery_eta_days" class="form-control"
+                               value="{{ old('delivery_eta_days', $settings['delivery_eta_days'] ?? 5) }}">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="serviceable_pincodes">Serviceable pincodes</label>
+                        <textarea name="serviceable_pincodes" id="serviceable_pincodes" rows="2" class="form-control"
+                                  placeholder="Leave empty for all India, or comma-separated e.g. 493663, 492001">{{ old('serviceable_pincodes', $settings['serviceable_pincodes'] ?? '') }}</textarea>
+                        <div class="form-text">Empty = deliver everywhere. Prefixes also work (e.g. <code>493</code>).</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="whatsapp_number">WhatsApp number</label>
+                        <input type="text" name="whatsapp_number" id="whatsapp_number" class="form-control"
+                               value="{{ old('whatsapp_number', $settings['whatsapp_number'] ?? '') }}">
+                    </div>
                 </div>
             </div>
         </div>

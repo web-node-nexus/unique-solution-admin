@@ -20,29 +20,50 @@
 
                 <div class="row g-3">
                     <div class="col-md-6">
-                        <label for="name" class="form-label">Name <span class="text-danger">*</span></label>
+                        <label for="name" class="form-label">Brand Name <span class="text-danger">*</span></label>
                         <input type="text" name="name" id="name"
                                class="form-control @error('name') is-invalid @enderror"
-                               value="{{ old('name', $brand->name) }}" required>
+                               value="{{ old('name', $brand->name) }}" placeholder="e.g. Samsung" required>
                         @error('name')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
 
-                    <div class="col-md-3">
-                        <label for="status" class="form-label">Status</label>
-                        <select name="status" id="status"
-                                class="form-select @error('status') is-invalid @enderror">
-                            <option value="1" @selected(old('status', $brand->status ? '1' : '0') == '1')>Active</option>
-                            <option value="0" @selected(old('status', $brand->status ? '1' : '0') === '0')>Inactive</option>
-                        </select>
-                        @error('status')
-                            <div class="invalid-feedback">{{ $message }}</div>
+                    <div class="col-12">
+                        <label class="form-label">Categories <span class="text-danger">*</span></label>
+                        <div class="border rounded p-3 @error('category_ids') is-invalid border-danger @enderror" style="max-height: 240px; overflow: auto;">
+                            @php
+                                $oldCats = collect(old('category_ids', $brand->categories->pluck('id')->all() ?: array_filter([$brand->category_id])))
+                                    ->map(fn ($id) => (int) $id);
+                            @endphp
+                            @foreach ($categories as $category)
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="category_ids[]"
+                                           id="brand_cat_{{ $category->id }}" value="{{ $category->id }}"
+                                           @checked($oldCats->contains($category->id))>
+                                    <label class="form-check-label" for="brand_cat_{{ $category->id }}">
+                                        @if ($category->parent)
+                                            {{ $category->parent->name }} → {{ $category->name }}
+                                        @else
+                                            {{ $category->name }}
+                                        @endif
+                                    </label>
+                                </div>
+                            @endforeach
+                        </div>
+                        @error('category_ids')
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
                         @enderror
+                        @error('category_ids.*')
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
+                        @enderror
+                        <div class="form-text">
+                            Tick every category this brand sells in. Samsung can be Mobile + TV + Fridge; Lloyd should not be ticked for Mobile.
+                        </div>
                     </div>
 
                     <div class="col-md-6">
-                        <label for="logo" class="form-label">Logo</label>
+                        <label for="logo" class="form-label">Brand Logo Image</label>
                         <input type="file" name="logo" id="logo" accept="image/*"
                                class="form-control @error('logo') is-invalid @enderror">
                         @error('logo')
@@ -58,6 +79,18 @@
                                  class="rounded border {{ $logoUrl ? '' : 'd-none' }}"
                                  style="max-height: 96px; object-fit: contain;">
                         </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label for="status" class="form-label">Status <span class="text-danger">*</span></label>
+                        <select name="status" id="status"
+                                class="form-select @error('status') is-invalid @enderror">
+                            <option value="1" @selected(old('status', $brand->status ? '1' : '0') == '1')>Active</option>
+                            <option value="0" @selected(old('status', $brand->status ? '1' : '0') === '0')>Inactive</option>
+                        </select>
+                        @error('status')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
                     </div>
 
                     <div class="col-12">

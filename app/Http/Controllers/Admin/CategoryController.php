@@ -42,6 +42,13 @@ class CategoryController extends Controller
 
         return DataTables::of($query)
             ->addColumn('reorder', fn () => '<span class="reorder-handle text-muted" role="button" title="Drag to reorder"><i class="bi bi-grip-vertical"></i></span>')
+            ->addColumn('image_html', function (Category $category) {
+                if (! $category->image) {
+                    return '<span class="text-muted">—</span>';
+                }
+
+                return '<img src="'.e(asset('storage/'.$category->image)).'" alt="" class="rounded border" style="width:40px;height:40px;object-fit:cover;">';
+            })
             ->addColumn('parent_name', fn (Category $category) => $category->parent?->name ?? '—')
             ->addColumn('status', function (Category $category) {
                 $badge = $category->status ? 'success' : 'secondary';
@@ -71,7 +78,7 @@ class CategoryController extends Controller
             })
             ->setRowId(fn (Category $category) => 'category-'.$category->id)
             ->setRowAttr(['data-id' => fn (Category $category) => $category->id])
-            ->rawColumns(['reorder', 'action', 'status'])
+            ->rawColumns(['reorder', 'image_html', 'action', 'status'])
             ->make(true);
     }
 

@@ -67,17 +67,12 @@
                                 <label for="brand_id" class="form-label">Brand</label>
                                 <select name="brand_id" id="brand_id"
                                         class="form-select @error('brand_id') is-invalid @enderror">
-                                    <option value="">— None —</option>
-                                    @foreach ($brands as $brand)
-                                        <option value="{{ $brand->id }}"
-                                            @selected(old('brand_id', $product->brand_id) == $brand->id)>
-                                            {{ $brand->name }}
-                                        </option>
-                                    @endforeach
+                                    <option value="">— Select brand —</option>
                                 </select>
                                 @error('brand_id')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
+                                <div class="form-text">Brands are filtered by the selected category.</div>
                             </div>
 
                             <div class="col-12">
@@ -96,13 +91,23 @@
                             </div>
 
                             <div class="col-md-3">
-                                <label for="base_price" class="form-label">Base price <span class="text-danger">*</span></label>
+                                <label for="base_price" class="form-label">MRP <span class="text-danger">*</span></label>
                                 <input type="number" name="base_price" id="base_price" step="0.01" min="0"
                                        class="form-control @error('base_price') is-invalid @enderror"
-                                       value="{{ old('base_price', $product->base_price) }}" required>
+                                       value="{{ old('base_price', $product->base_price) }}" placeholder="e.g. 29999" required>
                                 @error('base_price')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
+                            </div>
+                            <div class="col-md-3">
+                                <label for="sale_price" class="form-label">Sale price</label>
+                                <input type="number" name="sale_price" id="sale_price" step="0.01" min="0"
+                                       class="form-control @error('sale_price') is-invalid @enderror"
+                                       value="{{ old('sale_price', $product->sale_price) }}" placeholder="e.g. 24999">
+                                @error('sale_price')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                                <div class="form-text">Leave blank if not on sale. Must be ≤ MRP.</div>
                             </div>
                             <div class="col-md-3">
                                 <label for="status" class="form-label">Status</label>
@@ -175,8 +180,8 @@
                                     <tr>
                                         <th>Attributes</th>
                                         <th style="min-width: 130px;">SKU</th>
-                                        <th style="min-width: 100px;">Price</th>
-                                        <th style="min-width: 100px;">Discount</th>
+                                        <th style="min-width: 100px;">MRP</th>
+                                        <th style="min-width: 100px;">Sale price</th>
                                         <th style="min-width: 80px;">Stock</th>
                                         <th style="min-width: 80px;">Low</th>
                                         <th>Status</th>
@@ -278,11 +283,13 @@
 @endsection
 
 @push('scripts')
+@include('admin.partials.brand-dependent-dropdown')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     let nextIndex = {{ $product->variants->count() }};
     const body = document.getElementById('editVariantsBody');
     const basePrice = @json((string) $product->base_price);
+    const salePrice = @json((string) ($product->sale_price ?? ''));
 
     document.getElementById('btnAddVariant')?.addEventListener('click', function () {
         const i = nextIndex++;
@@ -292,7 +299,7 @@ document.addEventListener('DOMContentLoaded', function () {
             '<td><div class="small fw-medium">New variant</div></td>' +
             '<td><input type="text" class="form-control form-control-sm" name="variants[' + i + '][sku]" value=""></td>' +
             '<td><input type="number" step="0.01" min="0" class="form-control form-control-sm" name="variants[' + i + '][price]" value="' + basePrice + '"></td>' +
-            '<td><input type="number" step="0.01" min="0" class="form-control form-control-sm" name="variants[' + i + '][discount_price]" value=""></td>' +
+            '<td><input type="number" step="0.01" min="0" class="form-control form-control-sm" name="variants[' + i + '][discount_price]" value="' + salePrice + '"></td>' +
             '<td><input type="number" min="0" class="form-control form-control-sm" name="variants[' + i + '][stock_quantity]" value="0"></td>' +
             '<td><input type="number" min="0" class="form-control form-control-sm" name="variants[' + i + '][low_stock_threshold]" value="5"></td>' +
             '<td><select name="variants[' + i + '][status]" class="form-select form-select-sm"><option value="1" selected>On</option><option value="0">Off</option></select></td>' +
@@ -340,6 +347,14 @@ document.addEventListener('DOMContentLoaded', function () {
         } else if (window.confirm('Remove this variant?')) {
             remove();
         }
+    });
+
+    document.getElementById('category_id')?.addEventListener('change', function () {
+        filterBrandsByCategory(this.value);
+    });
+    filterBrandsByCategory(document.getElementById('category_id')?.value || '', {
+        keepBrandId: @json(old('brand_id', $product->brand_id)),
+        forceKeep: true,
     });
 
     document.getElementById('brand_id')?.addEventListener('change', function () {
