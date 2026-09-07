@@ -925,5 +925,4 @@ document.addEventListener('DOMContentLoaded', function () {
     showStep(1);
 });
 </script>
-@include('admin.partials.rich-editor')
 @endpush

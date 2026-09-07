@@ -1,0 +1,72 @@
+{
+  "expo": {
+    "name": "Unique Solution",
+    "slug": "unique-solution-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/us-app-icon.png",
+    "scheme": "uniquesolution",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/us-splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F8F8A"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.uniquesolution.app",
+      "icon": "./assets/us-app-icon.png"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0F8F8A",
+        "foregroundImage": "./assets/us-adaptive-fg.png",
+        "backgroundImage": "./assets/us-adaptive-bg.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "package": "com.uniquesolution.app",
+      "icon": "./assets/us-app-icon.png",
+      "versionCode": 1,
+      "usesCleartextTraffic": true,
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/us-favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-system-ui",
+      "./plugins/withCleartextTraffic",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/us-splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#0F8F8A"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/us-app-icon.png",
+          "color": "#0F8F8A"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiUrl": "http://94.103.163.218/unique-solution/api/v1",
+      "sentryDsn": ""
+    }
+  }
+}

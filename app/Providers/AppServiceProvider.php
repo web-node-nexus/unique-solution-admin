@@ -42,7 +42,10 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $appUrl = (string) config('app.url');
-        if ($appUrl !== '') {
+        $appPath = parse_url($appUrl, PHP_URL_PATH) ?: '';
+        // Only pin generated URLs when APP_URL includes a subdirectory (live /unique-solution).
+        // Local artisan serve must follow the current host/port, otherwise CSS/JS 404.
+        if ($appUrl !== '' && $appPath !== '' && $appPath !== '/') {
             \Illuminate\Support\Facades\URL::forceRootUrl(rtrim($appUrl, '/'));
             $scheme = parse_url($appUrl, PHP_URL_SCHEME);
             if (is_string($scheme) && $scheme !== '') {

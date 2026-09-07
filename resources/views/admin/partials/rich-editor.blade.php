@@ -21,6 +21,9 @@ window.initUniqueSolutionEditor = function (selector, options) {
         min_height: options.minHeight || 280,
         max_height: 900,
         menubar: 'file edit view insert format tools table',
+        menu: {
+            edit: { title: 'Edit', items: 'undo redo | cut copy custompaste custompastetext | selectall' },
+        },
         branding: false,
         promotion: false,
         resize: true,
@@ -30,6 +33,7 @@ window.initUniqueSolutionEditor = function (selector, options) {
         paste_data_images: true,
         paste_as_text: false,
         smart_paste: true,
+        contextmenu: 'cut copy custompaste custompastetext | link image inserttable',
         browser_spellcheck: true,
         entity_encoding: 'raw',
         verify_html: false,
@@ -46,7 +50,7 @@ window.initUniqueSolutionEditor = function (selector, options) {
             'directionality', 'pagebreak'
         ].join(' '),
         toolbar: [
-            'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | forecolor backcolor',
+            'undo redo | cut copy custompaste custompastetext | blocks fontfamily fontsize | bold italic underline strikethrough | forecolor backcolor',
             'alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | blockquote hr',
             'table tabledelete | link image media | searchreplace | removeformat code fullscreen preview'
         ].join(' | '),
@@ -73,6 +77,90 @@ window.initUniqueSolutionEditor = function (selector, options) {
             ul, ol { padding-left: 1.4rem; }
         `,
         setup: function (editor) {
+            const insertPlain = function (text) {
+                const html = editor.dom.encode(text || '').replace(/\r\n|\r|\n/g, '<br>');
+                editor.insertContent(html);
+            };
+
+            const pasteFromClipboard = async function (asPlainText) {
+                try {
+                    if (navigator.clipboard && navigator.clipboard.read) {
+                        const items = await navigator.clipboard.read();
+                        for (const item of items) {
+                            if (!asPlainText && item.types.includes('text/html')) {
+                                const html = await (await item.getType('text/html')).text();
+                                editor.insertContent(html);
+                                return true;
+                            }
+                            if (item.types.includes('text/plain')) {
+                                insertPlain(await (await item.getType('text/plain')).text());
+                                return true;
+                            }
+                        }
+                    }
+                    if (navigator.clipboard && navigator.clipboard.readText) {
+                        insertPlain(await navigator.clipboard.readText());
+                        return true;
+                    }
+                } catch (e) {
+                    return false;
+                }
+                return false;
+            };
+
+            const openPasteFallback = function (asPlainText) {
+                editor.windowManager.open({
+                    title: asPlainText ? 'Paste as text' : 'Paste',
+                    body: {
+                        type: 'panel',
+                        items: [{
+                            type: 'textarea',
+                            name: 'content',
+                            label: 'Paste here with Ctrl+V / Cmd+V, then click Insert',
+                        }],
+                    },
+                    size: 'medium',
+                    buttons: [
+                        { type: 'cancel', text: 'Cancel' },
+                        { type: 'submit', text: 'Insert', primary: true },
+                    ],
+                    onSubmit: function (api) {
+                        insertPlain(api.getData().content || '');
+                        api.close();
+                    },
+                });
+            };
+
+            const doPaste = async function (asPlainText) {
+                editor.focus();
+                const ok = await pasteFromClipboard(asPlainText);
+                if (!ok) {
+                    openPasteFallback(asPlainText);
+                }
+            };
+
+            editor.ui.registry.addButton('custompaste', {
+                icon: 'paste',
+                tooltip: 'Paste (Ctrl+V / Cmd+V)',
+                onAction: function () { doPaste(false); },
+            });
+            editor.ui.registry.addButton('custompastetext', {
+                icon: 'paste-text',
+                tooltip: 'Paste as plain text',
+                onAction: function () { doPaste(true); },
+            });
+            editor.ui.registry.addMenuItem('custompaste', {
+                text: 'Paste from clipboard',
+                icon: 'paste',
+                shortcut: 'Meta+V',
+                onAction: function () { doPaste(false); },
+            });
+            editor.ui.registry.addMenuItem('custompastetext', {
+                text: 'Paste as text',
+                icon: 'paste-text',
+                onAction: function () { doPaste(true); },
+            });
+
             editor.on('change keyup SetContent', function () {
                 editor.save();
                 const el = document.querySelector(sel);
@@ -85,6 +173,10 @@ window.initUniqueSolutionEditor = function (selector, options) {
 };
 
 document.addEventListener('DOMContentLoaded', function () {
+    if (window.__usRichEditorBound) {
+        return;
+    }
+    window.__usRichEditorBound = true;
     document.querySelectorAll('[data-rich-editor]').forEach(function (el) {
         if (!el.id) return;
         const height = parseInt(el.getAttribute('data-editor-height') || '0', 10) || undefined;

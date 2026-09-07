@@ -139,5 +139,4 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 </script>
-@include('admin.partials.rich-editor')
 @endpush

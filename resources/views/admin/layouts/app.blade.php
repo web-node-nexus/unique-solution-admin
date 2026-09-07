@@ -55,6 +55,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
     {{-- TinyMCE --}}
     <script src="https://cdn.jsdelivr.net/npm/tinymce@7.6.0/tinymce.min.js"></script>
+    @include('admin.partials.rich-editor')
     {{-- Multi image uploader --}}
     <script src="{{ asset('assets/admin/js/multi-image-uploader.js') }}"></script>
     {{-- Admin --}}
