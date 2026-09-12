@@ -33,6 +33,7 @@ class ProductService
                 'base_price' => $data['base_price'],
                 'sale_price' => $data['sale_price'] ?? null,
                 'warranty_info' => $data['warranty_info'] ?? null,
+                'use_brand_policies' => (bool) ($data['use_brand_policies'] ?? false),
                 'status' => $data['status'] ?? 'active',
                 'is_featured' => (bool) ($data['is_featured'] ?? false),
                 'meta_title' => $data['meta_title'] ?? null,
@@ -66,6 +67,9 @@ class ProductService
                 'base_price' => $data['base_price'] ?? $product->base_price,
                 'sale_price' => array_key_exists('sale_price', $data) ? $data['sale_price'] : $product->sale_price,
                 'warranty_info' => array_key_exists('warranty_info', $data) ? $data['warranty_info'] : $product->warranty_info,
+                'use_brand_policies' => array_key_exists('use_brand_policies', $data)
+                    ? (bool) $data['use_brand_policies']
+                    : $product->use_brand_policies,
                 'status' => $data['status'] ?? $product->status,
                 'is_featured' => array_key_exists('is_featured', $data)
                     ? (bool) $data['is_featured']

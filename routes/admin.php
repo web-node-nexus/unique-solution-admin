@@ -207,7 +207,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('orders', [OrderController::class, 'index'])
             ->middleware('permission:orders.view')->name('orders.index');
         Route::get('orders/status/{status}', [OrderController::class, 'byStatus'])
-            ->whereIn('status', ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'])
+            ->whereIn('status', ['pending', 'confirmed', 'assigned', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'])
             ->middleware('permission:orders.view')->name('orders.status');
         Route::get('orders/{order}/invoice', [OrderController::class, 'invoice'])
             ->middleware('permission:orders.view')->name('orders.invoice');

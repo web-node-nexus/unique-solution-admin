@@ -31,7 +31,6 @@ class CategoryController extends Controller
         $this->authorize('viewAny', Category::class);
 
         $query = Category::query()
-            ->with('parent:id,name')
             ->withCount('products')
             ->orderBy('sort_order')
             ->orderBy('name');
@@ -49,7 +48,6 @@ class CategoryController extends Controller
 
                 return '<img src="'.e(asset('storage/'.$category->image)).'" alt="" class="rounded border" style="width:40px;height:40px;object-fit:cover;">';
             })
-            ->addColumn('parent_name', fn (Category $category) => $category->parent?->name ?? '—')
             ->addColumn('status', function (Category $category) {
                 $badge = $category->status ? 'success' : 'secondary';
                 $label = $category->status ? 'Active' : 'Inactive';
@@ -87,7 +85,6 @@ class CategoryController extends Controller
         $this->authorize('create', Category::class);
 
         return view('admin.categories.create', [
-            'parents' => Category::query()->orderBy('name')->get(['id', 'name']),
             'attributes' => Attribute::query()->where('status', true)->orderBy('name')->get(),
         ]);
     }
@@ -108,6 +105,7 @@ class CategoryController extends Controller
         }
 
         $data['sale_active'] = (bool) ($data['sale_active'] ?? false);
+        $data['parent_id'] = null;
 
         $attributeIds = $data['attribute_ids'] ?? [];
         unset($data['attribute_ids']);
@@ -126,7 +124,7 @@ class CategoryController extends Controller
     {
         $this->authorize('view', $category);
 
-        $category->load(['parent', 'children', 'attributes.values']);
+        $category->load(['attributes.values']);
 
         return view('admin.categories.show', compact('category'));
     }
@@ -139,10 +137,6 @@ class CategoryController extends Controller
 
         return view('admin.categories.edit', [
             'category' => $category,
-            'parents' => Category::query()
-                ->where('id', '!=', $category->id)
-                ->orderBy('name')
-                ->get(['id', 'name']),
             'attributes' => Attribute::query()->where('status', true)->orderBy('name')->get(),
         ]);
     }
@@ -170,7 +164,7 @@ class CategoryController extends Controller
         $data['sale_active'] = (bool) ($data['sale_active'] ?? false);
 
         $attributeIds = $data['attribute_ids'] ?? [];
-        unset($data['attribute_ids'], $data['remove_sale_banner']);
+        unset($data['attribute_ids'], $data['remove_sale_banner'], $data['parent_id']);
 
         $category->update($data);
         $category->attributes()->sync($attributeIds);

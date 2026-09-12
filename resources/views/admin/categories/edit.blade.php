@@ -32,23 +32,6 @@
                     </div>
 
                     <div class="col-md-6">
-                        <label for="parent_id" class="form-label">Parent category</label>
-                        <select name="parent_id" id="parent_id"
-                                class="form-select @error('parent_id') is-invalid @enderror">
-                            <option value="">— None —</option>
-                            @foreach ($parents as $parent)
-                                <option value="{{ $parent->id }}"
-                                    @selected(old('parent_id', $category->parent_id) == $parent->id)>
-                                    {{ $parent->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('parent_id')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-
-                    <div class="col-md-6">
                         <label for="image" class="form-label">Category Image Upload</label>
                         <input type="file" name="image" id="image" accept="image/*"
                                class="form-control @error('image') is-invalid @enderror">

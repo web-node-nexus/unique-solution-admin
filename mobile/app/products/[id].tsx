@@ -30,6 +30,8 @@ import { catalogApi } from '@/api/catalog';
 import { ScreenAtmosphere } from '@/components/layout/ScreenAtmosphere';
 import { ProductCard } from '@/components/product/ProductCard';
 import { ProductImageGallery } from '@/components/product/ProductImageGallery';
+import { HtmlContent } from '@/components/product/HtmlContent';
+import { ProductPolicyGrid } from '@/components/product/ProductPolicyGrid';
 import { AppRefreshControl } from '@/components/ui/AppRefreshControl';
 import { AppButton, AppText, Chip, IconButton, PressableScale } from '@/components/ui/primitives';
 import { useAuthStore } from '@/store/auth';
@@ -470,11 +472,11 @@ export default function ProductDetailScreen() {
           {data.description ? (
             <View style={{ marginTop: spacing.xl }}>
               <AppText variant="label">About</AppText>
-              <AppText variant="body" style={{ marginTop: 8, color: colors.inkMuted }}>
-                {data.description.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()}
-              </AppText>
+              <HtmlContent html={data.description} />
             </View>
           ) : null}
+
+          <ProductPolicyGrid policies={data.policies ?? []} />
 
           {specs.length ? (
             <View style={styles.section}>
@@ -497,9 +499,13 @@ export default function ProductDetailScreen() {
               <ShieldCheck size={18} color={colors.jade} strokeWidth={2} />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <AppText variant="label">Warranty</AppText>
-                <AppText variant="body" style={{ marginTop: 4, color: colors.inkMuted }}>
-                  {productWarranty.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()}
-                </AppText>
+                {/<[a-z][\s\S]*>/i.test(productWarranty) ? (
+                  <HtmlContent html={productWarranty} framed={false} />
+                ) : (
+                  <AppText variant="body" style={{ marginTop: 4, color: colors.inkMuted }}>
+                    {productWarranty}
+                  </AppText>
+                )}
               </View>
             </View>
           ) : null}
@@ -511,9 +517,13 @@ export default function ProductDetailScreen() {
                 <AppText variant="label">
                   {data.brand?.name ? `${data.brand.name} warranty` : 'Brand warranty'}
                 </AppText>
-                <AppText variant="body" style={{ marginTop: 4, color: colors.inkMuted }}>
-                  {brandWarranty.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()}
-                </AppText>
+                {/<[a-z][\s\S]*>/i.test(brandWarranty) ? (
+                  <HtmlContent html={brandWarranty} framed={false} />
+                ) : (
+                  <AppText variant="body" style={{ marginTop: 4, color: colors.inkMuted }}>
+                    {brandWarranty}
+                  </AppText>
+                )}
               </View>
             </View>
           ) : null}

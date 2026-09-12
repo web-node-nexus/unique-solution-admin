@@ -77,6 +77,10 @@ class Banner extends Model
             $label = Category::query()->whereKey($this->link_value)->value('name');
         }
 
+        if ($this->link_type === 'brand' && $this->link_value) {
+            $label = Brand::query()->whereKey($this->link_value)->value('name');
+        }
+
         if ($this->link_type === 'product' && $this->link_value) {
             $label = Product::query()->whereKey($this->link_value)->value('name');
         }

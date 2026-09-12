@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\UpdateBrandRequest;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Services\ImageService;
+use App\Services\PolicyService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,7 +17,10 @@ use Yajra\DataTables\Facades\DataTables;
 
 class BrandController extends Controller
 {
-    public function __construct(protected ImageService $imageService) {}
+    public function __construct(
+        protected ImageService $imageService,
+        protected PolicyService $policyService
+    ) {}
 
     public function index(): View
     {
@@ -93,7 +97,7 @@ class BrandController extends Controller
     {
         $data = $request->validated();
         $categoryIds = $data['category_ids'] ?? [];
-        unset($data['category_ids']);
+        unset($data['category_ids'], $data['policies']);
         $data['status'] = $data['status'] ?? true;
         $data['category_id'] = $categoryIds[0] ?? null;
 
@@ -103,6 +107,7 @@ class BrandController extends Controller
 
         $brand = Brand::query()->create($data);
         $brand->syncCategories($categoryIds);
+        $this->syncPoliciesFromRequest($request, $brand);
 
         activity_log('created', 'brands', "Created brand #{$brand->id}: {$brand->name}");
 
@@ -116,7 +121,7 @@ class BrandController extends Controller
         $this->authorize('update', $brand);
 
         return view('admin.brands.edit', [
-            'brand' => $brand->load('categories:id'),
+            'brand' => $brand->load(['categories:id', 'policies']),
             'categories' => Category::query()
                 ->where('status', true)
                 ->with('parent:id,name')
@@ -130,7 +135,7 @@ class BrandController extends Controller
     {
         $data = $request->validated();
         $categoryIds = $data['category_ids'] ?? [];
-        unset($data['category_ids']);
+        unset($data['category_ids'], $data['policies']);
         $data['category_id'] = $categoryIds[0] ?? null;
 
         if ($request->hasFile('logo')) {
@@ -140,6 +145,7 @@ class BrandController extends Controller
 
         $brand->update($data);
         $brand->syncCategories($categoryIds);
+        $this->syncPoliciesFromRequest($request, $brand);
 
         activity_log('updated', 'brands', "Updated brand #{$brand->id}: {$brand->name}");
 
@@ -153,6 +159,10 @@ class BrandController extends Controller
         $this->authorize('delete', $brand);
 
         $name = $brand->name;
+        $brand->load('policies');
+        foreach ($brand->policies as $policy) {
+            $this->imageService->delete($policy->icon);
+        }
         $this->imageService->delete($brand->logo);
         $brand->delete();
 
@@ -171,6 +181,37 @@ class BrandController extends Controller
             'id' => $brand->id,
             'name' => $brand->name,
             'warranty' => $brand->warranty ?? '',
+            'policies' => $brand->policies()
+                ->get()
+                ->map(fn ($policy) => $policy->toApiArray())
+                ->values(),
         ]);
+    }
+
+    protected function syncPoliciesFromRequest(Request $request, Brand $brand): void
+    {
+        $rows = $request->input('policies', []);
+        if (! is_array($rows)) {
+            $rows = [];
+        }
+
+        $icons = [];
+        foreach (array_keys($rows) as $index) {
+            $file = $request->file("policies.{$index}.icon");
+            if ($file) {
+                $icons[(int) $index] = $file;
+            }
+        }
+
+        // Re-index to match row order after array_values in service
+        $orderedRows = array_values($rows);
+        $orderedIcons = [];
+        foreach (array_keys($rows) as $i => $originalIndex) {
+            if (isset($icons[(int) $originalIndex])) {
+                $orderedIcons[$i] = $icons[(int) $originalIndex];
+            }
+        }
+
+        $this->policyService->syncBrandPolicies($brand, $orderedRows, $orderedIcons);
     }
 }

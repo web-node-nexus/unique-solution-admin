@@ -11,6 +11,7 @@ use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
 use App\Services\ProductService;
+use App\Services\PolicyService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,7 +23,10 @@ use Yajra\DataTables\Facades\DataTables;
 
 class ProductController extends Controller
 {
-    public function __construct(protected ProductService $productService) {}
+    public function __construct(
+        protected ProductService $productService,
+        protected PolicyService $policyService
+    ) {}
 
     public function index(): View
     {
@@ -120,7 +124,10 @@ class ProductController extends Controller
 
     public function store(StoreProductRequest $request): RedirectResponse
     {
-        $product = $this->productService->create($request->validated(), $request->user());
+        $data = $request->validated();
+        unset($data['policies']);
+        $product = $this->productService->create($data, $request->user());
+        $this->syncPoliciesFromRequest($request, $product);
 
         return redirect()
             ->route('admin.products.show', $product)
@@ -147,7 +154,7 @@ class ProductController extends Controller
     {
         $this->authorize('update', $product);
 
-        $product->load(['images', 'variants.attributeValues', 'variants.images']);
+        $product->load(['images', 'variants.attributeValues', 'variants.images', 'policies']);
 
         return view('admin.products.edit', array_merge($this->productFormCatalog(), [
             'product' => $product,
@@ -156,7 +163,10 @@ class ProductController extends Controller
 
     public function update(UpdateProductRequest $request, Product $product): RedirectResponse
     {
-        $product = $this->productService->update($product, $request->validated());
+        $data = $request->validated();
+        unset($data['policies']);
+        $product = $this->productService->update($product, $data);
+        $this->syncPoliciesFromRequest($request, $product);
 
         return redirect()
             ->route('admin.products.show', $product)
@@ -348,5 +358,31 @@ class ProductController extends Controller
             'brands' => $brands,
             'categoryBrandMap' => $categoryBrandMap,
         ];
+    }
+
+    protected function syncPoliciesFromRequest(Request $request, Product $product): void
+    {
+        $rows = $request->input('policies', []);
+        if (! is_array($rows)) {
+            $rows = [];
+        }
+
+        $icons = [];
+        foreach (array_keys($rows) as $index) {
+            $file = $request->file("policies.{$index}.icon");
+            if ($file) {
+                $icons[(int) $index] = $file;
+            }
+        }
+
+        $orderedRows = array_values($rows);
+        $orderedIcons = [];
+        foreach (array_keys($rows) as $i => $originalIndex) {
+            if (isset($icons[(int) $originalIndex])) {
+                $orderedIcons[$i] = $icons[(int) $originalIndex];
+            }
+        }
+
+        $this->policyService->syncProductPolicies($product, $orderedRows, $orderedIcons);
     }
 }

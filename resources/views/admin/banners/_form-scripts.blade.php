@@ -5,13 +5,13 @@
     const wraps = {
         none: document.getElementById('linkNoneHint'),
         category: document.getElementById('linkCategoryWrap'),
+        brand: document.getElementById('linkBrandWrap'),
         product: document.getElementById('linkProductWrap'),
-        url: document.getElementById('linkUrlWrap'),
     };
     const fields = {
         category: document.getElementById('link_category'),
+        brand: document.getElementById('link_brand'),
         product: document.getElementById('link_product'),
-        url: document.getElementById('link_url'),
     };
 
     function sync() {
@@ -21,19 +21,13 @@
         });
         if (type === 'none') {
             hidden.value = '';
-        } else if (type === 'category') {
-            hidden.value = fields.category?.value || '';
-        } else if (type === 'product') {
-            hidden.value = fields.product?.value || '';
-        } else if (type === 'url') {
-            hidden.value = fields.url?.value || '';
+        } else if (fields[type]) {
+            hidden.value = fields[type].value || '';
         }
     }
 
     typeSelect?.addEventListener('change', sync);
-    fields.category?.addEventListener('change', sync);
-    fields.product?.addEventListener('change', sync);
-    fields.url?.addEventListener('input', sync);
+    Object.values(fields).forEach((el) => el?.addEventListener('change', sync));
     sync();
 
     document.getElementById('image')?.addEventListener('change', function (e) {

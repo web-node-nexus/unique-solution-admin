@@ -86,20 +86,15 @@
                         </div>
 
                         <div class="col-12">
-                            <label for="description" class="form-label">
-                                Full description / specifications
-                            </label>
-                            <textarea name="description" id="description" rows="18"
-                                      class="form-control @error('description') is-invalid @enderror"
-                                      data-rich-editor="1">{{ old('description') }}</textarea>
-                            @error('description')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
-                            @enderror
-                            <div class="form-text">
-                                Use the editor for headings, bullet lists, and specification tables
-                                (RAM, storage, dimensions, warranty, etc.). Very long content is supported
-                                (tens of thousands of words — stored as LONGTEXT).
-                            </div>
+                            @include('admin.partials.html-composer', [
+                                'id' => 'description',
+                                'name' => 'description',
+                                'value' => old('description'),
+                                'label' => 'Full description / specifications',
+                                'invalid' => $errors->has('description'),
+                                'error' => $errors->first('description'),
+                                'hint' => 'Paste HTML directly (tables, lists, headings, inline styles). The same HTML is stored in the database and rendered in the app.',
+                            ])
                         </div>
 
                         <div class="col-md-3">
@@ -154,6 +149,30 @@
                             <div class="form-text">
                                 Choosing a brand auto-fills this from the brand warranty. You can edit, add, or remove text — saving updates this product only, not the brand.
                             </div>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="border rounded-3 p-3 bg-light-subtle mb-3">
+                                <div class="form-check form-switch mb-0">
+                                    <input type="hidden" name="use_brand_policies" value="0">
+                                    <input class="form-check-input" type="checkbox" role="switch"
+                                           name="use_brand_policies" id="use_brand_policies" value="1"
+                                           @checked(old('use_brand_policies'))>
+                                    <label class="form-check-label fw-semibold" for="use_brand_policies">
+                                        Use brand policies
+                                    </label>
+                                </div>
+                                <div class="form-text mb-0">
+                                    When checked, this product also shows all policies from the selected brand in the app.
+                                </div>
+                            </div>
+                            @include('admin.partials.policy-manager', [
+                                'owner' => 'product',
+                                'field' => 'policies',
+                                'policies' => collect(),
+                                'heading' => 'Product policies',
+                                'hint' => 'Add product-only policy cards (shown with brand policies when “Use brand policies” is on).',
+                            ])
                         </div>
 
                         <div class="col-md-6">
@@ -925,4 +944,5 @@ document.addEventListener('DOMContentLoaded', function () {
     showStep(1);
 });
 </script>
+@include('admin.partials.policy-manager-scripts')
 @endpush

@@ -76,18 +76,15 @@
                             </div>
 
                             <div class="col-12">
-                                <label for="description" class="form-label">
-                                    Full description / specifications
-                                </label>
-                                <textarea name="description" id="description" rows="18"
-                                          class="form-control @error('description') is-invalid @enderror"
-                                          data-rich-editor="1">{{ old('description', $product->description) }}</textarea>
-                                @error('description')
-                                    <div class="invalid-feedback d-block">{{ $message }}</div>
-                                @enderror
-                                <div class="form-text">
-                                    Headings, lists, and specification tables supported. Very long content OK (LONGTEXT).
-                                </div>
+                                @include('admin.partials.html-composer', [
+                                    'id' => 'description',
+                                    'name' => 'description',
+                                    'value' => old('description', $product->description),
+                                    'label' => 'Full description / specifications',
+                                    'invalid' => $errors->has('description'),
+                                    'error' => $errors->first('description'),
+                                    'hint' => 'Paste HTML directly (tables, lists, headings, inline styles). The same HTML is stored in the database and rendered in the app.',
+                                ])
                             </div>
 
                             <div class="col-md-3">
@@ -140,6 +137,30 @@
                                 <div class="form-text">
                                     Auto-fills from the selected brand. Edit here to change this product only — the brand warranty stays unchanged.
                                 </div>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="border rounded-3 p-3 bg-light-subtle mb-3">
+                                    <div class="form-check form-switch mb-0">
+                                        <input type="hidden" name="use_brand_policies" value="0">
+                                        <input class="form-check-input" type="checkbox" role="switch"
+                                               name="use_brand_policies" id="use_brand_policies" value="1"
+                                               @checked(old('use_brand_policies', $product->use_brand_policies))>
+                                        <label class="form-check-label fw-semibold" for="use_brand_policies">
+                                            Use brand policies
+                                        </label>
+                                    </div>
+                                    <div class="form-text mb-0">
+                                        When checked, this product also shows all policies from the selected brand in the app.
+                                    </div>
+                                </div>
+                                @include('admin.partials.policy-manager', [
+                                    'owner' => 'product',
+                                    'field' => 'policies',
+                                    'policies' => $product->policies,
+                                    'heading' => 'Product policies',
+                                    'hint' => 'Add product-only policy cards (shown with brand policies when “Use brand policies” is on).',
+                                ])
                             </div>
 
                             <div class="col-md-6">
@@ -388,4 +409,5 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 </script>
+@include('admin.partials.policy-manager-scripts')
 @endpush

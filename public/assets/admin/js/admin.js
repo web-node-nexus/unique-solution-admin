@@ -11,6 +11,7 @@
             this.initNestedMenus();
             this.initConfirmDeletes();
             this.initTooltips();
+            this.initHtmlComposers();
             this.setupToastr();
         },
 
@@ -196,6 +197,100 @@
             document
                 .querySelectorAll('[data-bs-toggle="tooltip"]')
                 .forEach((el) => new bootstrap.Tooltip(el));
+        },
+
+        initHtmlComposers() {
+            const previewCss = `
+                html, body { margin: 0; padding: 0; background: #ffffff; }
+                body {
+                    font-family: -apple-system, BlinkMacSystemFont, 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
+                    font-size: 15px;
+                    line-height: 1.65;
+                    color: #0f172a;
+                    padding: 12px 14px 20px;
+                    word-wrap: break-word;
+                }
+                img, video, iframe { max-width: 100%; height: auto; }
+                table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; }
+                th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+                th { background: #f1f5f9; font-weight: 600; }
+                h1, h2, h3, h4 { color: #0f172a; margin: 1em 0 0.4em; line-height: 1.3; }
+                h1 { font-size: 1.35rem; }
+                h2 { font-size: 1.15rem; }
+                p { margin: 0.55em 0; }
+                ul, ol { padding-left: 1.25rem; margin: 0.55em 0; }
+                a { color: #0d9488; }
+            `;
+
+            const wrapHtml = (raw) => {
+                const html = String(raw || '');
+                const trimmed = html.trim();
+                if (!trimmed) {
+                    return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${previewCss}</style></head>
+                        <body><p style="color:#94a3b8;text-align:center;margin-top:2.5rem;">Paste HTML on the left to preview.</p></body></html>`;
+                }
+                if (/<html[\s>]/i.test(trimmed)) {
+                    if (/<head[\s>]/i.test(trimmed)) {
+                        return trimmed.replace(/<head([^>]*)>/i, `<head$1><meta charset="utf-8"><style>${previewCss}</style>`);
+                    }
+                    return trimmed.replace(/<html([^>]*)>/i, `<html$1><head><meta charset="utf-8"><style>${previewCss}</style></head>`);
+                }
+                return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>${previewCss}</style></head><body>${html}</body></html>`;
+            };
+
+            const paint = (root) => {
+                const source = root.querySelector('[data-html-source]');
+                const frame = root.querySelector('[data-html-frame]');
+                if (!source || !frame) {
+                    return;
+                }
+                const doc = frame.contentDocument;
+                if (!doc) {
+                    return;
+                }
+                doc.open();
+                doc.write(wrapHtml(source.value));
+                doc.close();
+            };
+
+            document.querySelectorAll('[data-html-composer]').forEach((root) => {
+                if (root.dataset.bound === '1') {
+                    return;
+                }
+                root.dataset.bound = '1';
+
+                const source = root.querySelector('[data-html-source]');
+                const preview = root.querySelector('[data-html-preview]');
+                let timer = null;
+
+                const schedule = () => {
+                    if (preview?.hidden) {
+                        return;
+                    }
+                    clearTimeout(timer);
+                    timer = setTimeout(() => paint(root), 80);
+                };
+
+                source?.addEventListener('input', schedule);
+                source?.addEventListener('paste', () => setTimeout(schedule, 0));
+
+                root.querySelectorAll('[data-html-mode]').forEach((btn) => {
+                    btn.addEventListener('click', () => {
+                        const mode = btn.getAttribute('data-html-mode');
+                        root.querySelectorAll('[data-html-mode]').forEach((b) => {
+                            b.classList.toggle('is-active', b === btn);
+                        });
+                        const showPreview = mode === 'preview';
+                        root.classList.toggle('is-preview', showPreview);
+                        if (preview) {
+                            preview.hidden = !showPreview;
+                        }
+                        if (showPreview) {
+                            paint(root);
+                        }
+                    });
+                });
+            });
         },
 
         /**

@@ -30,7 +30,7 @@ export function CompareDock() {
           {items.map((p) => (
             <PressableScale key={p.id} style={styles.thumb} onPress={() => remove(p.id)}>
               {p.image_url ? (
-                <Image source={{ uri: p.image_url }} style={styles.thumbImg} contentFit="cover" />
+                <Image source={{ uri: p.image_url }} style={styles.thumbImg} contentFit="contain" />
               ) : (
                 <View style={[styles.thumbImg, { backgroundColor: colors.canvasDeep }]} />
               )}
@@ -90,6 +90,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.35)',
+    padding: 3,
+    backgroundColor: colors.paper,
   },
   thumbImg: { width: '100%', height: '100%' },
   thumbX: {

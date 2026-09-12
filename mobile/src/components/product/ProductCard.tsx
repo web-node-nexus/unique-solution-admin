@@ -54,7 +54,7 @@ export function ProductCard({
             <Image
               source={{ uri: product.image_url }}
               style={styles.image}
-              contentFit="cover"
+              contentFit="contain"
               transition={280}
             />
           ) : (
@@ -164,8 +164,12 @@ const styles = StyleSheet.create({
   imageWrap: {
     height: 132,
     backgroundColor: colors.canvasDeep,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  imageWrapCompact: { height: 112 },
+  imageWrapCompact: { height: 112, paddingVertical: 10 },
   image: { width: '100%', height: '100%' },
   placeholder: {
     alignItems: 'center',

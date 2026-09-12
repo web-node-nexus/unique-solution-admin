@@ -106,6 +106,16 @@
                             Default warranty for products of this brand. Editing a product warranty does not change this.
                         </div>
                     </div>
+
+                    <div class="col-12">
+                        @include('admin.partials.policy-manager', [
+                            'owner' => 'brand',
+                            'field' => 'policies',
+                            'policies' => $brand->policies,
+                            'heading' => 'Brand policies',
+                            'hint' => 'These cards appear on product pages when “Use brand policies” is checked for a product.',
+                        ])
+                    </div>
                 </div>
 
                 <div class="d-flex gap-2 mt-4">
@@ -139,4 +149,5 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 </script>
+@include('admin.partials.policy-manager-scripts')
 @endpush

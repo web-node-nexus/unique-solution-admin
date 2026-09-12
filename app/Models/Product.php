@@ -20,6 +20,7 @@ class Product extends Model
         'base_price',
         'sale_price',
         'warranty_info',
+        'use_brand_policies',
         'status',
         'is_featured',
         'meta_title',
@@ -33,6 +34,7 @@ class Product extends Model
             'base_price' => 'decimal:2',
             'sale_price' => 'decimal:2',
             'is_featured' => 'boolean',
+            'use_brand_policies' => 'boolean',
             'deleted_at' => 'datetime',
         ];
     }
@@ -65,5 +67,10 @@ class Product extends Model
     public function reviews(): HasMany
     {
         return $this->hasMany(Review::class);
+    }
+
+    public function policies(): HasMany
+    {
+        return $this->hasMany(ProductPolicy::class)->orderBy('sort_order')->orderBy('id');
     }
 }

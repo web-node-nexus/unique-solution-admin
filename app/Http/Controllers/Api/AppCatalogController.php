@@ -11,6 +11,7 @@ use App\Models\Coupon;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\Setting;
+use App\Services\PolicyService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -398,8 +399,10 @@ class AppCatalogController extends Controller
 
         $product->load([
             'brand:id,name,category_id,logo,warranty',
+            'brand.policies',
             'category:id,name,slug,parent_id',
             'images' => fn ($q) => $q->orderByDesc('is_primary')->orderBy('sort_order'),
+            'policies',
             'variants' => fn ($q) => $q->where('status', true)->with([
                 'attributeValues.attribute:id,name,type',
                 'images',
@@ -499,6 +502,8 @@ class AppCatalogController extends Controller
                 'slug' => $product->slug,
                 'description' => $product->description,
                 'warranty_info' => $product->warranty_info,
+                'use_brand_policies' => (bool) $product->use_brand_policies,
+                'policies' => app(PolicyService::class)->resolvedForProduct($product),
                 'mrp' => (float) $product->base_price,
                 'sale_price' => $product->sale_price !== null ? (float) $product->sale_price : null,
                 'base_price' => (float) $product->base_price,

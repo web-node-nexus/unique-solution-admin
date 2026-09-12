@@ -152,11 +152,21 @@ export function ProductImageGallery({
         >
           {usable.map((img, i) => (
             <Pressable key={img.id} onPress={() => openAt(i)}>
-              <Animated.View entering={FadeIn.duration(280)}>
+              <Animated.View
+                entering={FadeIn.duration(280)}
+                style={{
+                  width,
+                  height,
+                  padding: 22,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: colors.canvasDeep,
+                }}
+              >
                 <Image
                   source={{ uri: img.url }}
-                  style={{ width, height }}
-                  contentFit="cover"
+                  style={{ width: width - 44, height: height - 44 }}
+                  contentFit="contain"
                   transition={350}
                 />
               </Animated.View>
@@ -198,7 +208,7 @@ export function ProductImageGallery({
               <Image
                 source={{ uri: img.url }}
                 style={[styles.thumb, i === index && styles.thumbOn]}
-                contentFit="cover"
+                contentFit="contain"
               />
             </PressableScale>
           ))}
@@ -316,6 +326,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: 'transparent',
     backgroundColor: colors.canvasDeep,
+    padding: 4,
   },
   thumbOn: {
     borderColor: colors.jade,

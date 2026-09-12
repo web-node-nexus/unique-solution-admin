@@ -98,7 +98,8 @@ function BannerCarousel({
 }) {
   const [index, setIndex] = useState(0);
   const listRef = useRef<FlatList<Banner>>(null);
-  const cardW = width - spacing.md * 2;
+  // 1920×1080 (16:9) + a bit taller than the old 168px card for phone screens
+  const bannerH = Math.max(210, Math.round(width * (9 / 16) + 12));
 
   useEffect(() => {
     if (banners.length < 2) return;
@@ -124,15 +125,20 @@ function BannerCarousel({
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         decelerationRate="fast"
-        snapToInterval={cardW + 12}
-        contentContainerStyle={{ paddingHorizontal: spacing.md, gap: 12 }}
+        snapToInterval={width}
+        snapToAlignment="start"
+        disableIntervalMomentum
+        bounces={false}
+        overScrollMode="never"
+        style={{ width }}
+        getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
         onMomentumScrollEnd={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
-          const i = Math.round(e.nativeEvent.contentOffset.x / (cardW + 12));
+          const i = Math.round(e.nativeEvent.contentOffset.x / Math.max(width, 1));
           setIndex(i);
         }}
         renderItem={({ item }) => (
           <PressableScale
-            style={[styles.bannerCard, { width: cardW }, elevation.lift]}
+            style={[styles.bannerCard, { width, height: bannerH }]}
             onPress={() => {
               void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               void openDeepLink(item.link);
@@ -153,10 +159,6 @@ function BannerCarousel({
                 style={StyleSheet.absoluteFillObject}
               />
             )}
-            <LinearGradient
-              colors={['transparent', 'rgba(8,12,18,0.72)']}
-              style={styles.bannerScrim}
-            />
             {item.title ? (
               <View style={styles.bannerCopy}>
                 <AppText style={styles.bannerTitle} numberOfLines={2}>
@@ -371,7 +373,7 @@ export function HomeScreen() {
 
         {/* Admin carousel banners from /home */}
         {!isError && banners.length > 0 ? (
-          <Animated.View entering={FadeInDown.springify()} style={{ marginTop: spacing.md }}>
+          <Animated.View entering={FadeInDown.springify()} style={{ marginTop: spacing.sm }}>
             <BannerCarousel banners={banners} width={width} />
           </Animated.View>
         ) : !isError && heroProducts.length > 0 ? (
@@ -642,37 +644,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...elevation.soft,
   },
-  heroWrap: { gap: 10 },
+  heroWrap: { width: '100%', gap: 10 },
   bannerCard: {
-    height: 168,
-    borderRadius: radii.xl,
+    borderRadius: 0,
     overflow: 'hidden',
     justifyContent: 'flex-end',
-  },
-  bannerScrim: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 88,
+    backgroundColor: colors.canvasDeep,
+    // no card shadow / elevation
+    elevation: 0,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
   },
   bannerCopy: {
-    paddingHorizontal: 16,
-    paddingBottom: 14,
-    paddingTop: 8,
+    paddingHorizontal: 18,
+    paddingBottom: 18,
+    paddingTop: 10,
     zIndex: 2,
     gap: 4,
   },
   bannerTitle: {
     fontFamily: typography.bodyBold,
-    fontSize: 18,
-    lineHeight: 22,
+    fontSize: 20,
+    lineHeight: 24,
     color: colors.paper,
   },
   bannerSub: {
     fontFamily: typography.bodyMedium,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.88)',
+    color: 'rgba(255,255,255,0.92)',
   },
   heroCard: {
     height: 148,

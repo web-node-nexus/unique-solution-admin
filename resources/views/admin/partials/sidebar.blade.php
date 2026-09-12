@@ -110,11 +110,11 @@
                             <span class="nav-label">All orders</span>
                         </a>
                     </li>
-                    @foreach (\App\Services\OrderService::STATUSES as $orderStatus)
+                    @foreach (\App\Services\OrderService::BOARD_TABS as $orderStatus)
                         <li>
                             <a href="{{ route('admin.orders.status', $orderStatus) }}"
                                class="nav-link {{ request()->routeIs('admin.orders.status') && request()->route('status') === $orderStatus ? 'active' : '' }}">
-                                <span class="nav-label">{{ ucfirst($orderStatus) }}</span>
+                                <span class="nav-label">{{ \App\Services\OrderService::tabLabel($orderStatus) }}</span>
                             </a>
                         </li>
                     @endforeach

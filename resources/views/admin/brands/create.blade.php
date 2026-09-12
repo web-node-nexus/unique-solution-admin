@@ -96,6 +96,16 @@
                             This warranty auto-fills when a product uses this brand. Changing it here does not change already-saved products.
                         </div>
                     </div>
+
+                    <div class="col-12">
+                        @include('admin.partials.policy-manager', [
+                            'owner' => 'brand',
+                            'field' => 'policies',
+                            'policies' => collect(),
+                            'heading' => 'Brand policies',
+                            'hint' => 'These cards appear on product pages when “Use brand policies” is checked for a product.',
+                        ])
+                    </div>
                 </div>
 
                 <div class="d-flex gap-2 mt-4">
@@ -130,4 +140,5 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 </script>
+@include('admin.partials.policy-manager-scripts')
 @endpush

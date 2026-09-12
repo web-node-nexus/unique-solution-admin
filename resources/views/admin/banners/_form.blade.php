@@ -1,16 +1,23 @@
 @php
     $banner = $banner ?? null;
     $linkType = old('link_type', $banner->link_type ?? 'none');
+    if ($linkType === 'url') {
+        $linkType = 'none';
+    }
     $linkValue = old('link_value', $banner->link_value ?? '');
+    if ($linkType === 'none') {
+        $linkValue = '';
+    }
 @endphp
 
 <div class="row g-3">
     <div class="col-lg-8">
         <div class="mb-3">
-            <label for="title" class="form-label">Title <span class="text-danger">*</span></label>
+            <label for="title" class="form-label">Title</label>
             <input type="text" name="title" id="title" class="form-control @error('title') is-invalid @enderror"
-                   value="{{ old('title', $banner->title ?? '') }}" required maxlength="255">
+                   value="{{ old('title', $banner->title ?? '') }}" maxlength="255">
             @error('title') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            <div class="form-text">Optional. Image alone is enough to save a banner.</div>
         </div>
 
         <div class="mb-3">
@@ -26,7 +33,7 @@
             <input type="file" name="image" id="image" accept="image/jpeg,image/png,image/webp"
                    class="form-control @error('image') is-invalid @enderror" {{ $banner ? '' : 'required' }}>
             @error('image') <div class="invalid-feedback">{{ $message }}</div> @enderror
-            <div class="form-text">Recommended 1200×500 (wide). Max 4MB. JPG/PNG/WebP.</div>
+            <div class="form-text">Recommended <strong>1920×1080</strong> (full HD, 16:9). App me edge-to-edge dikhega.</div>
             <div class="mt-2">
                 <img id="imagePreview" src="{{ $banner?->image_url }}" alt=""
                      class="rounded border {{ $banner?->image_url ? '' : 'd-none' }}"
@@ -40,8 +47,8 @@
                 <select name="link_type" id="link_type" class="form-select @error('link_type') is-invalid @enderror">
                     <option value="none" @selected($linkType === 'none')>No link</option>
                     <option value="category" @selected($linkType === 'category')>Category</option>
+                    <option value="brand" @selected($linkType === 'brand')>Brand</option>
                     <option value="product" @selected($linkType === 'product')>Product</option>
-                    <option value="url" @selected($linkType === 'url')>External / Web URL</option>
                 </select>
                 @error('link_type') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
@@ -55,6 +62,14 @@
                         @endforeach
                     </select>
                 </div>
+                <div id="linkBrandWrap" class="{{ $linkType === 'brand' ? '' : 'd-none' }}">
+                    <select id="link_brand" class="form-select">
+                        <option value="">Select brand</option>
+                        @foreach ($brands as $brand)
+                            <option value="{{ $brand->id }}" @selected($linkType === 'brand' && (string)$linkValue === (string)$brand->id)>{{ $brand->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
                 <div id="linkProductWrap" class="{{ $linkType === 'product' ? '' : 'd-none' }}">
                     <select id="link_product" class="form-select">
                         <option value="">Select product</option>
@@ -62,10 +77,6 @@
                             <option value="{{ $product->id }}" @selected($linkType === 'product' && (string)$linkValue === (string)$product->id)>{{ $product->name }}</option>
                         @endforeach
                     </select>
-                </div>
-                <div id="linkUrlWrap" class="{{ $linkType === 'url' ? '' : 'd-none' }}">
-                    <input type="url" id="link_url" class="form-control" placeholder="https://..."
-                           value="{{ $linkType === 'url' ? $linkValue : '' }}">
                 </div>
                 <div id="linkNoneHint" class="form-text {{ $linkType === 'none' ? '' : 'd-none' }}">Banner will not navigate when tapped.</div>
                 <input type="hidden" name="link_value" id="link_value" value="{{ $linkValue }}">
@@ -87,7 +98,7 @@
         <div class="mb-3 form-check form-switch">
             <input type="hidden" name="status" value="0">
             <input class="form-check-input" type="checkbox" role="switch" name="status" id="status" value="1"
-                   @checked(old('status', $banner->status ?? true))>
+                   @checked(filter_var(old('status', $banner?->status ?? false), FILTER_VALIDATE_BOOLEAN))>
             <label class="form-check-label" for="status">Active on app</label>
         </div>
 

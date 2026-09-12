@@ -42,8 +42,6 @@
                     <dl class="row mb-0">
                         <dt class="col-sm-4">Slug</dt>
                         <dd class="col-sm-8"><code>{{ $category->slug }}</code></dd>
-                        <dt class="col-sm-4">Parent</dt>
-                        <dd class="col-sm-8">{{ $category->parent?->name ?? '—' }}</dd>
                         <dt class="col-sm-4">Sort order</dt>
                         <dd class="col-sm-8">{{ $category->sort_order }}</dd>
                         <dt class="col-sm-4">Sale</dt>
@@ -92,18 +90,6 @@
                             'title' => 'No attributes',
                             'message' => 'Link attributes when editing this category.',
                         ])
-                    @endforelse
-                </div>
-            </div>
-            <div class="card">
-                <div class="card-header">Subcategories</div>
-                <div class="card-body">
-                    @forelse ($category->children as $child)
-                        <div class="mb-1">
-                            <a href="{{ route('admin.categories.show', $child) }}">{{ $child->name }}</a>
-                        </div>
-                    @empty
-                        <p class="text-muted mb-0">No child categories.</p>
                     @endforelse
                 </div>
             </div>

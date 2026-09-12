@@ -41,6 +41,11 @@ class Brand extends Model
         return $this->hasMany(Product::class);
     }
 
+    public function policies(): HasMany
+    {
+        return $this->hasMany(BrandPolicy::class)->orderBy('sort_order')->orderBy('id');
+    }
+
     /**
      * Category ids this brand is mapped to (pivot, with legacy category_id fallback).
      *

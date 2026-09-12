@@ -72,7 +72,7 @@ export default function CartScreen() {
                   <Image
                     source={{ uri: item.image_url }}
                     style={styles.thumb}
-                    contentFit="cover"
+                    contentFit="contain"
                     transition={250}
                   />
                 ) : (
@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  thumb: { width: 92, height: 92, borderRadius: radii.md, backgroundColor: colors.canvasDeep },
+  thumb: { width: 92, height: 92, borderRadius: radii.md, backgroundColor: colors.canvasDeep, padding: 8 },
   rowCopy: { flex: 1, minWidth: 0, gap: 4 },
   name: { fontFamily: typography.bodySemi, color: colors.ink, fontSize: 14, lineHeight: 18 },
   attr: { fontFamily: typography.body, fontSize: 12, color: colors.inkMuted },

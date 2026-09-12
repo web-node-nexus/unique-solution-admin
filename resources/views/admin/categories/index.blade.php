@@ -37,7 +37,6 @@
                             <th style="width: 40px;"></th>
                             <th style="width: 72px;">Image</th>
                             <th>Category Name</th>
-                            <th>Parent</th>
                             <th>Products</th>
                             <th>Sort</th>
                             <th>Status</th>
@@ -77,7 +76,7 @@ document.addEventListener('DOMContentLoaded', function () {
         processing: true,
         serverSide: true,
         pageLength: 50,
-        order: [[5, 'asc']],
+        order: [[4, 'asc']],
         rowId: 'DT_RowId',
         ajax: {
             url: @json(route('admin.categories.datatable')),
@@ -89,7 +88,6 @@ document.addEventListener('DOMContentLoaded', function () {
             { data: 'reorder', name: 'reorder', orderable: false, searchable: false, className: 'text-center' },
             { data: 'image_html', name: 'image_html', orderable: false, searchable: false },
             { data: 'name', name: 'name' },
-            { data: 'parent_name', name: 'parent_name', orderable: false },
             { data: 'products_count', name: 'products_count', searchable: false },
             { data: 'sort_order', name: 'sort_order' },
             { data: 'status', name: 'status', orderable: false, searchable: false },

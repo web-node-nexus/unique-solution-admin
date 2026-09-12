@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreBannerRequest;
 use App\Http\Requests\Admin\UpdateBannerRequest;
 use App\Models\Banner;
+use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
 use App\Services\ImageService;
@@ -50,8 +51,8 @@ class BannerController extends Controller
 
                 return match ($link['type']) {
                     'category' => 'Category: '.($link['label'] ?? '#'.$link['value']),
+                    'brand' => 'Brand: '.($link['label'] ?? '#'.$link['value']),
                     'product' => 'Product: '.($link['label'] ?? '#'.$link['value']),
-                    'url' => 'URL: '.($link['value'] ?? '—'),
                     default => 'No link',
                 };
             })
@@ -84,6 +85,7 @@ class BannerController extends Controller
 
         return view('admin.banners.create', [
             'categories' => Category::query()->where('status', true)->orderBy('sort_order')->orderBy('name')->get(),
+            'brands' => Brand::query()->where('status', true)->orderBy('name')->get(['id', 'name']),
             'products' => Product::query()->where('status', 'active')->orderBy('name')->limit(200)->get(['id', 'name']),
             'nextSort' => (int) Banner::query()->max('sort_order') + 1,
         ]);
@@ -113,6 +115,7 @@ class BannerController extends Controller
         return view('admin.banners.edit', [
             'banner' => $banner,
             'categories' => Category::query()->where('status', true)->orderBy('sort_order')->orderBy('name')->get(),
+            'brands' => Brand::query()->where('status', true)->orderBy('name')->get(['id', 'name']),
             'products' => Product::query()->where('status', 'active')->orderBy('name')->limit(200)->get(['id', 'name']),
         ]);
     }

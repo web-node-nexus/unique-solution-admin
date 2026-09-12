@@ -129,7 +129,7 @@ export default function CompareScreen() {
                     </PressableScale>
                     <PressableScale onPress={() => router.push(`/products/${p.id}`)}>
                       {p.image_url ? (
-                        <Image source={{ uri: p.image_url }} style={styles.image} contentFit="cover" />
+                        <Image source={{ uri: p.image_url }} style={styles.image} contentFit="contain" />
                       ) : (
                         <View style={[styles.image, styles.placeholder]}>
                           <Package size={24} color={colors.inkSoft} />
@@ -276,6 +276,7 @@ const styles = StyleSheet.create({
     height: 110,
     borderRadius: radii.sm,
     backgroundColor: colors.canvasDeep,
+    padding: 8,
   },
   placeholder: { alignItems: 'center', justifyContent: 'center' },
   brand: {
