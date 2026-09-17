@@ -1,9 +1,12 @@
 @extends('admin.layouts.app')
 
-@section('title', 'Products')
+@section('title', $pageTitle ?? 'Products')
 
 @section('content')
     @php
+        $pageTitle = $pageTitle ?? 'Products';
+        $lockedStatus = $lockedStatus ?? null;
+        $lockedTab = $lockedTab ?? null;
         $headerActions = '';
         if (auth()->user()?->can('products.create')) {
             $headerActions .= '<a href="'.route('admin.products.create').'" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Add Product</a>';
@@ -16,14 +19,20 @@
     @endphp
 
     @include('admin.partials.page-header', [
-        'title' => 'Products',
-        'breadcrumbs' => ['Catalog' => null, 'Products'],
+        'title' => $pageTitle,
+        'breadcrumbs' => $lockedTab
+            ? ['Catalog' => null, 'Products' => route('admin.products.index'), $pageTitle]
+            : ['Catalog' => null, 'Products'],
         'actions' => $headerActions !== '' ? $headerActions : null,
     ])
 
     <div class="card table-card">
         <div class="card-header">
-            @include('admin.products.partials.filters')
+            @include('admin.products.partials.filters', [
+                'categories' => $categories,
+                'brands' => $brands,
+                'lockedStatus' => $lockedStatus,
+            ])
         </div>
 
         @can('products.update')
@@ -50,6 +59,7 @@
                     <thead>
                         <tr>
                             <th style="width: 36px;"></th>
+                            <th style="width: 56px;"></th>
                             <th>Name</th>
                             <th>Category</th>
                             <th>Brand</th>
@@ -110,7 +120,7 @@
                             <label for="qeStatus" class="form-label">Status</label>
                             <select id="qeStatus" class="form-select">
                                 <option value="active">Active</option>
-                                <option value="inactive">Inactive</option>
+                                <option value="inactive">Deactive</option>
                                 <option value="draft">Draft</option>
                             </select>
                         </div>
@@ -136,18 +146,24 @@ document.addEventListener('DOMContentLoaded', function () {
         processing: true,
         serverSide: true,
         pageLength: 25,
-        order: [[1, 'asc']],
+        order: [[2, 'asc']],
         ajax: {
             url: @json(route('admin.products.datatable')),
-            data: function (d) {
-                d.category_id = $('#filterCategory').val();
-                d.brand_id = $('#filterBrand').val();
-                d.status = $('#filterStatus').val();
-                d.stock_level = $('#filterStock').val();
+            type: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
             },
+            data: function (d) {
+                d.category_id = $('#filterCategory').val() || '';
+                d.brand_id = $('#filterBrand').val() || '';
+                d.status = $('#filterStatus').val() || '';
+                d.stock_level = $('#filterStock').val() || '';
+            },
+            cache: false,
         },
         columns: [
             { data: 'checkbox', name: 'checkbox', orderable: false, searchable: false, className: 'text-center' },
+            { data: 'thumb', name: 'thumb', orderable: false, searchable: false, className: 'text-center' },
             { data: 'name', name: 'name' },
             { data: 'category_name', name: 'category_name', orderable: false, searchable: false },
             { data: 'brand_name', name: 'brand_name', orderable: false, searchable: false },
@@ -161,6 +177,7 @@ document.addEventListener('DOMContentLoaded', function () {
             searchPlaceholder: 'Search…',
             lengthMenu: '_MENU_ per page',
             emptyTable: 'No products found',
+            zeroRecords: 'No products match these filters',
         },
         drawCallback: function () {
             updateBulkState();
@@ -168,13 +185,20 @@ document.addEventListener('DOMContentLoaded', function () {
         },
     });
 
+    function reloadProducts(resetPaging) {
+        table.ajax.reload(null, resetPaging !== false);
+    }
+
     $('#filterCategory, #filterBrand, #filterStatus, #filterStock').on('change', function () {
-        table.ajax.reload();
+        reloadProducts(true);
     });
 
     $('#btnResetFilters').on('click', function () {
-        $('#filterCategory, #filterBrand, #filterStatus, #filterStock').val('');
-        table.ajax.reload();
+        $('#filterCategory, #filterBrand, #filterStock').val('');
+        @if ($lockedStatus === null)
+            $('#filterStatus').val('');
+        @endif
+        reloadProducts(true);
     });
 
     function selectedIds() {

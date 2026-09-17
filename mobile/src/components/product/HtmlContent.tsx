@@ -1,6 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useState } from 'react';
 import {
+  InteractionManager,
   LayoutAnimation,
   Platform,
   StyleSheet,
@@ -12,7 +13,11 @@ import { AppText, PressableScale } from '@/components/ui/primitives';
 import { colors, elevation, radii, typography } from '@/theme/tokens';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
+  try {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+  } catch {
+    // New Architecture no-op
+  }
 }
 
 const PREVIEW_CSS = `
@@ -67,7 +72,8 @@ const DEFAULT_MAX_WORDS = 1000;
  */
 function heightForWordBudget(words: number): number {
   const lines = Math.ceil(words / 9);
-  return Math.max(720, Math.round(lines * 28));
+  // Cap preview height so product page doesn't freeze on huge HTML docs
+  return Math.min(1600, Math.max(520, Math.round(lines * 28)));
 }
 
 function stripScripts(html: string): string {
@@ -78,21 +84,36 @@ function stripScripts(html: string): string {
 }
 
 function wrapHtml(raw: string): string {
-  const html = stripScripts(raw);
-  const trimmed = html.trim();
-  if (/<html[\s>]/i.test(trimmed)) {
-    if (/<head[\s>]/i.test(trimmed)) {
-      return trimmed.replace(
-        /<head([^>]*)>/i,
-        `<head$1><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><style>${PREVIEW_CSS}</style>`
-      );
+  try {
+    const html = stripScripts(String(raw ?? ''));
+    const trimmed = html.trim();
+    if (!trimmed) {
+      return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${PREVIEW_CSS}</style></head><body></body></html>`;
     }
-    return trimmed.replace(
-      /<html([^>]*)>/i,
-      `<html$1><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><style>${PREVIEW_CSS}</style></head>`
-    );
+
+    let styles = '';
+    const styleMatches = trimmed.match(/<style\b[^>]*>[\s\S]*?<\/style>/gi);
+    if (styleMatches?.length) {
+      styles = styleMatches.join('\n');
+    }
+
+    let body = trimmed;
+    const bodyMatch = trimmed.match(/<body\b[^>]*>([\s\S]*?)<\/body>/i);
+    if (bodyMatch) {
+      body = bodyMatch[1];
+    } else if (/<html[\s>]/i.test(trimmed)) {
+      body = trimmed
+        .replace(/<!DOCTYPE[\s\S]*?>/i, '')
+        .replace(/<\/?(html|head|body)\b[^>]*>/gi, '')
+        .replace(/<meta\b[^>]*>/gi, '')
+        .replace(/<title\b[^>]*>[\s\S]*?<\/title>/gi, '')
+        .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '');
+    }
+
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><style>${PREVIEW_CSS}</style>${styles}</head><body>${body}</body></html>`;
+  } catch {
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${PREVIEW_CSS}</style></head><body><p>Could not render description.</p></body></html>`;
   }
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><style>${PREVIEW_CSS}</style></head><body>${html}</body></html>`;
 }
 
 function countWords(html: string): number {
@@ -129,24 +150,48 @@ export function HtmlContent({
   const [height, setHeight] = useState(0);
   const [measured, setMeasured] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [failed, setFailed] = useState(false);
   const source = useMemo(() => ({ html: wrapHtml(html) }), [html]);
   const words = useMemo(() => countWords(html), [html]);
   const collapsedCap = useMemo(() => heightForWordBudget(maxWords), [maxWords]);
+  const plainText = useMemo(() => {
+    return String(html ?? '')
+      .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }, [html]);
 
   useEffect(() => {
     setExpanded(false);
     setHeight(0);
     setMeasured(false);
+    setFailed(false);
+    setReady(false);
+    const task = InteractionManager.runAfterInteractions(() => {
+      setReady(true);
+    });
+    return () => task.cancel();
   }, [html]);
 
   if (!html?.trim()) {
     return null;
   }
 
+  if (failed) {
+    return (
+      <View style={framed ? styles.wrap : styles.bare}>
+        <AppText style={styles.fallbackText}>{plainText || 'Description unavailable.'}</AppText>
+      </View>
+    );
+  }
+
   const contentTallerThanPreview = measured && height > collapsedCap + 48;
   const needsToggle = collapsible && words > maxWords && contentTallerThanPreview;
   const showCollapsed = needsToggle && !expanded;
-  // Never clip to a tiny box before WebView reports real height (that caused empty + only "See more")
   const webHeight = !measured
     ? collapsible && words > maxWords
       ? collapsedCap
@@ -156,18 +201,11 @@ export function HtmlContent({
       : Math.max(height, 48);
 
   const handleToggle = () => {
-    LayoutAnimation.configureNext({
-      duration: 280,
-      update: { type: LayoutAnimation.Types.easeInEaseOut },
-      create: {
-        type: LayoutAnimation.Types.easeInEaseOut,
-        property: LayoutAnimation.Properties.opacity,
-      },
-      delete: {
-        type: LayoutAnimation.Types.easeInEaseOut,
-        property: LayoutAnimation.Properties.opacity,
-      },
-    });
+    try {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    } catch {
+      // New Architecture may no-op LayoutAnimation
+    }
 
     if (expanded) {
       setExpanded(false);
@@ -182,25 +220,34 @@ export function HtmlContent({
   return (
     <View style={framed ? styles.wrap : styles.bare} collapsable={false}>
       <View style={showCollapsed ? [styles.collapsedClip, { maxHeight: collapsedCap }] : undefined}>
-        <WebView
-          originWhitelist={['*']}
-          source={source}
-          scrollEnabled={false}
-          showsVerticalScrollIndicator={false}
-          showsHorizontalScrollIndicator={false}
-          javaScriptEnabled
-          mixedContentMode="always"
-          automaticallyAdjustContentInsets={false}
-          injectedJavaScript={HEIGHT_SCRIPT}
-          onMessage={(e) => {
-            const next = Number(e.nativeEvent.data);
-            if (Number.isFinite(next) && next > 0) {
-              setHeight(Math.min(Math.max(next, 48), 12000));
-              setMeasured(true);
-            }
-          }}
-          style={[styles.web, { height: webHeight }]}
-        />
+        {ready ? (
+          <WebView
+            originWhitelist={['*']}
+            source={source}
+            scrollEnabled={false}
+            showsVerticalScrollIndicator={false}
+            showsHorizontalScrollIndicator={false}
+            javaScriptEnabled
+            mixedContentMode="always"
+            automaticallyAdjustContentInsets={false}
+            injectedJavaScript={HEIGHT_SCRIPT}
+            onMessage={(e) => {
+              const next = Number(e.nativeEvent.data);
+              if (Number.isFinite(next) && next > 0) {
+                setHeight(Math.min(Math.max(next, 48), 6000));
+                setMeasured(true);
+              }
+            }}
+            onError={() => setFailed(true)}
+            onHttpError={() => setFailed(true)}
+            renderError={() => (
+              <AppText style={styles.fallbackText}>{plainText || 'Description unavailable.'}</AppText>
+            )}
+            style={[styles.web, { height: webHeight }]}
+          />
+        ) : (
+          <View style={{ height: Math.min(collapsedCap, 180) }} />
+        )}
         {showCollapsed ? (
           <LinearGradient
             colors={['rgba(255,255,255,0)', colors.paper]}
@@ -260,5 +307,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#2563EB',
     textDecorationLine: 'underline',
+  },
+  fallbackText: {
+    fontFamily: typography.body,
+    fontSize: 14,
+    lineHeight: 22,
+    color: colors.inkMuted,
+    paddingVertical: 4,
   },
 });

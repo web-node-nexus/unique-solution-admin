@@ -119,14 +119,24 @@ class PolicyService
      */
     public function resolvedForProduct(Product $product): array
     {
-        $policies = $product->relationLoaded('brandPolicies')
-            ? $product->brandPolicies
-            : $product->brandPolicies()->get();
+        if (! \Illuminate\Support\Facades\Schema::hasTable('product_brand_policy')) {
+            return [];
+        }
 
-        return $policies
-            ->map(fn (BrandPolicy $policy) => $policy->toApiArray())
-            ->values()
-            ->all();
+        try {
+            $policies = $product->relationLoaded('brandPolicies')
+                ? $product->brandPolicies
+                : $product->brandPolicies()->get();
+
+            return $policies
+                ->map(fn (BrandPolicy $policy) => $policy->toApiArray())
+                ->values()
+                ->all();
+        } catch (\Throwable $e) {
+            report($e);
+
+            return [];
+        }
     }
 
     /**

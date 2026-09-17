@@ -1,6 +1,7 @@
-import { Tabs, router } from 'expo-router';
-import { Home, LayoutGrid, Search, ShoppingBag, UserRound } from 'lucide-react-native';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Tabs } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Home, LayoutGrid, ShoppingBag, UserRound } from 'lucide-react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCartStore } from '@/store/cart';
 import { colors, elevation, typography } from '@/theme/tokens';
@@ -8,7 +9,7 @@ import { colors, elevation, typography } from '@/theme/tokens';
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const count = useCartStore((s) => s.lines.reduce((sum, l) => sum + l.qty, 0));
-  const bottom = Math.max(insets.bottom, 10);
+  const bottomPad = Math.max(insets.bottom, 8);
 
   return (
     <View style={{ flex: 1 }}>
@@ -16,27 +17,45 @@ export default function TabsLayout() {
         screenOptions={{
           headerShown: false,
           tabBarHideOnKeyboard: true,
-          tabBarActiveTintColor: colors.jade,
-          tabBarInactiveTintColor: colors.inkSoft,
+          tabBarActiveTintColor: colors.paper,
+          tabBarInactiveTintColor: 'rgba(255,255,255,0.72)',
+          tabBarBackground: () => (
+            <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+              <LinearGradient
+                colors={[colors.jadeDeep, colors.jade, '#12C8B8']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+              />
+              <View style={styles.topEdge} />
+            </View>
+          ),
           tabBarStyle: {
             position: 'absolute',
-            left: 14,
-            right: 14,
-            bottom: bottom > 16 ? bottom - 6 : 12,
+            left: 12,
+            right: 12,
+            bottom: bottomPad > 14 ? bottomPad - 4 : 10,
             height: 64,
             borderRadius: 28,
-            backgroundColor: colors.paper,
+            backgroundColor: colors.jadeDeep,
             borderTopWidth: 0,
-            borderWidth: 1,
-            borderColor: 'rgba(13, 155, 148, 0.12)',
-            paddingBottom: 8,
+            borderWidth: 0,
+            paddingBottom: 6,
             paddingTop: 8,
+            overflow: 'hidden',
             ...elevation.lift,
-            ...Platform.select({ android: { elevation: 12 } }),
+            shadowColor: colors.jadeDeep,
+            shadowOpacity: 0.35,
+            ...Platform.select({ android: { elevation: 18 } }),
           },
           tabBarLabelStyle: {
-            fontFamily: typography.bodyMedium,
+            fontFamily: typography.bodySemi,
             fontSize: 10,
+            marginTop: 1,
+          },
+          tabBarItemStyle: {
+            borderRadius: 16,
+            marginHorizontal: 2,
           },
         }}
       >
@@ -44,8 +63,14 @@ export default function TabsLayout() {
           name="index"
           options={{
             title: 'Home',
-            tabBarIcon: ({ color, focused }) => (
-              <Home color={color} size={22} strokeWidth={focused ? 2.4 : 1.9} />
+            tabBarIcon: ({ focused }) => (
+              <View style={[styles.iconWrap, focused && styles.iconWrapOn]}>
+                <Home
+                  color={focused ? colors.jadeDeep : 'rgba(255,255,255,0.85)'}
+                  size={21}
+                  strokeWidth={focused ? 2.5 : 1.9}
+                />
+              </View>
             ),
           }}
         />
@@ -53,8 +78,14 @@ export default function TabsLayout() {
           name="categories/index"
           options={{
             title: 'Categories',
-            tabBarIcon: ({ color, focused }) => (
-              <LayoutGrid color={color} size={22} strokeWidth={focused ? 2.4 : 1.9} />
+            tabBarIcon: ({ focused }) => (
+              <View style={[styles.iconWrap, focused && styles.iconWrapOn]}>
+                <LayoutGrid
+                  color={focused ? colors.jadeDeep : 'rgba(255,255,255,0.85)'}
+                  size={21}
+                  strokeWidth={focused ? 2.5 : 1.9}
+                />
+              </View>
             ),
           }}
         />
@@ -65,11 +96,18 @@ export default function TabsLayout() {
             tabBarBadge: count > 0 ? count : undefined,
             tabBarBadgeStyle: {
               backgroundColor: colors.accent,
+              color: colors.paper,
               fontSize: 10,
               fontFamily: typography.bodySemi,
             },
-            tabBarIcon: ({ color, focused }) => (
-              <ShoppingBag color={color} size={22} strokeWidth={focused ? 2.4 : 1.9} />
+            tabBarIcon: ({ focused }) => (
+              <View style={[styles.iconWrap, focused && styles.iconWrapOn]}>
+                <ShoppingBag
+                  color={focused ? colors.jadeDeep : 'rgba(255,255,255,0.85)'}
+                  size={21}
+                  strokeWidth={focused ? 2.5 : 1.9}
+                />
+              </View>
             ),
           }}
         />
@@ -77,42 +115,39 @@ export default function TabsLayout() {
           name="account/index"
           options={{
             title: 'Account',
-            tabBarIcon: ({ color, focused }) => (
-              <UserRound color={color} size={22} strokeWidth={focused ? 2.4 : 1.9} />
+            tabBarIcon: ({ focused }) => (
+              <View style={[styles.iconWrap, focused && styles.iconWrapOn]}>
+                <UserRound
+                  color={focused ? colors.jadeDeep : 'rgba(255,255,255,0.85)'}
+                  size={21}
+                  strokeWidth={focused ? 2.5 : 1.9}
+                />
+              </View>
             ),
           }}
         />
       </Tabs>
-
-      <Pressable
-        onPress={() => router.push('/search')}
-        style={[
-          styles.fab,
-          {
-            bottom: (bottom > 16 ? bottom - 6 : 12) + 28,
-          },
-        ]}
-      >
-        <Search size={22} color={colors.paper} strokeWidth={2.2} />
-      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  fab: {
+  topEdge: {
     position: 'absolute',
-    alignSelf: 'center',
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: colors.accent,
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: colors.brass,
+  },
+  iconWrap: {
+    width: 34,
+    height: 28,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 30,
-    ...elevation.lift,
-    shadowColor: colors.accent,
-    shadowOpacity: 0.45,
-    shadowRadius: 16,
+  },
+  iconWrapOn: {
+    backgroundColor: colors.paper,
   },
 });

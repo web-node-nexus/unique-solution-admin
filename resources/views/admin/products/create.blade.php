@@ -240,6 +240,20 @@
 
         {{-- Step 4: Review --}}
         <div class="wizard-pane d-none" data-pane="4">
+            <div class="card mb-3 border-primary-subtle">
+                <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+                    <div>
+                        <div class="fw-semibold">App preview</div>
+                        <div class="small text-muted mb-0">
+                            Check how this product will look in the app, then save when you are ready.
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary js-app-preview" data-preview="product">
+                        <i class="bi bi-phone me-1"></i>Preview in app
+                    </button>
+                </div>
+            </div>
+
             <div class="card mb-3">
                 <div class="card-header">Review &amp; publish</div>
                 <div class="card-body">
@@ -293,8 +307,13 @@
                 </button>
                 <a href="{{ route('admin.products.index') }}" class="btn btn-link text-muted">Cancel</a>
             </div>
-            <div class="d-flex gap-2">
-                @include('admin.partials.preview-button', ['type' => 'product'])
+            <div class="d-flex gap-2 align-items-center">
+                @include('admin.partials.preview-button', [
+                    'type' => 'product',
+                    'wrapId' => 'wizardPreviewWrap',
+                    'hidden' => true,
+                    'hint' => 'Final check before save',
+                ])
                 <button type="button" class="btn btn-primary" id="btnWizardNext">
                     Next<i class="bi bi-arrow-right ms-1"></i>
                 </button>
@@ -483,6 +502,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('btnWizardPrev').classList.toggle('d-none', step === 1);
         document.getElementById('btnWizardNext').classList.toggle('d-none', step === TOTAL_STEPS);
         document.getElementById('btnWizardSubmit').classList.toggle('d-none', step !== TOTAL_STEPS);
+        document.getElementById('wizardPreviewWrap')?.classList.toggle('d-none', step !== TOTAL_STEPS);
 
         if (step === 4) {
             buildReview();

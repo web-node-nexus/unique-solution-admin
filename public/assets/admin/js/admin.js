@@ -94,14 +94,51 @@
                 trigger?.setAttribute('aria-expanded', 'false');
             };
 
+            const measureOpenMenus = () => {
+                document.querySelectorAll('.submenu.open').forEach((submenu) => {
+                    submenu.style.maxHeight = 'none';
+                });
+                document.querySelectorAll('.submenu.open').forEach((submenu) => {
+                    submenu.style.maxHeight = `${submenu.scrollHeight}px`;
+                });
+            };
+
             const openSubmenu = (submenu, trigger) => {
                 submenu.classList.add('open');
-                // Measure full content height so long menus (Orders, Catalog) never clip
                 submenu.style.maxHeight = '0px';
-                // Force reflow then expand to exact scrollHeight
                 void submenu.offsetHeight;
                 submenu.style.maxHeight = `${submenu.scrollHeight}px`;
                 trigger?.setAttribute('aria-expanded', 'true');
+
+                // Expand any parent submenu so nested boards are not clipped
+                const parentSubmenu = submenu.parentElement?.closest('.submenu');
+                if (parentSubmenu?.classList.contains('open')) {
+                    parentSubmenu.style.maxHeight = 'none';
+                    void parentSubmenu.offsetHeight;
+                    parentSubmenu.style.maxHeight = `${parentSubmenu.scrollHeight}px`;
+                }
+            };
+
+            const closeSiblingMenus = (trigger, submenu) => {
+                const listItem = trigger.closest('li');
+                const group = listItem?.parentElement || trigger.closest('.sidebar-nav');
+                if (!group) {
+                    return;
+                }
+
+                const siblingMenus = listItem
+                    ? group.querySelectorAll(':scope > li > .submenu.open')
+                    : group.querySelectorAll(':scope > .submenu.open');
+
+                siblingMenus.forEach((openMenu) => {
+                    if (openMenu === submenu) {
+                        return;
+                    }
+                    const siblingTrigger = document.querySelector(
+                        `[data-menu-toggle="${openMenu.id}"]`
+                    );
+                    closeSubmenu(openMenu, siblingTrigger);
+                });
             };
 
             document.querySelectorAll('[data-menu-toggle]').forEach((trigger) => {
@@ -115,29 +152,20 @@
                     }
 
                     const isOpen = submenu.classList.contains('open');
-
-                    // Close sibling submenus in same group
-                    const parent = trigger.closest('.sidebar-nav');
-                    parent?.querySelectorAll('.submenu.open').forEach((openMenu) => {
-                        if (openMenu !== submenu) {
-                            const siblingTrigger = parent.querySelector(
-                                `[data-menu-toggle="${openMenu.id}"]`
-                            );
-                            closeSubmenu(openMenu, siblingTrigger);
-                        }
-                    });
+                    closeSiblingMenus(trigger, submenu);
 
                     if (isOpen) {
                         closeSubmenu(submenu, trigger);
+                        measureOpenMenus();
                     } else {
                         openSubmenu(submenu, trigger);
                     }
                 });
             });
 
-            // Keep parent open when a child route is active
+            // Keep parent open when a child route is active (deepest first via DOM order)
             document.querySelectorAll('.submenu').forEach((submenu) => {
-                if (submenu.querySelector('.nav-link.active')) {
+                if (submenu.querySelector('a.nav-link.active')) {
                     const trigger = document.querySelector(
                         `[data-menu-toggle="${submenu.id}"]`
                     );
@@ -145,13 +173,9 @@
                     trigger?.classList.add('active');
                 }
             });
+            measureOpenMenus();
 
-            // Recalculate open submenu heights after fonts/layout settle
-            window.addEventListener('resize', () => {
-                document.querySelectorAll('.submenu.open').forEach((submenu) => {
-                    submenu.style.maxHeight = `${submenu.scrollHeight}px`;
-                });
-            });
+            window.addEventListener('resize', measureOpenMenus);
         },
 
         initConfirmDeletes() {

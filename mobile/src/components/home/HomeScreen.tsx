@@ -25,12 +25,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { catalogApi } from '@/api/catalog';
 import { MenuButton } from '@/components/layout/MenuButton';
+import { ScreenAtmosphere } from '@/components/layout/ScreenAtmosphere';
 import { ProductCard } from '@/components/product/ProductCard';
 import { AppRefreshControl, usePullRefresh } from '@/components/ui/AppRefreshControl';
 import { AppText, PressableScale } from '@/components/ui/primitives';
 import { useRecentStore } from '@/store/recent';
 import { useShopStore } from '@/store/shop';
-import { colors, elevation, gradients, radii, spacing, typography } from '@/theme/tokens';
+import { accentPalette, colors, elevation, gradients, radii, spacing, typography } from '@/theme/tokens';
 import type { Banner, ProductCard as ProductCardType } from '@/types/catalog';
 import { formatInr, sellingPrice } from '@/utils/price';
 import { openDeepLink, saleToDeepLink } from '@/utils/deepLink';
@@ -39,23 +40,29 @@ function SectionHead({
   title,
   onPress,
   action = 'See all',
+  tint = 0,
 }: {
   title: string;
   onPress: () => void;
   action?: string;
+  tint?: number;
 }) {
+  const accent = accentPalette[tint % accentPalette.length];
   return (
     <View style={styles.sectionHead}>
-      <AppText style={styles.sectionTitle}>{title}</AppText>
+      <View style={styles.sectionTitleRow}>
+        <View style={[styles.sectionBar, { backgroundColor: accent.ink }]} />
+        <AppText style={styles.sectionTitle}>{title}</AppText>
+      </View>
       <PressableScale
         onPress={() => {
           void Haptics.selectionAsync();
           onPress();
         }}
-        style={styles.seeAll}
+        style={[styles.seeAll, { backgroundColor: accent.bg, borderColor: accent.border }]}
       >
-        <AppText style={styles.seeAllText}>{action}</AppText>
-        <ChevronRight size={14} color={colors.jade} strokeWidth={2.4} />
+        <AppText style={[styles.seeAllText, { color: accent.ink }]}>{action}</AppText>
+        <ChevronRight size={14} color={accent.ink} strokeWidth={2.4} />
       </PressableScale>
     </View>
   );
@@ -285,7 +292,7 @@ export function HomeScreen() {
   const gridProducts = featured.slice(0, 6);
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top + 8 }]}>
+    <ScreenAtmosphere style={[styles.root, { paddingTop: insets.top + 8 }]}>
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 130 }}
@@ -308,7 +315,7 @@ export function HomeScreen() {
             </View>
           </PressableScale>
           <PressableScale style={styles.bellBtn} onPress={() => router.push('/notifications')}>
-            <Bell size={18} color={colors.ink} strokeWidth={2} />
+            <Bell size={18} color={colors.accent} strokeWidth={2} />
           </PressableScale>
         </View>
 
@@ -319,14 +326,16 @@ export function HomeScreen() {
         {/* Search */}
         <View style={styles.searchRow}>
           <PressableScale style={styles.searchBar} onPress={() => router.push('/search')}>
-            <Search size={18} color={colors.inkSoft} strokeWidth={2.1} />
+            <Search size={18} color={colors.jade} strokeWidth={2.1} />
             <AppText style={styles.searchPlaceholder}>Search mobiles, TVs, ACs…</AppText>
           </PressableScale>
           <PressableScale
             style={styles.filterBtn}
             onPress={() => router.push({ pathname: '/products', params: { title: 'All products' } })}
           >
-            <Filter size={18} color={colors.paper} strokeWidth={2.2} />
+            <LinearGradient colors={[...gradients.filter]} style={styles.filterGrad}>
+              <Filter size={18} color={colors.paper} strokeWidth={2.2} />
+            </LinearGradient>
           </PressableScale>
         </View>
 
@@ -358,6 +367,7 @@ export function HomeScreen() {
           <Animated.View entering={FadeInDown.delay(60).springify()} style={styles.block}>
             <SectionHead
               title="Shop by category"
+              tint={0}
               onPress={() => router.push('/(main)/(tabs)/categories')}
             />
             <Animated.ScrollView
@@ -365,7 +375,9 @@ export function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.hPad}
             >
-              {categories.slice(0, 10).map((c) => (
+              {categories.slice(0, 10).map((c, i) => {
+                const tint = accentPalette[i % accentPalette.length];
+                return (
                 <PressableScale
                   key={c.id}
                   style={styles.catTile}
@@ -377,18 +389,19 @@ export function HomeScreen() {
                     });
                   }}
                 >
-                  <View style={styles.catIcon}>
+                  <View style={[styles.catIcon, { backgroundColor: tint.bg, borderColor: tint.border }]}>
                     {c.image_url ? (
                       <Image source={{ uri: c.image_url }} style={styles.catImg} contentFit="cover" />
                     ) : (
-                      <AppText style={styles.catLetter}>{c.name.slice(0, 1)}</AppText>
+                      <AppText style={[styles.catLetter, { color: tint.ink }]}>{c.name.slice(0, 1)}</AppText>
                     )}
                   </View>
                   <AppText style={styles.catName} numberOfLines={1}>
                     {c.name}
                   </AppText>
                 </PressableScale>
-              ))}
+              );
+              })}
             </Animated.ScrollView>
           </Animated.View>
         ) : null}
@@ -398,6 +411,7 @@ export function HomeScreen() {
           <Animated.View entering={FadeInDown.delay(120).springify()} style={styles.block}>
             <SectionHead
               title="Featured products"
+              tint={1}
               onPress={() =>
                 router.push({ pathname: '/products', params: { featured: '1', title: 'Featured' } })
               }
@@ -415,7 +429,7 @@ export function HomeScreen() {
         {/* Extra offer strips */}
         {(sales.length > 0 || categorySales.length > 0) && (
           <View style={styles.block}>
-            <SectionHead title="Store offers" onPress={() => router.push('/deals')} />
+            <SectionHead title="Store offers" tint={2} onPress={() => router.push('/deals')} />
             <Animated.ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -477,7 +491,7 @@ export function HomeScreen() {
 
         {recent.length > 0 ? (
           <View style={[styles.block, { marginBottom: 8 }]}>
-            <SectionHead title="Continue browsing" onPress={() => router.push('/products')} />
+            <SectionHead title="Continue browsing" tint={3} onPress={() => router.push('/products')} />
             <Animated.ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -492,12 +506,12 @@ export function HomeScreen() {
           </View>
         ) : null}
       </Animated.ScrollView>
-    </View>
+    </ScreenAtmosphere>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.canvas },
+  root: { flex: 1 },
   topBar: {
     paddingHorizontal: spacing.md,
     flexDirection: 'row',
@@ -522,9 +536,9 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.paper,
+    backgroundColor: colors.accentSoft,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255, 77, 141, 0.22)',
     alignItems: 'center',
     justifyContent: 'center',
     ...elevation.soft,
@@ -534,7 +548,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     fontFamily: typography.bodyMedium,
     fontSize: 12,
-    color: colors.inkMuted,
+    color: colors.jadeDeep,
   },
   searchRow: {
     marginTop: 10,
@@ -552,8 +566,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 194, 178, 0.28)',
     ...elevation.soft,
   },
   searchPlaceholder: {
@@ -565,10 +579,14 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.jade,
+    overflow: 'hidden',
+    ...elevation.soft,
+  },
+  filterGrad: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    ...elevation.soft,
   },
   heroWrap: { width: '100%', gap: 10 },
   bannerCard: {
@@ -676,16 +694,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 8,
+  },
+  sectionBar: {
+    width: 4,
+    height: 18,
+    borderRadius: 2,
+  },
   sectionTitle: {
     fontFamily: typography.bodyBold,
     fontSize: 18,
     color: colors.ink,
+    flexShrink: 1,
   },
-  seeAll: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  seeAll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+  },
   seeAllText: {
     fontFamily: typography.bodySemi,
-    fontSize: 13,
-    color: colors.jade,
+    fontSize: 12,
   },
   hPad: { paddingHorizontal: spacing.md, gap: 10 },
   catTile: { width: 70, alignItems: 'center', gap: 6 },
@@ -694,8 +733,8 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: radii.md,
     backgroundColor: colors.jadeSoft,
-    borderWidth: 1,
-    borderColor: 'rgba(13, 155, 148, 0.14)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 194, 178, 0.22)',
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',

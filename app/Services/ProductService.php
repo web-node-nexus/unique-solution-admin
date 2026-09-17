@@ -14,9 +14,48 @@ use InvalidArgumentException;
 
 class ProductService
 {
+    /** Sidebar / status board slugs (URL-facing). */
+    public const STATUS_TABS = ['active', 'deactive', 'draft'];
+
+    /** DB status values. */
+    public const STATUSES = ['active', 'inactive', 'draft'];
+
     public function __construct(
         protected ImageService $imageService
     ) {}
+
+    public static function statusLabel(string $status): string
+    {
+        return match ($status) {
+            'active' => 'Active',
+            'inactive', 'deactive' => 'Deactive',
+            'draft' => 'Draft',
+            default => ucfirst($status),
+        };
+    }
+
+    /**
+     * Map board/filter slug to DB status (null = all).
+     */
+    public static function resolveStatusFilter(?string $status): ?string
+    {
+        $status = trim((string) $status);
+        if ($status === '' || $status === 'all') {
+            return null;
+        }
+
+        return match ($status) {
+            'active' => 'active',
+            'deactive', 'inactive' => 'inactive',
+            'draft' => 'draft',
+            default => null,
+        };
+    }
+
+    public static function tabSlugForDbStatus(string $dbStatus): string
+    {
+        return $dbStatus === 'inactive' ? 'deactive' : $dbStatus;
+    }
 
     /**
      * @param  array<string, mixed>  $data

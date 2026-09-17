@@ -15,6 +15,7 @@ use App\Models\Setting;
 use App\Services\PolicyService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class AppCatalogController extends Controller
@@ -399,17 +400,39 @@ class AppCatalogController extends Controller
             abort(404);
         }
 
-        $product->load([
+        $with = [
             'brand:id,name,category_id,logo,warranty',
-            'brand.policies',
             'category:id,name,slug,parent_id',
             'images' => fn ($q) => $q->orderByDesc('is_primary')->orderBy('sort_order'),
-            'brandPolicies',
             'variants' => fn ($q) => $q->where('status', true)->with([
                 'attributeValues.attribute:id,name,type',
                 'images',
             ]),
-        ]);
+        ];
+
+        // Policies are additive — never 500 the whole PDP if migrations lag behind deploy.
+        if (Schema::hasTable('brand_policies')) {
+            $with[] = 'brand.policies';
+        }
+        if (Schema::hasTable('product_brand_policy')) {
+            $with[] = 'brandPolicies';
+        }
+
+        try {
+            $product->load($with);
+        } catch (\Throwable $e) {
+            report($e);
+            // Retry without policy relations so product detail still opens in the app.
+            $product->load([
+                'brand:id,name,category_id,logo,warranty',
+                'category:id,name,slug,parent_id',
+                'images' => fn ($q) => $q->orderByDesc('is_primary')->orderBy('sort_order'),
+                'variants' => fn ($q) => $q->where('status', true)->with([
+                    'attributeValues.attribute:id,name,type',
+                    'images',
+                ]),
+            ]);
+        }
 
         $images = $product->images->map(fn ($image) => [
             'id' => $image->id,
@@ -496,6 +519,16 @@ class AppCatalogController extends Controller
             ->map(fn (Product $p) => $this->transformProductCard($p))
             ->values();
 
+        $policies = [];
+        try {
+            if (Schema::hasTable('product_brand_policy')) {
+                $policies = app(PolicyService::class)->resolvedForProduct($product);
+            }
+        } catch (\Throwable $e) {
+            report($e);
+            $policies = [];
+        }
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -504,7 +537,7 @@ class AppCatalogController extends Controller
                 'slug' => $product->slug,
                 'description' => $product->description,
                 'warranty_info' => $product->warranty_info,
-                'policies' => app(PolicyService::class)->resolvedForProduct($product),
+                'policies' => $policies,
                 'mrp' => (float) $product->base_price,
                 'sale_price' => $product->sale_price !== null ? (float) $product->sale_price : null,
                 'base_price' => (float) $product->base_price,

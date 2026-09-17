@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 // Compare temporarily disabled for client
 // import { GitCompare, Heart, Images, Package, ShieldCheck, Star } from 'lucide-react-native';
@@ -8,7 +9,7 @@ import { StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import type { ProductCard as ProductCardType } from '@/types/catalog';
-import { colors, elevation, radii, typography } from '@/theme/tokens';
+import { accentPalette, colors, elevation, gradients, radii, typography } from '@/theme/tokens';
 import { discountPercent, formatInr, sellingPrice } from '@/utils/price';
 import { useWishlistStore } from '@/store/cart';
 // import { useCompareStore } from '@/store/compare';
@@ -39,6 +40,7 @@ export function ProductCard({
     product.brand_warranty ||
     product.brand ||
     'Genuine stock';
+  const tint = accentPalette[index % accentPalette.length];
 
   return (
     <Animated.View
@@ -46,13 +48,15 @@ export function ProductCard({
       style={styles.wrap}
     >
       <PressableScale
-        style={[styles.card, elevation.soft]}
+        style={[styles.card, elevation.soft, { borderColor: tint.border }]}
         onPress={() => {
           void Haptics.selectionAsync();
           router.push(`/products/${product.id}`);
         }}
       >
         <View style={[styles.imageWrap, compact && styles.imageWrapCompact]}>
+          <LinearGradient colors={[...gradients.cardWash]} style={StyleSheet.absoluteFillObject} />
+          <View style={[styles.imageTint, { backgroundColor: tint.bg }]} />
           {product.image_url ? (
             <Image
               source={{ uri: product.image_url }}
@@ -62,25 +66,9 @@ export function ProductCard({
             />
           ) : (
             <View style={[styles.image, styles.placeholder]}>
-              <Package size={22} color={colors.inkSoft} strokeWidth={1.5} />
+              <Package size={22} color={tint.ink} strokeWidth={1.5} />
             </View>
           )}
-          {/* Compare temporarily disabled for client
-          <PressableScale
-            style={styles.compare}
-            onPress={() => {
-              void Haptics.selectionAsync();
-              const result = compare.toggle(product);
-              if (!result.ok && result.message) Alert.alert('Compare', result.message);
-            }}
-          >
-            <GitCompare
-              size={13}
-              color={inCompare ? colors.jade : colors.inkMuted}
-              strokeWidth={2.2}
-            />
-          </PressableScale>
-          */}
           <PressableScale
             style={styles.heart}
             onPress={() => {
@@ -132,9 +120,9 @@ export function ProductCard({
             </AppText>
           </View>
 
-          <View style={styles.warrantyRow}>
-            <ShieldCheck size={11} color={colors.jade} strokeWidth={2.2} />
-            <AppText numberOfLines={1} style={styles.warranty}>
+          <View style={[styles.warrantyRow, { backgroundColor: tint.bg }]}>
+            <ShieldCheck size={11} color={tint.ink} strokeWidth={2.2} />
+            <AppText numberOfLines={1} style={[styles.warranty, { color: tint.ink }]}>
               {highlight}
             </AppText>
           </View>
@@ -163,8 +151,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.paper,
     borderRadius: radii.md,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: 1.5,
   },
   imageWrap: {
     height: 132,
@@ -173,24 +160,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   imageWrapCompact: { height: 112, paddingVertical: 10 },
+  imageTint: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.45,
+  },
   image: { width: '100%', height: '100%' },
   placeholder: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.mist,
-  },
-  compare: {
-    position: 'absolute',
-    top: 6,
-    right: 38,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: 'transparent',
   },
   heart: {
     position: 'absolute',
@@ -212,7 +193,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: radii.pill,
   },
-  badgeNew: { backgroundColor: colors.accent },
+  badgeNew: { backgroundColor: colors.violet },
   badgeText: {
     color: colors.paper,
     fontFamily: typography.bodyBold,
@@ -244,7 +225,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingTop: 8,
     paddingBottom: 10,
-    gap: 4,
+    gap: 5,
     minHeight: 108,
   },
   bodyCompact: { minHeight: 100 },
@@ -271,13 +252,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    height: 16,
+    height: 20,
+    paddingHorizontal: 6,
+    borderRadius: radii.pill,
   },
   warranty: {
     flex: 1,
-    fontFamily: typography.body,
+    fontFamily: typography.bodyMedium,
     fontSize: 10,
-    color: colors.jade,
   },
   priceRow: {
     flexDirection: 'row',
@@ -286,7 +268,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
     height: 18,
   },
-  price: { fontFamily: typography.bodyBold, fontSize: 14, color: colors.ink },
+  price: { fontFamily: typography.bodyBold, fontSize: 14, color: colors.jadeDeep },
   mrp: {
     fontFamily: typography.body,
     fontSize: 11,

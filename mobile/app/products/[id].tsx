@@ -92,7 +92,8 @@ function StarsRow({
 }
 
 export default function ProductDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id?: string | string[] }>();
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const add = useCartStore((s) => s.add);
@@ -285,7 +286,23 @@ export default function ProductDetailScreen() {
     onError: (e: Error) => Alert.alert('Could not set alert', e.message),
   });
 
-  if (isError || (!isLoading && !data)) {
+  if (!id) {
+    return (
+      <ScreenAtmosphere style={{ paddingTop: insets.top + 24, paddingHorizontal: spacing.lg }}>
+        <IconButton onPress={() => router.back()}>
+          <ArrowLeft size={20} color={colors.ink} />
+        </IconButton>
+        <AppText style={{ marginTop: 28, fontFamily: typography.bodySemi, fontSize: 18 }}>
+          Product could not open
+        </AppText>
+        <AppText variant="caption" style={{ marginTop: 8 }}>
+          Missing product id.
+        </AppText>
+      </ScreenAtmosphere>
+    );
+  }
+
+  if (isError) {
     return (
       <ScreenAtmosphere style={{ paddingTop: insets.top + 24, paddingHorizontal: spacing.lg }}>
         <IconButton onPress={() => router.back()}>
@@ -296,6 +313,9 @@ export default function ProductDetailScreen() {
         </AppText>
         <AppText variant="caption" style={{ marginTop: 8 }}>
           {error instanceof Error ? error.message : 'This product is not available right now.'}
+        </AppText>
+        <AppText variant="caption" style={{ marginTop: 6, color: colors.inkSoft }}>
+          If this keeps happening, the server needs the latest product API update.
         </AppText>
         <View style={{ marginTop: 16, alignSelf: 'flex-start' }}>
           <AppButton label="Retry" onPress={() => void refetch()} />

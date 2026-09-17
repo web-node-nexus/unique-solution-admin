@@ -60,7 +60,7 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <span>Product details</span>
                     <span class="badge bg-{{ ['active' => 'success', 'inactive' => 'secondary', 'draft' => 'warning'][$product->status] ?? 'secondary' }}">
-                        {{ ucfirst($product->status) }}
+                        {{ \App\Services\ProductService::statusLabel($product->status) }}
                     </span>
                 </div>
                 <div class="card-body">
@@ -85,7 +85,7 @@
                         <dt class="col-sm-3">Warranty</dt>
                         <dd class="col-sm-9">
                             @if ($product->warranty_info)
-                                <div class="product-description prose-specs">{!! $product->warranty_info !!}</div>
+                                <div class="product-description prose-specs">{!! html_fragment($product->warranty_info) !!}</div>
                             @else
                                 —
                             @endif
@@ -101,10 +101,37 @@
                         <dd class="col-sm-9">{{ $product->meta_description ?: '—' }}</dd>
                     </dl>
 
+                    @php
+                        $selectedPolicies = $product->relationLoaded('brandPolicies')
+                            ? $product->brandPolicies
+                            : $product->brandPolicies()->get();
+                    @endphp
+                    @if ($selectedPolicies->isNotEmpty())
+                        <hr>
+                        <div class="fw-semibold mb-2">Policies shown in app</div>
+                        <div class="row g-2 mb-2">
+                            @foreach ($selectedPolicies as $policy)
+                                <div class="col-6 col-md-4 col-lg-3">
+                                    <div class="product-policy-preview">
+                                        <div class="product-policy-preview-icon">
+                                            @if ($policy->iconUrl())
+                                                <img src="{{ $policy->iconUrl() }}" alt="">
+                                            @else
+                                                <i class="bi bi-shield-check"></i>
+                                            @endif
+                                        </div>
+                                        <div class="product-policy-preview-title">{{ $policy->title }}</div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                        <div class="form-text">Managed on the brand. Select / unselect these on the product edit screen.</div>
+                    @endif
+
                     @if ($product->description)
                         <hr>
                         <div class="fw-semibold mb-2">Full description / specifications</div>
-                        <div class="product-description prose-specs">{!! $product->description !!}</div>
+                        <div class="product-description prose-specs">{!! html_fragment($product->description) !!}</div>
                     @endif
                 </div>
             </div>
@@ -175,7 +202,7 @@
                                     </td>
                                     <td>
                                         <span class="badge bg-{{ $variant->status ? 'success' : 'secondary' }}">
-                                            {{ $variant->status ? 'Active' : 'Inactive' }}
+                                            {{ $variant->status ? 'Active' : 'Deactive' }}
                                         </span>
                                     </td>
                                 </tr>

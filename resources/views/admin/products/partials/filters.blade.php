@@ -1,6 +1,8 @@
 @php
     $categories = $categories ?? collect();
     $brands = $brands ?? collect();
+    $lockedStatus = $lockedStatus ?? null;
+    $showStatusFilter = $lockedStatus === null;
 @endphp
 
 <div class="row g-2 align-items-end product-filters">
@@ -22,15 +24,19 @@
             @endforeach
         </select>
     </div>
-    <div class="col-6 col-md-3 col-xl-2">
-        <label for="filterStatus" class="form-label small text-muted mb-1">Status</label>
-        <select id="filterStatus" class="form-select form-select-sm">
-            <option value="">All</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="draft">Draft</option>
-        </select>
-    </div>
+    @if ($showStatusFilter)
+        <div class="col-6 col-md-3 col-xl-2">
+            <label for="filterStatus" class="form-label small text-muted mb-1">Status</label>
+            <select id="filterStatus" class="form-select form-select-sm">
+                <option value="">All</option>
+                <option value="active">Active</option>
+                <option value="inactive">Deactive</option>
+                <option value="draft">Draft</option>
+            </select>
+        </div>
+    @else
+        <input type="hidden" id="filterStatus" value="{{ $lockedStatus }}">
+    @endif
     <div class="col-6 col-md-3 col-xl-2">
         <label for="filterStock" class="form-label small text-muted mb-1">Stock</label>
         <select id="filterStock" class="form-select form-select-sm">

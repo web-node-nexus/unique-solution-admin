@@ -84,3 +84,34 @@ if (! function_exists('admin_duplicate_button')) {
             .'</form>';
     }
 }
+
+if (! function_exists('html_fragment')) {
+    /**
+     * Extract a safe HTML fragment from pasted full documents (DOCTYPE/html/head/body)
+     * so descriptions can be embedded inside admin/app pages without breaking layout.
+     */
+    function html_fragment(?string $html): string
+    {
+        $html = trim((string) $html);
+        if ($html === '') {
+            return '';
+        }
+
+        // Prefer <body>…</body> content when a full document was pasted
+        if (preg_match('/<body\b[^>]*>([\s\S]*?)<\/body>/i', $html, $m)) {
+            $html = $m[1];
+        }
+
+        // Drop document chrome that must not nest inside our layout
+        $html = preg_replace('/<!DOCTYPE[\s\S]*?>/i', '', $html) ?? $html;
+        $html = preg_replace('/<\/?(html|head|body)\b[^>]*>/i', '', $html) ?? $html;
+        $html = preg_replace('/<meta\b[^>]*>/i', '', $html) ?? $html;
+        $html = preg_replace('/<title\b[^>]*>[\s\S]*?<\/title>/i', '', $html) ?? $html;
+        // Keep <style> blocks that belong to policy card HTML, but strip scripts
+        $html = preg_replace('/<script\b[\s\S]*?<\/script>/i', '', $html) ?? $html;
+        $html = preg_replace('/\son\w+\s*=\s*(".*?"|\'.*?\'|[^\s>]+)/i', '', $html) ?? $html;
+
+        return trim($html);
+    }
+}
+

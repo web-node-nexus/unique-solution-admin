@@ -160,7 +160,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         | Products
         |--------------------------------------------------------------------------
         */
-        Route::get('products/datatable', [ProductController::class, 'datatable'])
+        Route::match(['get', 'post'], 'products/datatable', [ProductController::class, 'datatable'])
             ->middleware('permission:products.view')->name('products.datatable');
         Route::get('products/create', [ProductController::class, 'create'])
             ->middleware('permission:products.create')->name('products.create');
@@ -176,6 +176,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->middleware('permission:products.update')->name('products.bulk-action');
         Route::get('products', [ProductController::class, 'index'])
             ->middleware('permission:products.view')->name('products.index');
+        Route::get('products/status/{status}', [ProductController::class, 'byStatus'])
+            ->whereIn('status', ['active', 'deactive', 'draft'])
+            ->middleware('permission:products.view')->name('products.status');
         Route::post('products', [ProductController::class, 'store'])
             ->middleware('permission:products.create')->name('products.store');
         Route::get('products/{product}/edit', [ProductController::class, 'edit'])

@@ -39,9 +39,38 @@ class ProductController extends Controller
     {
         $this->authorize('viewAny', Product::class);
 
+        return $this->boardView(null);
+    }
+
+    public function byStatus(string $status): View
+    {
+        $this->authorize('viewAny', Product::class);
+
+        abort_unless(in_array($status, ProductService::STATUS_TABS, true), 404);
+
+        return $this->boardView($status);
+    }
+
+    protected function boardView(?string $lockedTab): View
+    {
+        $dbStatus = $lockedTab !== null
+            ? ProductService::resolveStatusFilter($lockedTab)
+            : null;
+
+        $titles = [
+            'active' => 'Active products',
+            'deactive' => 'Deactive products',
+            'draft' => 'Draft products',
+        ];
+
         return view('admin.products.index', [
             'categories' => Category::query()->orderBy('name')->get(['id', 'name']),
             'brands' => Brand::query()->orderBy('name')->get(['id', 'name']),
+            'lockedStatus' => $dbStatus,
+            'lockedTab' => $lockedTab,
+            'pageTitle' => $lockedTab !== null
+                ? ($titles[$lockedTab] ?? ProductService::statusLabel($lockedTab).' products')
+                : 'Products',
         ]);
     }
 
@@ -50,20 +79,27 @@ class ProductController extends Controller
         $this->authorize('viewAny', Product::class);
 
         $query = Product::query()
-            ->with(['category:id,name', 'brand:id,name'])
+            ->with([
+                'category:id,name',
+                'brand:id,name',
+                'images' => fn ($q) => $q->orderByDesc('is_primary')->orderBy('sort_order')->limit(1),
+            ])
             ->withCount('variants')
             ->latest();
 
-        if ($request->filled('status')) {
-            $query->where('status', $request->input('status'));
+        $status = ProductService::resolveStatusFilter($request->input('status'));
+        if ($status !== null) {
+            $query->where('status', $status);
         }
 
-        if ($request->filled('category_id')) {
-            $query->where('category_id', $request->input('category_id'));
+        $categoryId = (int) $request->input('category_id', 0);
+        if ($categoryId > 0) {
+            $query->where('category_id', $categoryId);
         }
 
-        if ($request->filled('brand_id')) {
-            $query->where('brand_id', $request->input('brand_id'));
+        $brandId = (int) $request->input('brand_id', 0);
+        if ($brandId > 0) {
+            $query->where('brand_id', $brandId);
         }
 
         if ($request->filled('stock_level')) {
@@ -81,6 +117,15 @@ class ProductController extends Controller
 
         return DataTables::of($query)
             ->addColumn('checkbox', fn (Product $product) => '<input type="checkbox" class="form-check-input product-row-check" value="'.$product->id.'">')
+            ->addColumn('thumb', function (Product $product) {
+                $path = $product->images->first()?->image_path;
+                if (! $path) {
+                    return '<span class="product-thumb product-thumb-empty"><i class="bi bi-image"></i></span>';
+                }
+                $url = str_starts_with($path, 'http') ? $path : asset('storage/'.$path);
+
+                return '<img src="'.e($url).'" alt="" class="product-thumb">';
+            })
             ->addColumn('category_name', fn (Product $product) => $product->category?->name ?? '—')
             ->addColumn('brand_name', fn (Product $product) => $product->brand?->name ?? '—')
             ->addColumn('status', function (Product $product) {
@@ -115,7 +160,7 @@ class ProductController extends Controller
 
                 return $buttons;
             })
-            ->rawColumns(['checkbox', 'action', 'status'])
+            ->rawColumns(['checkbox', 'thumb', 'action', 'status'])
             ->make(true);
     }
 
@@ -148,6 +193,7 @@ class ProductController extends Controller
         $product->load([
             'category',
             'brand',
+            'brandPolicies',
             'images',
             'variants.attributeValues.attribute',
             'variants.images',

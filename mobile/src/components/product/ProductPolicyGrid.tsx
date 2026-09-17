@@ -139,8 +139,7 @@ const styles = StyleSheet.create({
     minHeight: 34,
   },
   more: {
-    marginTop: 'auto',
-    paddingTop: 10,
+    marginTop: 10,
     fontFamily: typography.bodyMedium,
     fontSize: 12,
     color: '#2563EB',

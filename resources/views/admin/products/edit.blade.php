@@ -275,7 +275,10 @@
                 </div>
 
                 <div class="d-flex gap-2 mt-4 pt-3 border-top">
-                    @include('admin.partials.preview-button', ['type' => 'product'])
+                    @include('admin.partials.preview-button', [
+                        'type' => 'product',
+                        'hint' => 'See how this product looks in the app',
+                    ])
                     <button type="submit" class="btn btn-primary" id="btnSaveProduct">
                         <i class="bi bi-check-lg me-1"></i>Save changes
                     </button>
