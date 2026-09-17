@@ -9,9 +9,9 @@
             $actions .= '<a href="'.route('admin.products.edit', $product).'" class="btn btn-outline-primary"><i class="bi bi-pencil me-1"></i>Edit</a>';
         }
         if (auth()->user()?->can('products.create')) {
-            $actions .= '<form action="'.route('admin.products.clone', $product).'" method="POST" class="d-inline" data-confirm="Clone this product?" data-confirm-title="Clone product" data-confirm-button="Yes, clone">'
+            $actions .= '<form action="'.route('admin.products.clone', $product).'" method="POST" class="d-inline" data-confirm="Duplicate this product as a deactive copy?" data-confirm-title="Duplicate" data-confirm-button="Yes, duplicate">'
                 .csrf_field()
-                .'<button type="submit" class="btn btn-outline-info"><i class="bi bi-copy me-1"></i>Clone</button></form>';
+                .'<button type="submit" class="btn btn-outline-info"><i class="bi bi-copy me-1"></i>Duplicate</button></form>';
         }
     @endphp
 

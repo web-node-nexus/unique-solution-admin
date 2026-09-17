@@ -28,7 +28,7 @@ export default function TabsLayout() {
             backgroundColor: colors.paper,
             borderTopWidth: 0,
             borderWidth: 1,
-            borderColor: colors.border,
+            borderColor: 'rgba(13, 155, 148, 0.12)',
             paddingBottom: 8,
             paddingTop: 8,
             ...elevation.lift,

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\PublishingWindow;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute as CastAttribute;
 use Illuminate\Database\Eloquent\Model;
@@ -42,6 +43,16 @@ class Banner extends Model
             ->where(function (Builder $q) use ($now) {
                 $q->whereNull('ends_at')->orWhere('ends_at', '>=', $now);
             });
+    }
+
+    public function isCurrentlyLive(): bool
+    {
+        return PublishingWindow::isVisibleOnApp((bool) $this->status, $this->starts_at, $this->ends_at);
+    }
+
+    public function scheduleState(): string
+    {
+        return PublishingWindow::state((bool) $this->status, $this->starts_at, $this->ends_at);
     }
 
     public function scopeOrdered(Builder $query): Builder

@@ -9,9 +9,8 @@ import {
   Filter,
   MapPin,
   Search,
-  Zap,
 } from 'lucide-react-native';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -35,33 +34,6 @@ import { colors, elevation, gradients, radii, spacing, typography } from '@/them
 import type { Banner, ProductCard as ProductCardType } from '@/types/catalog';
 import { formatInr, sellingPrice } from '@/utils/price';
 import { openDeepLink, saleToDeepLink } from '@/utils/deepLink';
-
-function pad2(n: number) {
-  return String(Math.max(0, n)).padStart(2, '0');
-}
-
-function useCountdown(endsAt?: string | null) {
-  const target = useMemo(() => {
-    if (endsAt) {
-      const t = Date.parse(endsAt);
-      if (!Number.isNaN(t)) return t;
-    }
-    // fallback: end of today + 6h feel
-    return Date.now() + 4 * 3600_000 + 18 * 60_000 + 52_000;
-  }, [endsAt]);
-
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  const left = Math.max(0, target - now);
-  const h = Math.floor(left / 3600_000);
-  const m = Math.floor((left % 3600_000) / 60_000);
-  const s = Math.floor((left % 60_000) / 1000);
-  return { h, m, s };
-}
 
 function SectionHead({
   title,
@@ -147,16 +119,18 @@ function BannerCarousel({
             {item.image_url ? (
               <Image
                 source={{ uri: item.image_url }}
-                style={StyleSheet.absoluteFillObject}
+                style={{ width, height: bannerH }}
                 contentFit="cover"
-                transition={300}
+                transition={200}
+                recyclingKey={`banner-${item.id}`}
+                cachePolicy="memory-disk"
               />
             ) : (
               <LinearGradient
                 colors={[...gradients.hero]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFillObject}
+                style={{ width, height: bannerH }}
               />
             )}
             {item.title ? (
@@ -293,9 +267,9 @@ export function HomeScreen() {
   });
   const pullRefreshing = refreshing || isRefetching;
 
-  const shopName = data?.shop.shop_name ?? shop?.shop_name ?? 'Unique Solution';
+  const shopName = data?.shop?.shop_name ?? shop?.shop_name ?? 'Unique Solution';
   const shopAddress =
-    data?.shop.shop_address || shop?.shop_address || 'Kargil Chowk, Kurud';
+    data?.shop?.shop_address || shop?.shop_address || 'Kargil Chowk, Kurud';
   const shortLoc = shopAddress.split(',')[0]?.trim() || shopAddress;
 
   const categories = data?.categories ?? [];
@@ -305,11 +279,8 @@ export function HomeScreen() {
       ? data.new_arrivals
       : data?.featured_products ?? [];
   const featured = data?.featured_products?.length ? data?.featured_products : newArrivals;
-  const saleProducts = data?.sale_products ?? [];
   const sales = data?.sales ?? [];
   const categorySales = data?.category_sales ?? [];
-  const flashEnd = sales[0]?.ends_at ?? null;
-  const { h, m, s } = useCountdown(flashEnd);
   const heroProducts = newArrivals.filter((p) => !!p.image_url).slice(0, 5);
   const gridProducts = featured.slice(0, 6);
 
@@ -421,51 +392,6 @@ export function HomeScreen() {
             </Animated.ScrollView>
           </Animated.View>
         ) : null}
-
-        {/* Flash deals */}
-        {(saleProducts.length > 0 || sales.length > 0) && (
-          <Animated.View entering={FadeInDown.delay(90).springify()} style={styles.block}>
-            <PressableScale
-              style={styles.flashCard}
-              onPress={() => router.push('/deals')}
-            >
-              <LinearGradient
-                colors={[...gradients.deal]}
-                start={{ x: 0, y: 0.5 }}
-                end={{ x: 1, y: 0.5 }}
-                style={StyleSheet.absoluteFillObject}
-              />
-              <View style={styles.flashLeft}>
-                <View style={styles.zap}>
-                  <Zap size={16} color={colors.brass} fill={colors.brass} />
-                </View>
-                <AppText style={styles.flashTitle}>Flash deals</AppText>
-              </View>
-              <View style={styles.timerRow}>
-                <AppText style={styles.endsIn}>Ends in</AppText>
-                {[pad2(h), pad2(m), pad2(s)].map((chunk, i) => (
-                  <View key={`${chunk}-${i}`} style={styles.timerBox}>
-                    <AppText style={styles.timerText}>{chunk}</AppText>
-                  </View>
-                ))}
-              </View>
-            </PressableScale>
-
-            {saleProducts.length ? (
-              <Animated.ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={[styles.hPad, { marginTop: 14 }]}
-              >
-                {saleProducts.slice(0, 8).map((p, i) => (
-                  <View key={p.id} style={styles.railItem}>
-                    <ProductCard product={p} compact index={i} />
-                  </View>
-                ))}
-              </Animated.ScrollView>
-            ) : null}
-          </Animated.View>
-        )}
 
         {/* Featured */}
         {!isError && gridProducts.length > 0 ? (
@@ -650,13 +576,16 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     justifyContent: 'flex-end',
     backgroundColor: colors.canvasDeep,
-    // no card shadow / elevation
     elevation: 0,
     shadowOpacity: 0,
     shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
   },
   bannerCopy: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     paddingHorizontal: 18,
     paddingBottom: 18,
     paddingTop: 10,
@@ -764,9 +693,9 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: radii.md,
-    backgroundColor: colors.paper,
+    backgroundColor: colors.jadeSoft,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(13, 155, 148, 0.14)',
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
@@ -783,51 +712,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.ink,
     textAlign: 'center',
-  },
-  flashCard: {
-    marginHorizontal: spacing.md,
-    borderRadius: radii.lg,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    overflow: 'hidden',
-    ...elevation.soft,
-  },
-  flashLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  zap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  flashTitle: {
-    fontFamily: typography.bodyBold,
-    fontSize: 16,
-    color: colors.paper,
-  },
-  timerRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  endsIn: {
-    fontFamily: typography.body,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.7)',
-    marginRight: 2,
-  },
-  timerBox: {
-    minWidth: 30,
-    paddingHorizontal: 6,
-    paddingVertical: 5,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    alignItems: 'center',
-  },
-  timerText: {
-    fontFamily: typography.bodyBold,
-    fontSize: 13,
-    color: colors.brass,
   },
   railItem: { width: 148 },
   grid: {

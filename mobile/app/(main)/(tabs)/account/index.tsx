@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import {
   Bell,
   ChevronRight,
-  GitCompare,
+  // GitCompare, // Compare temporarily disabled
   LogOut,
   Mail,
   MapPin,
@@ -24,9 +24,8 @@ import { ProductCard } from '@/components/product/ProductCard';
 import { AppRefreshControl } from '@/components/ui/AppRefreshControl';
 import { AppButton, AppText, PressableScale } from '@/components/ui/primitives';
 import { useAuthStore } from '@/store/auth';
-import { useCompareStore } from '@/store/compare';
+// import { useCompareStore } from '@/store/compare';
 import { useRecentStore } from '@/store/recent';
-import { useOnboardingStore } from '@/store/onboarding';
 import { useShopStore } from '@/store/shop';
 import { colors, elevation, radii, spacing, typography } from '@/theme/tokens';
 import { formatInr } from '@/utils/price';
@@ -79,9 +78,8 @@ export default function AccountScreen() {
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuthStore();
   const recent = useRecentStore((s) => s.items);
-  const compareCount = useCompareStore((s) => s.items.length);
+  // const compareCount = useCompareStore((s) => s.items.length);
   const shop = useShopStore((s) => s.shop);
-  const resetOnboarding = useOnboardingStore((s) => s.reset);
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['dashboard'],
@@ -233,6 +231,7 @@ export default function AccountScreen() {
               hint="Home, office & more"
               onPress={() => router.push('/addresses')}
             />
+            {/* Compare temporarily disabled for client
             <MenuRow
               icon={GitCompare}
               label="Compare list"
@@ -243,6 +242,7 @@ export default function AccountScreen() {
               }
               onPress={() => router.push('/compare')}
             />
+            */}
             <MenuRow
               icon={Percent}
               label="Deals & coupons"
@@ -333,14 +333,6 @@ export default function AccountScreen() {
         ) : null}
 
         <View style={{ paddingHorizontal: spacing.lg, gap: 8, marginTop: 4 }}>
-          <AppButton
-            label="Replay intro"
-            variant="ghost"
-            onPress={() => {
-              resetOnboarding();
-              router.replace('/(onboarding)');
-            }}
-          />
           {user ? (
             <AppButton
               label="Sign out"

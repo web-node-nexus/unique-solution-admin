@@ -5,7 +5,7 @@
 @section('content')
     @include('admin.partials.page-header', [
         'title' => 'Announcements',
-        'subtitle' => 'Announce to all customers — in-app message + FCM push with image',
+        'subtitle' => 'Announce to customers — in-app message + push. Active items wait for the scheduled start time.',
         'breadcrumbs' => ['Marketing' => null, 'Announcements'],
         'actions' => auth()->user()?->can('notifications.create')
             ? '<a href="'.route('admin.notifications.create').'" class="btn btn-primary"><i class="bi bi-megaphone me-1"></i>New announcement</a>'
@@ -21,7 +21,7 @@
                             <th>Image</th>
                             <th>Title</th>
                             <th>Type</th>
-                            <th>Audience</th>
+                            <th>Schedule</th>
                             <th>Status</th>
                             <th>FCM</th>
                             <th>Sent at</th>
@@ -45,7 +45,7 @@ $('#notificationsTable').DataTable({
         { data: 'preview', orderable: false, searchable: false },
         { data: 'title', name: 'title' },
         { data: 'type_label', orderable: false, searchable: false },
-        { data: 'audience', name: 'audience' },
+        { data: 'window', orderable: false, searchable: false },
         { data: 'status', orderable: false, searchable: false },
         { data: 'fcm', orderable: false, searchable: false },
         { data: 'sent_at', name: 'sent_at', defaultContent: '—' },

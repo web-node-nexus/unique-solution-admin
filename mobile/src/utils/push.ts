@@ -1,28 +1,37 @@
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { accountApi } from '@/api/account';
+import { getNotifications, isExpoGo } from '@/utils/notifications';
 
 const TOKEN_KEY = 'us-push-token';
 
-try {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: false,
-      shouldSetBadge: false,
-      shouldShowBanner: true,
-      shouldShowList: true,
-    }),
-  });
-} catch {
-  // Expo Go / unsupported platforms — ignore.
+function setupHandler() {
+  const Notifications = getNotifications();
+  if (!Notifications) return;
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+  } catch {
+    // unsupported environment
+  }
 }
 
+setupHandler();
+
 export async function registerPushToken(): Promise<string | null> {
-  if (!Device.isDevice) return null;
+  if (isExpoGo() || !Device.isDevice) return null;
+
+  const Notifications = getNotifications();
+  if (!Notifications) return null;
 
   const existing = await Notifications.getPermissionsAsync();
   let finalStatus = String((existing as { status?: string }).status ?? 'undetermined');

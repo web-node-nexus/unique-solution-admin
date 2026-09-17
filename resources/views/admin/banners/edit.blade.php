@@ -14,11 +14,12 @@
 
     <div class="card border-0 shadow-sm">
         <div class="card-body">
-            <form action="{{ route('admin.banners.update', $banner) }}" method="POST" enctype="multipart/form-data" id="bannerForm">
+            <form action="{{ route('admin.banners.update', $banner) }}" method="POST" enctype="multipart/form-data" id="bannerForm" data-publish-form="banner">
                 @csrf
                 @method('PUT')
                 @include('admin.banners._form', ['banner' => $banner, 'nextSort' => $banner->sort_order])
                 <div class="mt-4 d-flex gap-2">
+                    @include('admin.partials.preview-button', ['type' => 'banner'])
                     <button type="submit" class="btn btn-primary" data-loading-text="Updating...">
                         <i class="bi bi-check-lg me-1"></i>Update Banner
                     </button>

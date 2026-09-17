@@ -16,7 +16,7 @@
     <div class="card">
         <div class="card-body">
             <form action="{{ route('admin.categories.update', $category) }}" method="POST"
-                  enctype="multipart/form-data" novalidate>
+                  enctype="multipart/form-data" data-publish-form="category" novalidate>
                 @csrf
                 @method('PUT')
 
@@ -61,16 +61,10 @@
                         @enderror
                     </div>
 
-                    <div class="col-md-3">
-                        <label for="status" class="form-label">Status <span class="text-danger">*</span></label>
-                        <select name="status" id="status"
-                                class="form-select @error('status') is-invalid @enderror">
-                            <option value="1" @selected(old('status', $category->status ? '1' : '0') == '1')>Active</option>
-                            <option value="0" @selected(old('status', $category->status ? '1' : '0') === '0')>Inactive</option>
-                        </select>
-                        @error('status')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
+                    <div class="col-md-6">
+                        @include('admin.partials.publish-toggle', [
+                            'checked' => filter_var(old('status', $category->status), FILTER_VALIDATE_BOOLEAN),
+                        ])
                     </div>
 
                     <div class="col-12">
@@ -168,6 +162,7 @@
                 </div>
 
                 <div class="d-flex gap-2 mt-4">
+                    @include('admin.partials.preview-button', ['type' => 'category'])
                     <button type="submit" class="btn btn-primary">
                         <i class="bi bi-check-lg me-1"></i>Update Category
                     </button>

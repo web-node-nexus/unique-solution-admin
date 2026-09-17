@@ -18,7 +18,7 @@
         <div class="auth-brand">
             <div class="brand-mark">US</div>
             <h1>{{ setting('shop_name', 'Unique Solution') }}</h1>
-            <p class="tagline">{{ setting('shop_tagline', 'आपकी अपनी दुकान') }}</p>
+            <p class="tagline">{{ setting('shop_tagline', 'Your neighbourhood store') }}</p>
         </div>
 
         <div class="auth-body">

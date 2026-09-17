@@ -30,6 +30,7 @@
                             <th>Preview</th>
                             <th>Title</th>
                             <th>Link</th>
+                            <th>Schedule</th>
                             <th>Order</th>
                             <th>Status</th>
                             <th>Actions</th>
@@ -60,12 +61,13 @@ $(function () {
                 d.status = $('#statusFilter').val();
             }
         },
-        order: [[4, 'asc']],
+        order: [[5, 'asc']],
         columns: [
             { data: 'reorder', orderable: false, searchable: false, className: 'text-center' },
             { data: 'preview', orderable: false, searchable: false },
             { data: 'title', name: 'title' },
             { data: 'link_label', orderable: false, searchable: false },
+            { data: 'window', orderable: false, searchable: false },
             { data: 'sort_order', name: 'sort_order' },
             { data: 'status', name: 'status', orderable: false },
             { data: 'action', orderable: false, searchable: false },

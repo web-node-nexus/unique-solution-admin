@@ -224,14 +224,15 @@ a:hover {
     max-height: 0;
     overflow: hidden;
     opacity: 0;
-    transition: max-height 0.3s ease, opacity 0.25s ease, padding 0.25s ease;
+    transition: max-height 0.28s ease, opacity 0.22s ease, padding 0.22s ease;
 }
 
 .admin-sidebar .submenu.open {
-    max-height: 320px;
+    /* Height is set from content via admin.js — never clip Payments/Refunds */
     opacity: 1;
     padding-top: 0.15rem;
     padding-bottom: 0.25rem;
+    overflow: visible;
 }
 
 .admin-sidebar .submenu .nav-link {
@@ -965,7 +966,8 @@ body.sidebar-open-mobile .sidebar-backdrop {
         visibility: visible;
         width: auto;
         height: auto;
-        max-height: 320px;
+        max-height: none;
+        overflow: visible;
         pointer-events: auto;
     }
 
@@ -1481,6 +1483,85 @@ body.sidebar-open-mobile .sidebar-backdrop {
     background: #fff;
 }
 
+/* ---------- Product brand-policy picker ---------- */
+.policy-picker {
+    border: 1px solid var(--border-color);
+    border-radius: 1rem;
+    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 28%);
+    padding: 1rem 1.1rem 1.15rem;
+}
+.policy-picker-head {
+    margin-bottom: 0.85rem;
+}
+.policy-picker-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+.policy-picker-card {
+    display: grid;
+    grid-template-columns: auto 52px minmax(0, 1fr) auto;
+    gap: 0.85rem;
+    align-items: center;
+    padding: 0.85rem 0.95rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    background: var(--policy-tint, #f8fafc);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+    transition: opacity 0.2s ease;
+}
+.policy-picker-card.is-off {
+    opacity: 0.55;
+    filter: grayscale(0.25);
+}
+.policy-picker-check {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #64748b;
+    margin: 0;
+    cursor: pointer;
+}
+.policy-picker-check input {
+    width: 1.15rem;
+    height: 1.15rem;
+    cursor: pointer;
+}
+.policy-picker-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: #fff;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+}
+.policy-picker-icon img {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+}
+.policy-picker-icon i {
+    font-size: 1.25rem;
+    color: #0d9488;
+}
+.policy-picker-title {
+    font-weight: 700;
+    color: #0f172a;
+    font-size: 0.95rem;
+}
+.policy-picker-desc {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-top: 0.15rem;
+}
+.policy-picker-remove {
+    white-space: nowrap;
+}
+
 /* ---------- Orders board (screenshot UI) ---------- */
 .orders-board {
     border: 1px solid #e8edf3;
@@ -1758,4 +1839,287 @@ body.sidebar-open-mobile .sidebar-backdrop {
     .orders-status-tabs {
         width: 100%;
     }
+}
+
+/* Publishing toggles + app preview */
+.publish-toggle-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+    min-width: 132px;
+}
+
+.publish-toggle-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #64748b;
+}
+
+.publish-toggle-label.is-on {
+    color: #059669;
+}
+
+.publish-switch {
+    position: relative;
+    display: inline-flex;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.publish-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.publish-slider {
+    position: absolute;
+    inset: 0;
+    background: #cbd5e1;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.publish-slider::before {
+    content: "";
+    position: absolute;
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    top: 3px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.25);
+    transition: transform 0.2s ease;
+}
+
+.publish-switch input:checked + .publish-slider {
+    background: linear-gradient(135deg, #10b981, #0d9488);
+}
+
+.publish-switch input:checked + .publish-slider::before {
+    transform: translateX(20px);
+}
+
+.publish-switch.is-disabled {
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+.publish-switch-lg {
+    width: 52px;
+    height: 28px;
+}
+
+.publish-switch-lg .publish-slider::before {
+    height: 22px;
+    width: 22px;
+}
+
+.publish-switch-lg input:checked + .publish-slider::before {
+    transform: translateX(24px);
+}
+
+.publish-panel {
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    padding: 1rem 1.1rem;
+    background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+}
+
+.activation-alert {
+    border: 0;
+    background: #fef2f2;
+    color: #b91c1c;
+    font-size: 0.875rem;
+}
+
+.app-preview-modal {
+    background: #0b1220;
+    color: #e2e8f0;
+    border: 0;
+    border-radius: 1.25rem;
+}
+
+.app-preview-modal .modal-header,
+.app-preview-modal .modal-body {
+    background: transparent;
+}
+
+.app-preview-modal .btn-close {
+    filter: invert(1);
+}
+
+.phone-frame {
+    width: 320px;
+    max-width: 100%;
+    background: #111827;
+    border-radius: 36px;
+    padding: 12px 10px 18px;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.phone-notch {
+    width: 92px;
+    height: 8px;
+    background: #020617;
+    border-radius: 999px;
+    margin: 4px auto 8px;
+}
+
+.phone-status {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.65rem;
+    color: #94a3b8;
+    padding: 0 10px 8px;
+}
+
+.phone-screen {
+    background: #07131f;
+    border-radius: 24px;
+    min-height: 420px;
+    overflow: hidden;
+}
+
+.phone-home {
+    width: 108px;
+    height: 4px;
+    background: #334155;
+    border-radius: 999px;
+    margin: 12px auto 0;
+}
+
+.phone-empty {
+    color: #64748b;
+    text-align: center;
+    padding: 4rem 1.5rem;
+}
+
+.phone-home-preview {
+    padding: 12px;
+}
+
+.phone-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #ecfdf5;
+    font-weight: 800;
+    margin-bottom: 12px;
+}
+
+.phone-kicker {
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #34d399;
+    margin-bottom: 8px;
+}
+
+.phone-hero {
+    position: relative;
+    height: 168px;
+    border-radius: 18px;
+    overflow: hidden;
+    background: #123;
+}
+
+.phone-hero img,
+.phone-card img,
+.phone-tile img,
+.phone-image-fallback {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.phone-image-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #134e4a, #0f172a);
+    color: #5eead4;
+    font-size: 2rem;
+    min-height: 120px;
+}
+
+.phone-hero-copy {
+    position: absolute;
+    inset: auto 0 0 0;
+    padding: 14px;
+    background: linear-gradient(180deg, transparent, rgba(2, 6, 23, 0.85));
+}
+
+.phone-hero-title {
+    font-weight: 800;
+    color: #fff;
+}
+
+.phone-hero-sub {
+    font-size: 0.8rem;
+    color: #cbd5e1;
+}
+
+.phone-chips {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.phone-chips span {
+    flex: 1;
+    height: 42px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.phone-tile,
+.phone-card {
+    display: flex;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 18px;
+    overflow: hidden;
+    color: #e2e8f0;
+}
+
+.phone-tile img,
+.phone-tile .phone-image-fallback {
+    width: 72px;
+    height: 72px;
+    flex-shrink: 0;
+}
+
+.phone-card img,
+.phone-card .phone-image-fallback {
+    width: 100%;
+    height: 180px;
+}
+
+.phone-card {
+    flex-direction: column;
+}
+
+.phone-card-body,
+.phone-tile div {
+    padding: 12px;
+}
+
+.phone-price {
+    color: #34d399;
+    font-weight: 800;
+    margin-top: 4px;
+}
+
+.phone-card-body p {
+    color: #94a3b8;
+    font-size: 0.8rem;
+    margin: 8px 0 0;
 }

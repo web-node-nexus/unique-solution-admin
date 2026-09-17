@@ -28,6 +28,7 @@ class AnnouncementService
                 'type' => $attributes['type'] ?? 'announcement',
                 'audience' => $attributes['audience'] ?? 'all',
                 'status' => 'draft',
+                'is_active' => (bool) ($attributes['is_active'] ?? false),
                 'sent_by' => $sender?->id ?? auth()->id(),
                 'link_type' => $attributes['link_type'] ?? 'none',
                 'link_value' => $attributes['link_value'] ?? null,
@@ -50,6 +51,7 @@ class AnnouncementService
     {
         $notification->update([
             'status' => 'sent',
+            'is_active' => true,
             'sent_at' => now(),
             'sent_by' => $notification->sent_by ?: auth()->id(),
         ]);
@@ -89,7 +91,10 @@ class AnnouncementService
             'link_value' => $linkValue,
             'audience' => 'all',
             'related' => $sale,
-        ], true, $sender);
+            'is_active' => true,
+            'starts_at' => $sale->starts_at,
+            'ends_at' => $sale->ends_at,
+        ], $sale->isCurrentlyLive(), $sender);
 
         $sale->update([
             'notify_users' => true,

@@ -13,7 +13,7 @@ import { AppButton, AppText, PressableScale } from '@/components/ui/primitives';
 import { useCompareStore, MAX_COMPARE } from '@/store/compare';
 import { colors, elevation, radii, spacing, typography } from '@/theme/tokens';
 import type { ProductDetail } from '@/types/catalog';
-import { formatInr, sellingPrice } from '@/utils/price';
+import { discountPercent, formatInr, sellingPrice } from '@/utils/price';
 
 const COL_W = 156;
 
@@ -152,15 +152,30 @@ export default function CompareScreen() {
                 <View style={styles.table}>
                   <Cell
                     label="Price"
-                    values={items.map((p) =>
-                      formatInr(sellingPrice(p.mrp ?? p.base_price, p.sale_price)),
-                    )}
+                    values={items.map((p, i) => {
+                      const d = details[i];
+                      const mrp = Number(d?.mrp ?? p.mrp ?? d?.base_price ?? p.base_price ?? 0);
+                      const sale = d?.sale_price ?? p.sale_price ?? null;
+                      return formatInr(sellingPrice(mrp, sale));
+                    })}
                   />
                   <Cell
                     label="MRP"
-                    values={items.map((p) =>
-                      p.sale_price ? formatInr(p.mrp ?? p.base_price) : '—',
-                    )}
+                    values={items.map((p, i) => {
+                      const d = details[i];
+                      const mrp = Number(d?.mrp ?? p.mrp ?? d?.base_price ?? p.base_price ?? 0);
+                      return mrp > 0 ? formatInr(mrp) : '—';
+                    })}
+                  />
+                  <Cell
+                    label="Discount"
+                    values={items.map((p, i) => {
+                      const d = details[i];
+                      const mrp = Number(d?.mrp ?? p.mrp ?? d?.base_price ?? p.base_price ?? 0);
+                      const sale = d?.sale_price ?? p.sale_price ?? null;
+                      const off = discountPercent(mrp, sale);
+                      return off != null ? `${off}% off` : '—';
+                    })}
                   />
                   <Cell
                     label="Rating"

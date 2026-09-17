@@ -14,7 +14,7 @@
 
     <div class="card">
         <div class="card-body">
-            <form action="{{ route('admin.brands.update', $brand) }}" method="POST" enctype="multipart/form-data" novalidate>
+            <form action="{{ route('admin.brands.update', $brand) }}" method="POST" enctype="multipart/form-data" data-publish-form="brand" novalidate>
                 @csrf
                 @method('PUT')
 
@@ -81,16 +81,10 @@
                         </div>
                     </div>
 
-                    <div class="col-md-3">
-                        <label for="status" class="form-label">Status <span class="text-danger">*</span></label>
-                        <select name="status" id="status"
-                                class="form-select @error('status') is-invalid @enderror">
-                            <option value="1" @selected(old('status', $brand->status ? '1' : '0') == '1')>Active</option>
-                            <option value="0" @selected(old('status', $brand->status ? '1' : '0') === '0')>Inactive</option>
-                        </select>
-                        @error('status')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
+                    <div class="col-md-6">
+                        @include('admin.partials.publish-toggle', [
+                            'checked' => filter_var(old('status', $brand->status), FILTER_VALIDATE_BOOLEAN),
+                        ])
                     </div>
 
                     <div class="col-12">
@@ -113,12 +107,13 @@
                             'field' => 'policies',
                             'policies' => $brand->policies,
                             'heading' => 'Brand policies',
-                            'hint' => 'These cards appear on product pages when “Use brand policies” is checked for a product.',
+                            'hint' => 'Add policy cards here (warranty, replacement, delivery). Products only select which of these to show — they cannot create new policies.',
                         ])
                     </div>
                 </div>
 
                 <div class="d-flex gap-2 mt-4">
+                    @include('admin.partials.preview-button', ['type' => 'brand'])
                     <button type="submit" class="btn btn-primary">
                         <i class="bi bi-check-lg me-1"></i>Update Brand
                     </button>

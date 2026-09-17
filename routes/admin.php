@@ -58,6 +58,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->middleware('permission:categories.update')->name('categories.reorder');
         Route::post('categories/{category}/move', [CategoryController::class, 'move'])
             ->middleware('permission:categories.update')->name('categories.move');
+        Route::patch('categories/{category}/toggle-status', [CategoryController::class, 'toggleStatus'])
+            ->middleware('permission:categories.update')->name('categories.toggle-status');
+        Route::post('categories/{category}/duplicate', [CategoryController::class, 'duplicate'])
+            ->middleware('permission:categories.create')->name('categories.duplicate');
         Route::get('categories', [CategoryController::class, 'index'])
             ->middleware('permission:categories.view')->name('categories.index');
         Route::post('categories', [CategoryController::class, 'store'])
@@ -90,6 +94,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->middleware('permission:banners.update')->name('banners.edit');
         Route::put('banners/{banner}', [BannerController::class, 'update'])
             ->middleware('permission:banners.update')->name('banners.update');
+        Route::patch('banners/{banner}/toggle-status', [BannerController::class, 'toggleStatus'])
+            ->middleware('permission:banners.update')->name('banners.toggle-status');
+        Route::post('banners/{banner}/duplicate', [BannerController::class, 'duplicate'])
+            ->middleware('permission:banners.create')->name('banners.duplicate');
         Route::delete('banners/{banner}', [BannerController::class, 'destroy'])
             ->middleware('permission:banners.delete')->name('banners.destroy');
 
@@ -112,6 +120,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->middleware('permission:brands.update')->name('brands.edit');
         Route::put('brands/{brand}', [BrandController::class, 'update'])
             ->middleware('permission:brands.update')->name('brands.update');
+        Route::patch('brands/{brand}/toggle-status', [BrandController::class, 'toggleStatus'])
+            ->middleware('permission:brands.update')->name('brands.toggle-status');
+        Route::post('brands/{brand}/duplicate', [BrandController::class, 'duplicate'])
+            ->middleware('permission:brands.create')->name('brands.duplicate');
         Route::delete('brands/{brand}', [BrandController::class, 'destroy'])
             ->middleware('permission:brands.delete')->name('brands.destroy');
 
@@ -172,6 +184,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->middleware('permission:products.create')->name('products.clone');
         Route::patch('products/{product}/quick-update', [ProductController::class, 'quickUpdate'])
             ->middleware('permission:products.update')->name('products.quick-update');
+        Route::patch('products/{product}/toggle-status', [ProductController::class, 'toggleStatus'])
+            ->middleware('permission:products.update')->name('products.toggle-status');
         Route::get('products/{product}', [ProductController::class, 'show'])
             ->middleware('permission:products.view')->name('products.show');
         Route::put('products/{product}', [ProductController::class, 'update'])
@@ -303,6 +317,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->middleware('permission:coupons.update')->name('coupons.edit');
         Route::put('coupons/{coupon}', [CouponController::class, 'update'])
             ->middleware('permission:coupons.update')->name('coupons.update');
+        Route::patch('coupons/{coupon}/toggle-status', [CouponController::class, 'toggleStatus'])
+            ->middleware('permission:coupons.update')->name('coupons.toggle-status');
+        Route::post('coupons/{coupon}/duplicate', [CouponController::class, 'duplicate'])
+            ->middleware('permission:coupons.create')->name('coupons.duplicate');
         Route::delete('coupons/{coupon}', [CouponController::class, 'destroy'])
             ->middleware('permission:coupons.delete')->name('coupons.destroy');
 
@@ -323,6 +341,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->middleware('permission:sales.update')->name('sales.edit');
         Route::put('sales/{sale}', [SaleController::class, 'update'])
             ->middleware('permission:sales.update')->name('sales.update');
+        Route::patch('sales/{sale}/toggle-status', [SaleController::class, 'toggleStatus'])
+            ->middleware('permission:sales.update')->name('sales.toggle-status');
+        Route::post('sales/{sale}/duplicate', [SaleController::class, 'duplicate'])
+            ->middleware('permission:sales.create')->name('sales.duplicate');
         Route::delete('sales/{sale}', [SaleController::class, 'destroy'])
             ->middleware('permission:sales.delete')->name('sales.destroy');
 
@@ -343,6 +365,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->middleware('permission:notifications.update')->name('notifications.edit');
         Route::put('notifications/{notification}', [AppNotificationController::class, 'update'])
             ->middleware('permission:notifications.update')->name('notifications.update');
+        Route::patch('notifications/{notification}/toggle-status', [AppNotificationController::class, 'toggleStatus'])
+            ->middleware('permission:notifications.update')->name('notifications.toggle-status');
+        Route::post('notifications/{notification}/duplicate', [AppNotificationController::class, 'duplicate'])
+            ->middleware('permission:notifications.create')->name('notifications.duplicate');
         Route::post('notifications/{notification}/send', [AppNotificationController::class, 'send'])
             ->middleware('permission:notifications.update')->name('notifications.send');
         Route::delete('notifications/{notification}', [AppNotificationController::class, 'destroy'])

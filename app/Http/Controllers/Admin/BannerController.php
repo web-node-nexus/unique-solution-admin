@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\TogglesPublishable;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreBannerRequest;
 use App\Http\Requests\Admin\UpdateBannerRequest;
@@ -9,6 +10,8 @@ use App\Models\Banner;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
+use App\Services\ActivationGuard;
+use App\Services\CatalogDuplicator;
 use App\Services\ImageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -18,7 +21,13 @@ use Yajra\DataTables\Facades\DataTables;
 
 class BannerController extends Controller
 {
-    public function __construct(protected ImageService $imageService) {}
+    use TogglesPublishable;
+
+    public function __construct(
+        protected ImageService $imageService,
+        protected CatalogDuplicator $duplicator,
+        protected ActivationGuard $activationGuard,
+    ) {}
 
     public function index(): View
     {
@@ -56,16 +65,27 @@ class BannerController extends Controller
                     default => 'No link',
                 };
             })
-            ->addColumn('status', function (Banner $banner) {
-                $badge = $banner->status ? 'success' : 'secondary';
-                $label = $banner->status ? 'Active' : 'Inactive';
+            ->addColumn('window', function (Banner $banner) {
+                $start = $banner->starts_at?->format('d M Y H:i') ?? 'Anytime';
+                $end = $banner->ends_at?->format('d M Y H:i') ?? 'No end';
 
-                return '<span class="badge bg-'.$badge.'">'.$label.'</span>';
+                return $start.' → '.$end;
+            })
+            ->addColumn('status', function (Banner $banner) {
+                return admin_publish_toggle(
+                    route('admin.banners.toggle-status', $banner),
+                    (bool) $banner->status,
+                    (bool) auth()->user()?->can('banners.update'),
+                    $banner->scheduleState()
+                );
             })
             ->addColumn('action', function (Banner $banner) {
                 $buttons = '';
                 if (auth()->user()?->can('banners.update')) {
                     $buttons .= '<a href="'.route('admin.banners.edit', $banner).'" class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></a>';
+                }
+                if (auth()->user()?->can('banners.create')) {
+                    $buttons .= admin_duplicate_button(route('admin.banners.duplicate', $banner), 'Duplicate this banner as a deactive copy?');
                 }
                 if (auth()->user()?->can('banners.delete')) {
                     $buttons .= '<form action="'.route('admin.banners.destroy', $banner).'" method="POST" class="d-inline" data-confirm="Delete this banner?">'
@@ -98,6 +118,11 @@ class BannerController extends Controller
 
         $data['image_path'] = $this->imageService->upload($request->file('image'), 'banners');
         $data['sort_order'] = $data['sort_order'] ?? ((int) Banner::query()->max('sort_order') + 1);
+        $data['status'] = (bool) ($data['status'] ?? false);
+
+        if ($data['status']) {
+            $this->activationGuard->assertCanActivate('banner', $request);
+        }
 
         $banner = Banner::query()->create($data);
 
@@ -128,6 +153,10 @@ class BannerController extends Controller
         if ($request->hasFile('image')) {
             $this->imageService->delete($banner->image_path);
             $data['image_path'] = $this->imageService->upload($request->file('image'), 'banners');
+        }
+
+        if ($data['status'] ?? $banner->status) {
+            $this->activationGuard->assertCanActivate('banner', $request);
         }
 
         $banner->update($data);
@@ -170,5 +199,32 @@ class BannerController extends Controller
         activity_log('reordered', 'banners', 'Reordered app carousel banners');
 
         return response()->json(['success' => true, 'message' => 'Banners reordered for carousel.']);
+    }
+
+    public function toggleStatus(Request $request, Banner $banner): JsonResponse
+    {
+        $this->authorize('update', $banner);
+
+        return $this->togglePublishStatus(
+            $request,
+            $banner,
+            'banners.update',
+            'banner',
+            'banners',
+            function (Banner $item, bool $active): void {
+                $item->update(['status' => $active]);
+            }
+        );
+    }
+
+    public function duplicate(Banner $banner): RedirectResponse
+    {
+        $this->authorize('create', Banner::class);
+
+        $copy = $this->duplicator->banner($banner);
+
+        return redirect()
+            ->route('admin.banners.edit', $copy)
+            ->with('success', 'Banner duplicated as a deactive copy. Review it, then turn it on.');
     }
 }

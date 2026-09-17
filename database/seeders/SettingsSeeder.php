@@ -11,7 +11,7 @@ class SettingsSeeder extends Seeder
     {
         $settings = [
             'shop_name' => 'Unique Solution',
-            'shop_tagline' => 'आपकी अपनी दुकान',
+            'shop_tagline' => 'Your neighbourhood store',
             'shop_address' => 'Kargil Chowk, Megha Road, Kurud - 493663',
             'shop_logo' => null,
             'contact_number' => '+91 9876543210',

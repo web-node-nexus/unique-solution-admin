@@ -33,8 +33,8 @@ class ProductService
                 'base_price' => $data['base_price'],
                 'sale_price' => $data['sale_price'] ?? null,
                 'warranty_info' => $data['warranty_info'] ?? null,
-                'use_brand_policies' => (bool) ($data['use_brand_policies'] ?? false),
-                'status' => $data['status'] ?? 'active',
+                'use_brand_policies' => false,
+                'status' => $data['status'] ?? 'inactive',
                 'is_featured' => (bool) ($data['is_featured'] ?? false),
                 'meta_title' => $data['meta_title'] ?? null,
                 'meta_description' => $data['meta_description'] ?? null,
@@ -67,9 +67,6 @@ class ProductService
                 'base_price' => $data['base_price'] ?? $product->base_price,
                 'sale_price' => array_key_exists('sale_price', $data) ? $data['sale_price'] : $product->sale_price,
                 'warranty_info' => array_key_exists('warranty_info', $data) ? $data['warranty_info'] : $product->warranty_info,
-                'use_brand_policies' => array_key_exists('use_brand_policies', $data)
-                    ? (bool) $data['use_brand_policies']
-                    : $product->use_brand_policies,
                 'status' => $data['status'] ?? $product->status,
                 'is_featured' => array_key_exists('is_featured', $data)
                     ? (bool) $data['is_featured']
@@ -105,7 +102,7 @@ class ProductService
 
     public function clone(Product $product, User $user, bool $copyStock = false): Product
     {
-        $product->loadMissing(['images', 'variants.attributeValues', 'variants.images']);
+        $product->loadMissing(['images', 'variants.attributeValues', 'variants.images', 'brandPolicies']);
 
         return DB::transaction(function () use ($product, $user, $copyStock) {
             $name = $product->name.' (Copy)';
@@ -119,12 +116,21 @@ class ProductService
                 'base_price' => $product->base_price,
                 'sale_price' => $product->sale_price,
                 'warranty_info' => $product->warranty_info,
-                'status' => $product->status,
+                'use_brand_policies' => false,
+                'status' => 'inactive',
                 'is_featured' => false,
                 'meta_title' => $product->meta_title,
                 'meta_description' => $product->meta_description,
                 'created_by' => $user->id,
             ]);
+
+            $policySync = [];
+            foreach ($product->brandPolicies as $index => $policy) {
+                $policySync[$policy->id] = ['sort_order' => $index];
+            }
+            if ($policySync !== []) {
+                $clone->brandPolicies()->sync($policySync);
+            }
 
             foreach ($product->images as $image) {
                 ProductImage::query()->create([
@@ -409,6 +415,7 @@ class ProductService
             if ($existing) {
                 $this->updateExistingVariant($existing, $variantData);
                 $keptIds[] = $existing->id;
+
                 continue;
             }
 

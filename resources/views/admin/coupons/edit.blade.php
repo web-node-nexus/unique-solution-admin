@@ -13,7 +13,7 @@
 
     <div class="card">
         <div class="card-body">
-            <form method="POST" action="{{ route('admin.coupons.update', $coupon) }}" enctype="multipart/form-data">
+            <form method="POST" action="{{ route('admin.coupons.update', $coupon) }}" enctype="multipart/form-data" data-publish-form="coupon">
                 @csrf
                 @method('PUT')
                 <div class="row g-3">
@@ -79,15 +79,15 @@
                             </div>
                         @endif
                     </div>
-                    <div class="col-md-4 d-flex align-items-end">
-                        <div class="form-check mb-3">
-                            <input type="hidden" name="status" value="0">
-                            <input type="checkbox" name="status" id="status" value="1" class="form-check-input" @checked(old('status', $coupon->status))>
-                            <label class="form-check-label" for="status">Active</label>
-                        </div>
+                    <div class="col-md-4">
+                        @include('admin.partials.publish-toggle', [
+                            'checked' => filter_var(old('status', $coupon->status), FILTER_VALIDATE_BOOLEAN),
+                            'scheduled' => true,
+                        ])
                     </div>
                 </div>
                 <div class="d-flex gap-2 mt-3">
+                    @include('admin.partials.preview-button', ['type' => 'coupon'])
                     <button type="submit" class="btn btn-primary">Save changes</button>
                     <a href="{{ route('admin.coupons.index') }}" class="btn btn-outline-secondary">Cancel</a>
                     <a href="{{ route('admin.coupons.usage', $coupon) }}" class="btn btn-outline-secondary">Usage report</a>

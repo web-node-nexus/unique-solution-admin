@@ -1,16 +1,15 @@
-import { DrawerActions } from '@react-navigation/native';
-import { useNavigation } from 'expo-router';
 import { Menu } from 'lucide-react-native';
 import { IconButton } from '@/components/ui/primitives';
+import { useDrawerStore } from '@/store/drawer';
 import { colors } from '@/theme/tokens';
 
 export function MenuButton({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
-  const navigation = useNavigation();
+  const openDrawer = useDrawerStore((s) => s.openDrawer);
   const light = tone === 'light';
 
   return (
     <IconButton
-      onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+      onPress={openDrawer}
       style={
         light
           ? {

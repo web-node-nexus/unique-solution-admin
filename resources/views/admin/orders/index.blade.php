@@ -80,11 +80,11 @@
                 <table id="ordersTable" class="table orders-table w-100">
                     <thead>
                         <tr>
-                            <th>ऑर्डर ID व तारीख</th>
-                            <th>कस्टमर विवरण</th>
-                            <th>डिलीवरी पता</th>
-                            <th>प्रोडक्ट व कुल कीमत</th>
-                            <th>पेमेंट मोड</th>
+                            <th>Order ID &amp; date</th>
+                            <th>Customer</th>
+                            <th>Delivery address</th>
+                            <th>Product &amp; total</th>
+                            <th>Payment</th>
                             <th class="text-uppercase">Actions</th>
                         </tr>
                     </thead>
@@ -153,11 +153,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!url || !status) return;
 
         const isCancel = status === 'cancelled';
-        const title = isCancel ? 'ऑर्डर कैंसिल करें?' : 'ऑर्डर कन्फर्म करें?';
+        const title = isCancel ? 'Cancel this order?' : 'Confirm this order?';
         const text = isCancel
-            ? 'यह ऑर्डर cancelled हो जाएगा।'
-            : 'यह ऑर्डर confirmed हो जाएगा।';
-        const confirmText = isCancel ? 'हाँ, कैंसिल' : 'हाँ, कन्फर्म';
+            ? 'This order will be marked as cancelled.'
+            : 'This order will be marked as confirmed.';
+        const confirmText = isCancel ? 'Yes, cancel' : 'Yes, confirm';
 
         Swal.fire({
             title,
@@ -165,7 +165,7 @@ document.addEventListener('DOMContentLoaded', function () {
             icon: isCancel ? 'warning' : 'question',
             showCancelButton: true,
             confirmButtonText: confirmText,
-            cancelButtonText: 'वापस',
+            cancelButtonText: 'Go back',
             confirmButtonColor: isCancel ? '#dc2626' : '#16a34a',
         }).then(function (result) {
             if (!result.isConfirmed) return;

@@ -1,10 +1,10 @@
 @php
     $banner = $banner ?? null;
-    $linkType = old('link_type', $banner->link_type ?? 'none');
+    $linkType = old('link_type', $banner?->link_type ?? 'none');
     if ($linkType === 'url') {
         $linkType = 'none';
     }
-    $linkValue = old('link_value', $banner->link_value ?? '');
+    $linkValue = old('link_value', $banner?->link_value ?? '');
     if ($linkType === 'none') {
         $linkValue = '';
     }
@@ -15,7 +15,7 @@
         <div class="mb-3">
             <label for="title" class="form-label">Title</label>
             <input type="text" name="title" id="title" class="form-control @error('title') is-invalid @enderror"
-                   value="{{ old('title', $banner->title ?? '') }}" maxlength="255">
+                   value="{{ old('title', $banner?->title ?? '') }}" maxlength="255">
             @error('title') <div class="invalid-feedback">{{ $message }}</div> @enderror
             <div class="form-text">Optional. Image alone is enough to save a banner.</div>
         </div>
@@ -23,7 +23,7 @@
         <div class="mb-3">
             <label for="subtitle" class="form-label">Subtitle</label>
             <input type="text" name="subtitle" id="subtitle" class="form-control @error('subtitle') is-invalid @enderror"
-                   value="{{ old('subtitle', $banner->subtitle ?? '') }}" maxlength="255">
+                   value="{{ old('subtitle', $banner?->subtitle ?? '') }}" maxlength="255">
             @error('subtitle') <div class="invalid-feedback">{{ $message }}</div> @enderror
             <div class="form-text">Optional line under the title in the app carousel.</div>
         </div>
@@ -33,7 +33,7 @@
             <input type="file" name="image" id="image" accept="image/jpeg,image/png,image/webp"
                    class="form-control @error('image') is-invalid @enderror" {{ $banner ? '' : 'required' }}>
             @error('image') <div class="invalid-feedback">{{ $message }}</div> @enderror
-            <div class="form-text">Recommended <strong>1920×1080</strong> (full HD, 16:9). App me edge-to-edge dikhega.</div>
+            <div class="form-text">Recommended <strong>1920×1080</strong> (full HD, 16:9). Displays edge-to-edge in the app.</div>
             <div class="mt-2">
                 <img id="imagePreview" src="{{ $banner?->image_url }}" alt=""
                      class="rounded border {{ $banner?->image_url ? '' : 'd-none' }}"
@@ -95,27 +95,29 @@
             <div class="form-text">Lower = earlier in carousel. Drag on list page anytime.</div>
         </div>
 
-        <div class="mb-3 form-check form-switch">
-            <input type="hidden" name="status" value="0">
-            <input class="form-check-input" type="checkbox" role="switch" name="status" id="status" value="1"
-                   @checked(filter_var(old('status', $banner?->status ?? false), FILTER_VALIDATE_BOOLEAN))>
-            <label class="form-check-label" for="status">Active on app</label>
+        <div class="mb-3">
+            @include('admin.partials.publish-toggle', [
+                'checked' => filter_var(old('status', $banner?->status ?? false), FILTER_VALIDATE_BOOLEAN),
+                'scheduled' => true,
+            ])
         </div>
 
         <div class="mb-3">
-            <label for="starts_at" class="form-label">Starts at (optional)</label>
+            <label for="starts_at" class="form-label">Starts at</label>
             <input type="datetime-local" name="starts_at" id="starts_at"
                    class="form-control @error('starts_at') is-invalid @enderror"
                    value="{{ old('starts_at', optional($banner?->starts_at)->format('Y-m-d\TH:i')) }}">
             @error('starts_at') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            <div class="form-text">Even if Active, the banner stays hidden until this date and time.</div>
         </div>
 
         <div class="mb-3">
-            <label for="ends_at" class="form-label">Ends at (optional)</label>
+            <label for="ends_at" class="form-label">Ends at</label>
             <input type="datetime-local" name="ends_at" id="ends_at"
                    class="form-control @error('ends_at') is-invalid @enderror"
                    value="{{ old('ends_at', optional($banner?->ends_at)->format('Y-m-d\TH:i')) }}">
             @error('ends_at') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            <div class="form-text">Hides automatically when this time is reached.</div>
         </div>
     </div>
 </div>

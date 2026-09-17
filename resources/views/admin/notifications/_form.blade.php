@@ -1,7 +1,7 @@
 @php
     $notification = $notification ?? null;
-    $linkType = old('link_type', $notification->link_type ?? 'none');
-    $linkValue = old('link_value', $notification->link_value ?? '');
+    $linkType = old('link_type', $notification?->link_type ?? 'none');
+    $linkValue = old('link_value', $notification?->link_value ?? '');
 @endphp
 
 <div class="row g-3">
@@ -9,12 +9,12 @@
         <div class="mb-3">
             <label class="form-label" for="title">Title <span class="text-danger">*</span></label>
             <input type="text" name="title" id="title" class="form-control @error('title') is-invalid @enderror"
-                   value="{{ old('title', $notification->title ?? '') }}" required maxlength="255">
+                   value="{{ old('title', $notification?->title ?? '') }}" required maxlength="255">
             @error('title')<div class="invalid-feedback">{{ $message }}</div>@enderror
         </div>
         <div class="mb-3">
             <label class="form-label" for="body">Message <span class="text-danger">*</span></label>
-            <textarea name="body" id="body" rows="5" class="form-control @error('body') is-invalid @enderror" required>{{ old('body', $notification->body ?? '') }}</textarea>
+            <textarea name="body" id="body" rows="5" class="form-control @error('body') is-invalid @enderror" required>{{ old('body', $notification?->body ?? '') }}</textarea>
             @error('body')<div class="invalid-feedback">{{ $message }}</div>@enderror
         </div>
         <div class="mb-3">
@@ -39,8 +39,8 @@
         <div class="mb-3">
             <label class="form-label" for="audience">Audience</label>
             <select name="audience" id="audience" class="form-select">
-                <option value="all" @selected(old('audience', $notification->audience ?? 'all') === 'all')>All app users</option>
-                <option value="customers" @selected(old('audience', $notification->audience ?? '') === 'customers')>Customers only</option>
+                <option value="all" @selected(old('audience', $notification?->audience ?? 'all') === 'all')>All app users</option>
+                <option value="customers" @selected(old('audience', $notification?->audience ?? '') === 'customers')>Customers only</option>
             </select>
         </div>
         <div class="mb-3">
@@ -90,9 +90,27 @@
                    placeholder="https://..." value="{{ $linkType === 'url' ? $linkValue : '' }}">
             <input type="hidden" name="link_value" id="link_value" value="{{ $linkValue }}">
         </div>
-        <div class="alert alert-info small mb-0">
+        <div class="alert alert-info small mb-3">
             <i class="bi bi-broadcast me-1"></i>
-            <strong>Announce</strong> sends an in-app notification plus FCM push to every registered device.
+            <strong>Active + in schedule</strong> sends the in-app message and push notification. If the start time is in the future, it waits and goes live automatically.
+        </div>
+        @include('admin.partials.publish-toggle', [
+            'name' => 'is_active',
+            'id' => 'is_active',
+            'checked' => filter_var(old('is_active', $notification?->is_active ?? false), FILTER_VALIDATE_BOOLEAN),
+            'scheduled' => true,
+        ])
+        <div class="mb-3 mt-3">
+            <label class="form-label" for="starts_at">Start date &amp; time</label>
+            <input type="datetime-local" name="starts_at" id="starts_at" class="form-control"
+                   value="{{ old('starts_at', optional($notification?->starts_at)->format('Y-m-d\TH:i')) }}">
+            <div class="form-text">Leave empty to go live as soon as this is Active.</div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="ends_at">End date &amp; time</label>
+            <input type="datetime-local" name="ends_at" id="ends_at" class="form-control"
+                   value="{{ old('ends_at', optional($notification?->ends_at)->format('Y-m-d\TH:i')) }}">
+            <div class="form-text">Hides from the app inbox when this time is reached.</div>
         </div>
     </div>
 </div>

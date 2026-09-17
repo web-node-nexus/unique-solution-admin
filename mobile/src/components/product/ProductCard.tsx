@@ -1,14 +1,17 @@
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
-import { GitCompare, Heart, Images, Package, ShieldCheck, Star } from 'lucide-react-native';
-import { Alert, StyleSheet, View } from 'react-native';
+// Compare temporarily disabled for client
+// import { GitCompare, Heart, Images, Package, ShieldCheck, Star } from 'lucide-react-native';
+import { Heart, Images, Package, ShieldCheck, Star } from 'lucide-react-native';
+// import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import type { ProductCard as ProductCardType } from '@/types/catalog';
 import { colors, elevation, radii, typography } from '@/theme/tokens';
 import { discountPercent, formatInr, sellingPrice } from '@/utils/price';
 import { useWishlistStore } from '@/store/cart';
-import { useCompareStore } from '@/store/compare';
+// import { useCompareStore } from '@/store/compare';
 import { AppText, PressableScale } from '@/components/ui/primitives';
 
 export function ProductCard({
@@ -21,9 +24,9 @@ export function ProductCard({
   index?: number;
 }) {
   const wish = useWishlistStore();
-  const compare = useCompareStore();
+  // const compare = useCompareStore();
   const liked = wish.has(product.id);
-  const inCompare = compare.has(product.id);
+  // const inCompare = compare.has(product.id);
   const price = sellingPrice(product.mrp ?? product.base_price, product.sale_price);
   const mrp = product.mrp ?? product.base_price;
   const off = discountPercent(mrp, product.sale_price);
@@ -62,6 +65,7 @@ export function ProductCard({
               <Package size={22} color={colors.inkSoft} strokeWidth={1.5} />
             </View>
           )}
+          {/* Compare temporarily disabled for client
           <PressableScale
             style={styles.compare}
             onPress={() => {
@@ -76,6 +80,7 @@ export function ProductCard({
               strokeWidth={2.2}
             />
           </PressableScale>
+          */}
           <PressableScale
             style={styles.heart}
             onPress={() => {

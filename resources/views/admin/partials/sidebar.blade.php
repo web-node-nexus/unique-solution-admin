@@ -90,12 +90,10 @@
             </a>
         @endcan
 
-        {{-- Orders --}}
-        @if (auth()->user()?->can('orders.view')
-            || auth()->user()?->can('payments.view')
-            || auth()->user()?->can('refunds.view'))
+        {{-- Orders (status boards only — Payments/Refunds live under Finance) --}}
+        @can('orders.view')
             <button type="button"
-                    class="nav-link {{ request()->routeIs('admin.orders*', 'admin.payments*', 'admin.refunds*') ? 'active' : '' }}"
+                    class="nav-link {{ request()->routeIs('admin.orders*') ? 'active' : '' }}"
                     data-menu-toggle="menu-orders"
                     aria-expanded="false">
                 <i class="bi bi-bag-check"></i>
@@ -103,22 +101,34 @@
                 <i class="bi bi-chevron-down nav-chevron"></i>
             </button>
             <ul class="submenu" id="menu-orders">
-                @can('orders.view')
+                <li>
+                    <a href="{{ route('admin.orders.index') }}"
+                       class="nav-link {{ request()->routeIs('admin.orders.index') || request()->routeIs('admin.orders.show') || request()->routeIs('admin.orders.invoice') || request()->routeIs('admin.orders.packing-slip') ? 'active' : '' }}">
+                        <span class="nav-label">All orders</span>
+                    </a>
+                </li>
+                @foreach (\App\Services\OrderService::BOARD_TABS as $orderStatus)
                     <li>
-                        <a href="{{ route('admin.orders.index') }}"
-                           class="nav-link {{ request()->routeIs('admin.orders.index') || request()->routeIs('admin.orders.show') || request()->routeIs('admin.orders.invoice') || request()->routeIs('admin.orders.packing-slip') ? 'active' : '' }}">
-                            <span class="nav-label">All orders</span>
+                        <a href="{{ route('admin.orders.status', $orderStatus) }}"
+                           class="nav-link {{ request()->routeIs('admin.orders.status') && request()->route('status') === $orderStatus ? 'active' : '' }}">
+                            <span class="nav-label">{{ \App\Services\OrderService::tabLabel($orderStatus) }}</span>
                         </a>
                     </li>
-                    @foreach (\App\Services\OrderService::BOARD_TABS as $orderStatus)
-                        <li>
-                            <a href="{{ route('admin.orders.status', $orderStatus) }}"
-                               class="nav-link {{ request()->routeIs('admin.orders.status') && request()->route('status') === $orderStatus ? 'active' : '' }}">
-                                <span class="nav-label">{{ \App\Services\OrderService::tabLabel($orderStatus) }}</span>
-                            </a>
-                        </li>
-                    @endforeach
-                @endcan
+                @endforeach
+            </ul>
+        @endcan
+
+        {{-- Finance: Payments + Refunds as their own menu (never clipped under Orders) --}}
+        @if (auth()->user()?->can('payments.view') || auth()->user()?->can('refunds.view'))
+            <button type="button"
+                    class="nav-link {{ request()->routeIs('admin.payments*', 'admin.refunds*') ? 'active' : '' }}"
+                    data-menu-toggle="menu-finance"
+                    aria-expanded="false">
+                <i class="bi bi-cash-stack"></i>
+                <span class="nav-label">Finance</span>
+                <i class="bi bi-chevron-down nav-chevron"></i>
+            </button>
+            <ul class="submenu" id="menu-finance">
                 @can('payments.view')
                     <li>
                         <a href="{{ route('admin.payments.index') }}"

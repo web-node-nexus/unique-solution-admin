@@ -39,7 +39,7 @@
     </div>
 
     <form action="{{ route('admin.products.store') }}" method="POST" enctype="multipart/form-data"
-          id="productWizardForm" novalidate>
+          id="productWizardForm" data-publish-form="product" novalidate>
         @csrf
 
         {{-- Step 1: Basic --}}
@@ -116,17 +116,14 @@
                             @enderror
                             <div class="form-text">Leave blank if not on sale. Must be ≤ MRP.</div>
                         </div>
-                        <div class="col-md-3">
-                            <label for="status" class="form-label">Status <span class="text-danger">*</span></label>
-                            <select name="status" id="status"
-                                    class="form-select @error('status') is-invalid @enderror" required>
-                                @foreach (['draft' => 'Draft', 'active' => 'Active', 'inactive' => 'Inactive'] as $value => $label)
-                                    <option value="{{ $value }}" @selected(old('status', 'draft') === $value)>{{ $label }}</option>
-                                @endforeach
-                            </select>
-                            @error('status')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
+                        <div class="col-md-5">
+                            @include('admin.partials.publish-toggle', [
+                                'name' => 'status',
+                                'id' => 'status',
+                                'onValue' => 'active',
+                                'offValue' => 'inactive',
+                                'checked' => old('status', 'inactive') === 'active',
+                            ])
                         </div>
                         <div class="col-md-2 d-flex align-items-end">
                             <div class="form-check mb-2">
@@ -152,26 +149,10 @@
                         </div>
 
                         <div class="col-12">
-                            <div class="border rounded-3 p-3 bg-light-subtle mb-3">
-                                <div class="form-check form-switch mb-0">
-                                    <input type="hidden" name="use_brand_policies" value="0">
-                                    <input class="form-check-input" type="checkbox" role="switch"
-                                           name="use_brand_policies" id="use_brand_policies" value="1"
-                                           @checked(old('use_brand_policies'))>
-                                    <label class="form-check-label fw-semibold" for="use_brand_policies">
-                                        Use brand policies
-                                    </label>
-                                </div>
-                                <div class="form-text mb-0">
-                                    When checked, this product also shows all policies from the selected brand in the app.
-                                </div>
-                            </div>
-                            @include('admin.partials.policy-manager', [
-                                'owner' => 'product',
-                                'field' => 'policies',
-                                'policies' => collect(),
-                                'heading' => 'Product policies',
-                                'hint' => 'Add product-only policy cards (shown with brand policies when “Use brand policies” is on).',
+                            @include('admin.partials.product-policy-picker', [
+                                'initialBrandId' => old('brand_id'),
+                                'selectedIds' => old('brand_policy_ids', []),
+                                'autoSelectAll' => old('brand_policy_ids') === null,
                             ])
                         </div>
 
@@ -313,11 +294,12 @@
                 <a href="{{ route('admin.products.index') }}" class="btn btn-link text-muted">Cancel</a>
             </div>
             <div class="d-flex gap-2">
+                @include('admin.partials.preview-button', ['type' => 'product'])
                 <button type="button" class="btn btn-primary" id="btnWizardNext">
                     Next<i class="bi bi-arrow-right ms-1"></i>
                 </button>
                 <button type="submit" class="btn btn-primary d-none" id="btnWizardSubmit">
-                    <i class="bi bi-check-lg me-1"></i>Publish product
+                    <i class="bi bi-check-lg me-1"></i>Save product
                 </button>
             </div>
         </div>
@@ -685,6 +667,7 @@ document.addEventListener('DOMContentLoaded', function () {
         variantIndex = 0;
         document.getElementById('variantsEmptyHint')?.classList.remove('d-none');
         filterBrandsByCategory(this.value);
+        document.getElementById('brand_id')?.dispatchEvent(new Event('change', { bubbles: true }));
     });
 
     function setWarrantyEditorContent(html) {
@@ -944,5 +927,5 @@ document.addEventListener('DOMContentLoaded', function () {
     showStep(1);
 });
 </script>
-@include('admin.partials.policy-manager-scripts')
+@include('admin.partials.product-policy-picker-scripts')
 @endpush

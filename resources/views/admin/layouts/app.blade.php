@@ -19,8 +19,8 @@
     <link href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css" rel="stylesheet">
     {{-- Toastr --}}
     <link href="https://cdn.jsdelivr.net/npm/toastr@2.1.4/build/toastr.min.css" rel="stylesheet">
-    {{-- Admin --}}
-    <link href="{{ asset('assets/admin/css/admin.css') }}" rel="stylesheet">
+    {{-- Admin (cache-bust so sidebar/CSS fixes show immediately after deploy) --}}
+    <link href="{{ asset('assets/admin/css/admin.css') }}?v={{ @filemtime(public_path('assets/admin/css/admin.css')) }}" rel="stylesheet">
 
     @stack('styles')
 </head>
@@ -59,7 +59,10 @@
     {{-- Multi image uploader --}}
     <script src="{{ asset('assets/admin/js/multi-image-uploader.js') }}"></script>
     {{-- Admin --}}
-    <script src="{{ asset('assets/admin/js/admin.js') }}"></script>
+    <script src="{{ asset('assets/admin/js/admin.js') }}?v={{ @filemtime(public_path('assets/admin/js/admin.js')) }}"></script>
+    <script src="{{ asset('assets/admin/js/publish.js') }}?v={{ @filemtime(public_path('assets/admin/js/publish.js')) }}"></script>
+
+    @include('admin.partials.app-preview-modal')
 
     <script>
         @if (session('success'))

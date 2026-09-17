@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\TogglesPublishable;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreBrandRequest;
 use App\Http\Requests\Admin\UpdateBrandRequest;
 use App\Models\Brand;
 use App\Models\Category;
+use App\Services\ActivationGuard;
+use App\Services\CatalogDuplicator;
 use App\Services\ImageService;
 use App\Services\PolicyService;
 use Illuminate\Http\JsonResponse;
@@ -17,9 +20,13 @@ use Yajra\DataTables\Facades\DataTables;
 
 class BrandController extends Controller
 {
+    use TogglesPublishable;
+
     public function __construct(
         protected ImageService $imageService,
-        protected PolicyService $policyService
+        protected PolicyService $policyService,
+        protected CatalogDuplicator $duplicator,
+        protected ActivationGuard $activationGuard,
     ) {}
 
     public function index(): View
@@ -57,15 +64,19 @@ class BrandController extends Controller
                 return $names->isEmpty() ? '—' : e($names->implode(', '));
             })
             ->addColumn('status', function (Brand $brand) {
-                $badge = $brand->status ? 'success' : 'secondary';
-                $label = $brand->status ? 'Active' : 'Inactive';
-
-                return '<span class="badge bg-'.$badge.'">'.$label.'</span>';
+                return admin_publish_toggle(
+                    route('admin.brands.toggle-status', $brand),
+                    (bool) $brand->status,
+                    (bool) auth()->user()?->can('brands.update')
+                );
             })
             ->addColumn('action', function (Brand $brand) {
                 $buttons = '';
                 if (auth()->user()?->can('brands.update')) {
                     $buttons .= '<a href="'.route('admin.brands.edit', $brand).'" class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></a>';
+                }
+                if (auth()->user()?->can('brands.create')) {
+                    $buttons .= admin_duplicate_button(route('admin.brands.duplicate', $brand), 'Duplicate this brand as a deactive copy?');
                 }
                 if (auth()->user()?->can('brands.delete')) {
                     $buttons .= '<form action="'.route('admin.brands.destroy', $brand).'" method="POST" class="d-inline" data-confirm="Delete this brand?">'
@@ -98,8 +109,12 @@ class BrandController extends Controller
         $data = $request->validated();
         $categoryIds = $data['category_ids'] ?? [];
         unset($data['category_ids'], $data['policies']);
-        $data['status'] = $data['status'] ?? true;
+        $data['status'] = $data['status'] ?? false;
         $data['category_id'] = $categoryIds[0] ?? null;
+
+        if ($data['status']) {
+            $this->activationGuard->assertCanActivate('brand', $request);
+        }
 
         if ($request->hasFile('logo')) {
             $data['logo'] = $this->imageService->upload($request->file('logo'), 'brands');
@@ -137,6 +152,10 @@ class BrandController extends Controller
         $categoryIds = $data['category_ids'] ?? [];
         unset($data['category_ids'], $data['policies']);
         $data['category_id'] = $categoryIds[0] ?? null;
+
+        if (($data['status'] ?? $brand->status)) {
+            $this->activationGuard->assertCanActivate('brand', $request);
+        }
 
         if ($request->hasFile('logo')) {
             $this->imageService->delete($brand->logo);
@@ -213,5 +232,32 @@ class BrandController extends Controller
         }
 
         $this->policyService->syncBrandPolicies($brand, $orderedRows, $orderedIcons);
+    }
+
+    public function toggleStatus(Request $request, Brand $brand): JsonResponse
+    {
+        $this->authorize('update', $brand);
+
+        return $this->togglePublishStatus(
+            $request,
+            $brand,
+            'brands.update',
+            'brand',
+            'brands',
+            function (Brand $item, bool $active): void {
+                $item->update(['status' => $active]);
+            }
+        );
+    }
+
+    public function duplicate(Brand $brand): RedirectResponse
+    {
+        $this->authorize('create', Brand::class);
+
+        $copy = $this->duplicator->brand($brand);
+
+        return redirect()
+            ->route('admin.brands.edit', $copy)
+            ->with('success', 'Brand duplicated as a deactive copy. Review it, then turn it on.');
     }
 }

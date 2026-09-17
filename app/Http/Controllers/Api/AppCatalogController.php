@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AppNotification;
+use App\Models\Attribute;
 use App\Models\Banner;
 use App\Models\Brand;
 use App\Models\Category;
@@ -14,6 +15,7 @@ use App\Models\Setting;
 use App\Services\PolicyService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class AppCatalogController extends Controller
 {
@@ -26,7 +28,7 @@ class AppCatalogController extends Controller
             'success' => true,
             'data' => [
                 'shop_name' => Setting::get('shop_name', 'Unique Solution'),
-                'shop_tagline' => Setting::get('shop_tagline', 'आपकी अपनी दुकान'),
+                'shop_tagline' => Setting::get('shop_tagline', 'Your neighbourhood store'),
                 'shop_address' => Setting::get('shop_address', 'Kargil Chowk, Megha Road, Kurud - 493663'),
                 'contact_number' => Setting::get('contact_number'),
                 'whatsapp_number' => Setting::get('whatsapp_number') ?: Setting::get('contact_number'),
@@ -154,7 +156,7 @@ class AppCatalogController extends Controller
                 'category_id' => $brand->category_id,
                 'warranty' => $brand->warranty,
                 'logo_url' => $brand->logo
-                    ? \Illuminate\Support\Facades\Storage::disk('public')->url($brand->logo)
+                    ? Storage::disk('public')->url($brand->logo)
                     : null,
             ]);
 
@@ -183,7 +185,7 @@ class AppCatalogController extends Controller
             'data' => [
                 'shop' => [
                     'shop_name' => Setting::get('shop_name', 'Unique Solution'),
-                    'shop_tagline' => Setting::get('shop_tagline', 'आपकी अपनी दुकान'),
+                    'shop_tagline' => Setting::get('shop_tagline', 'Your neighbourhood store'),
                     'shop_address' => Setting::get('shop_address'),
                     'contact_number' => Setting::get('contact_number'),
                     'whatsapp_number' => Setting::get('whatsapp_number') ?: Setting::get('contact_number'),
@@ -219,7 +221,7 @@ class AppCatalogController extends Controller
     public function notifications(): JsonResponse
     {
         $items = AppNotification::query()
-            ->where('status', 'sent')
+            ->visibleOnApp()
             ->latest('sent_at')
             ->limit(50)
             ->get()
@@ -277,7 +279,7 @@ class AppCatalogController extends Controller
                 'category_id' => $brand->category_id,
                 'warranty' => $brand->warranty,
                 'logo_url' => $brand->logo
-                    ? \Illuminate\Support\Facades\Storage::disk('public')->url($brand->logo)
+                    ? Storage::disk('public')->url($brand->logo)
                     : null,
             ]);
 
@@ -402,7 +404,7 @@ class AppCatalogController extends Controller
             'brand.policies',
             'category:id,name,slug,parent_id',
             'images' => fn ($q) => $q->orderByDesc('is_primary')->orderBy('sort_order'),
-            'policies',
+            'brandPolicies',
             'variants' => fn ($q) => $q->where('status', true)->with([
                 'attributeValues.attribute:id,name,type',
                 'images',
@@ -411,7 +413,7 @@ class AppCatalogController extends Controller
 
         $images = $product->images->map(fn ($image) => [
             'id' => $image->id,
-            'url' => \Illuminate\Support\Facades\Storage::disk('public')->url($image->image_path),
+            'url' => Storage::disk('public')->url($image->image_path),
             'is_primary' => (bool) $image->is_primary,
         ])->values();
 
@@ -432,7 +434,7 @@ class AppCatalogController extends Controller
                     'image_url' => $av->image_url,
                 ])->values(),
                 'image_url' => optional($variant->images->first())->image_path
-                    ? \Illuminate\Support\Facades\Storage::disk('public')->url($variant->images->first()->image_path)
+                    ? Storage::disk('public')->url($variant->images->first()->image_path)
                     : null,
             ];
         })->values();
@@ -502,7 +504,6 @@ class AppCatalogController extends Controller
                 'slug' => $product->slug,
                 'description' => $product->description,
                 'warranty_info' => $product->warranty_info,
-                'use_brand_policies' => (bool) $product->use_brand_policies,
                 'policies' => app(PolicyService::class)->resolvedForProduct($product),
                 'mrp' => (float) $product->base_price,
                 'sale_price' => $product->sale_price !== null ? (float) $product->sale_price : null,
@@ -516,7 +517,7 @@ class AppCatalogController extends Controller
                     'category_id' => $product->brand->category_id,
                     'warranty' => $product->brand->warranty,
                     'logo_url' => $product->brand->logo
-                        ? \Illuminate\Support\Facades\Storage::disk('public')->url($product->brand->logo)
+                        ? Storage::disk('public')->url($product->brand->logo)
                         : null,
                 ] : null,
                 'category' => $product->category ? [
@@ -563,11 +564,11 @@ class AppCatalogController extends Controller
                 'name' => $brand->name,
                 'category_id' => $brand->category_id,
                 'logo_url' => $brand->logo
-                    ? \Illuminate\Support\Facades\Storage::disk('public')->url($brand->logo)
+                    ? Storage::disk('public')->url($brand->logo)
                     : null,
             ]);
 
-        $attributesQuery = \App\Models\Attribute::query()
+        $attributesQuery = Attribute::query()
             ->where('status', true)
             ->with(['values' => fn ($q) => $q->orderBy('value')]);
 
@@ -763,11 +764,11 @@ class AppCatalogController extends Controller
             'rating_average' => round((float) ($product->rating_avg ?? 0), 1),
             'rating_count' => (int) ($product->rating_count ?? 0),
             'image_url' => $primary
-                ? \Illuminate\Support\Facades\Storage::disk('public')->url($primary->image_path)
+                ? Storage::disk('public')->url($primary->image_path)
                 : null,
             'image_count' => $product->images->count(),
             'gallery_preview' => $product->images->take(3)->map(
-                fn ($image) => \Illuminate\Support\Facades\Storage::disk('public')->url($image->image_path)
+                fn ($image) => Storage::disk('public')->url($image->image_path)
             )->values()->all(),
             'warranty_info' => $product->warranty_info,
             'brand_warranty' => $product->brand?->warranty,

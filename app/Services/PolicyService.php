@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Brand;
 use App\Models\BrandPolicy;
 use App\Models\Product;
-use App\Models\ProductPolicy;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 
@@ -80,68 +79,37 @@ class PolicyService
     }
 
     /**
-     * Sync product-specific policies from admin form payload.
+     * Attach selected brand policies to a product (select / unselect only — no product-owned policies).
      *
-     * @param  array<int, array<string, mixed>>  $rows
-     * @param  array<int, UploadedFile|null>  $icons keyed by row index
+     * @param  list<int|string>  $brandPolicyIds
      */
-    public function syncProductPolicies(Product $product, array $rows, array $icons = []): void
+    public function syncProductBrandPolicies(Product $product, array $brandPolicyIds): void
     {
-        $keepIds = [];
+        $ids = collect($brandPolicyIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id) => $id > 0)
+            ->unique()
+            ->values();
 
-        foreach (array_values($rows) as $index => $row) {
-            if (! empty($row['remove'])) {
-                continue;
-            }
+        if (! $product->brand_id || $ids->isEmpty()) {
+            $product->brandPolicies()->sync([]);
 
-            $title = trim((string) ($row['title'] ?? ''));
-            if ($title === '') {
-                continue;
-            }
-
-            $policy = null;
-            $id = isset($row['id']) ? (int) $row['id'] : 0;
-            if ($id > 0) {
-                $policy = ProductPolicy::query()
-                    ->where('product_id', $product->id)
-                    ->whereKey($id)
-                    ->first();
-            }
-
-            $data = [
-                'title' => $title,
-                'description' => isset($row['description']) ? (string) $row['description'] : null,
-                'sort_order' => $index,
-            ];
-
-            $file = $icons[$index] ?? null;
-            if ($file instanceof UploadedFile) {
-                if ($policy?->icon) {
-                    $this->imageService->delete($policy->icon);
-                }
-                $data['icon'] = $this->imageService->upload($file, 'policies/products');
-            }
-
-            if ($policy) {
-                $policy->update($data);
-            } else {
-                $policy = ProductPolicy::query()->create(array_merge($data, [
-                    'product_id' => $product->id,
-                ]));
-            }
-
-            $keepIds[] = $policy->id;
+            return;
         }
 
-        $toDelete = ProductPolicy::query()
-            ->where('product_id', $product->id)
-            ->when($keepIds !== [], fn ($q) => $q->whereNotIn('id', $keepIds))
-            ->get();
+        $validIds = BrandPolicy::query()
+            ->where('brand_id', $product->brand_id)
+            ->whereIn('id', $ids->all())
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->pluck('id');
 
-        foreach ($toDelete as $policy) {
-            $this->imageService->delete($policy->icon);
-            $policy->delete();
+        $sync = [];
+        foreach ($validIds as $index => $policyId) {
+            $sync[$policyId] = ['sort_order' => $index];
         }
+
+        $product->brandPolicies()->sync($sync);
     }
 
     /**
@@ -151,42 +119,21 @@ class PolicyService
      */
     public function resolvedForProduct(Product $product): array
     {
-        $items = collect();
+        $policies = $product->relationLoaded('brandPolicies')
+            ? $product->brandPolicies
+            : $product->brandPolicies()->get();
 
-        if ($product->use_brand_policies && $product->brand_id) {
-            $brandPolicies = $product->relationLoaded('brand') && $product->brand?->relationLoaded('policies')
-                ? $product->brand->policies
-                : BrandPolicy::query()
-                    ->where('brand_id', $product->brand_id)
-                    ->orderBy('sort_order')
-                    ->orderBy('id')
-                    ->get();
-
-            foreach ($brandPolicies as $policy) {
-                $items->push($policy->toApiArray());
-            }
-        }
-
-        $productPolicies = $product->relationLoaded('policies')
-            ? $product->policies
-            : ProductPolicy::query()
-                ->where('product_id', $product->id)
-                ->orderBy('sort_order')
-                ->orderBy('id')
-                ->get();
-
-        foreach ($productPolicies as $policy) {
-            $items->push($policy->toApiArray());
-        }
-
-        return $items->values()->all();
+        return $policies
+            ->map(fn (BrandPolicy $policy) => $policy->toApiArray())
+            ->values()
+            ->all();
     }
 
     /**
-     * @param  Collection<int, BrandPolicy|ProductPolicy>|iterable<BrandPolicy|ProductPolicy>  $policies
+     * @param  Collection<int, BrandPolicy>|iterable<BrandPolicy>  $policies
      * @return list<array{id: int, title: string, description: string|null, icon_url: string|null, source: string}>
      */
-    public function mapCollection(iterable $policies, string $source): array
+    public function mapCollection(iterable $policies, string $source = 'brand'): array
     {
         $out = [];
         foreach ($policies as $policy) {

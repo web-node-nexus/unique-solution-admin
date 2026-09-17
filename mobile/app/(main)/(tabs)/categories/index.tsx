@@ -157,18 +157,19 @@ export default function CategoriesScreen() {
         renderItem={({ item, index }) => {
           const childCount = item.children?.length ?? 0;
           return (
-            <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 40).springify()}>
-              <PressableScale
-                style={[styles.card, { width: cardW }, elevation.soft]}
-                onPress={() => openCategory(item)}
-              >
-                <View style={styles.cardImage}>
+            <Animated.View
+              entering={FadeInDown.delay(Math.min(index, 8) * 40).springify()}
+              style={{ width: cardW }}
+            >
+              <PressableScale style={[styles.card, elevation.soft]} onPress={() => openCategory(item)}>
+                <View style={[styles.cardImage, { width: cardW, height: Math.round(cardW * 0.72) }]}>
                   {item.image_url ? (
                     <Image
                       source={{ uri: item.image_url }}
-                      style={StyleSheet.absoluteFillObject}
+                      style={{ width: '100%', height: '100%' }}
                       contentFit="cover"
                       transition={280}
+                      recyclingKey={`cat-${item.id}`}
                     />
                   ) : (
                     <View style={styles.cardImageFallback}>
@@ -235,6 +236,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   card: {
+    width: '100%',
     backgroundColor: colors.paper,
     borderRadius: radii.lg,
     borderWidth: 1,
@@ -242,18 +244,19 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   cardImage: {
-    width: '100%',
-    height: 100,
     backgroundColor: colors.canvasDeep,
+    overflow: 'hidden',
   },
   cardImageFallback: {
     flex: 1,
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.jadeSoft,
   },
   cardLetter: {
-    fontFamily: typography.displayBold,
+    fontFamily: typography.bodyBold,
     fontSize: 28,
     color: colors.jade,
   },
@@ -271,14 +274,14 @@ const styles = StyleSheet.create({
     color: colors.inkSoft,
   },
   name: {
-    fontFamily: typography.displayBold,
+    fontFamily: typography.bodyBold,
     fontSize: 15,
     lineHeight: 18,
     color: colors.ink,
-    height: 36,
+    minHeight: 36,
   },
   meta: {
-    fontFamily: typography.body,
+    fontFamily: typography.bodyMedium,
     fontSize: 11,
     color: colors.inkMuted,
   },

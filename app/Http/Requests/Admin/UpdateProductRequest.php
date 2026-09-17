@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\Brand;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -17,7 +18,7 @@ class UpdateProductRequest extends FormRequest
      */
     public function rules(): array
     {
-        $productId = $this->route('product')?->id ?? $this->route('product');
+        $productId = (int) $this->route('product')?->id;
 
         return [
             'category_id' => ['required', 'integer', 'exists:categories,id'],
@@ -33,7 +34,7 @@ class UpdateProductRequest extends FormRequest
                     if (! $categoryId) {
                         return;
                     }
-                    if (! \App\Models\Brand::query()->forCategory($categoryId)->whereKey($value)->exists()) {
+                    if (! Brand::query()->forCategory($categoryId)->whereKey($value)->exists()) {
                         $fail('The selected brand is not mapped to this category.');
                     }
                 },
@@ -49,13 +50,8 @@ class UpdateProductRequest extends FormRequest
             'base_price' => ['required', 'numeric', 'min:0'],
             'sale_price' => ['nullable', 'numeric', 'min:0', 'lte:base_price'],
             'warranty_info' => ['nullable', 'string', 'max:10000000'],
-            'use_brand_policies' => ['sometimes', 'boolean'],
-            'policies' => ['nullable', 'array'],
-            'policies.*.id' => ['nullable', 'integer'],
-            'policies.*.title' => ['nullable', 'string', 'max:120'],
-            'policies.*.description' => ['nullable', 'string', 'max:5000'],
-            'policies.*.remove' => ['nullable'],
-            'policies.*.icon' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:2048'],
+            'brand_policy_ids' => ['nullable', 'array'],
+            'brand_policy_ids.*' => ['integer', 'exists:brand_policies,id'],
             'gallery_order' => ['nullable', 'array'],
             'gallery_order.*' => ['nullable', 'string', 'max:40'],
             'status' => ['required', Rule::in(['active', 'inactive', 'draft'])],
@@ -87,10 +83,6 @@ class UpdateProductRequest extends FormRequest
         if ($this->has('is_featured')) {
             $this->merge(['is_featured' => filter_var($this->is_featured, FILTER_VALIDATE_BOOLEAN)]);
         }
-
-        $this->merge([
-            'use_brand_policies' => filter_var($this->input('use_brand_policies'), FILTER_VALIDATE_BOOLEAN),
-        ]);
 
         if ($this->input('sale_price') === '' || $this->input('sale_price') === null) {
             $this->merge(['sale_price' => null]);

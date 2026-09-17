@@ -3,16 +3,16 @@ import { router, useLocalSearchParams } from 'expo-router';
 import {
   ArrowLeft,
   Bell,
-  GitCompare,
+  // GitCompare, // Compare temporarily disabled
   Heart,
-  MapPin,
+  // MapPin,
   Package,
   Share2,
   ShoppingBag,
   ShieldCheck,
   Star,
 } from 'lucide-react-native';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -22,6 +22,8 @@ import {
   TextInput,
   useWindowDimensions,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,17 +33,38 @@ import { ScreenAtmosphere } from '@/components/layout/ScreenAtmosphere';
 import { ProductCard } from '@/components/product/ProductCard';
 import { ProductImageGallery } from '@/components/product/ProductImageGallery';
 import { HtmlContent } from '@/components/product/HtmlContent';
+import { OptionDropdown } from '@/components/product/OptionDropdown';
 import { ProductPolicyGrid } from '@/components/product/ProductPolicyGrid';
 import { AppRefreshControl } from '@/components/ui/AppRefreshControl';
-import { AppButton, AppText, Chip, IconButton, PressableScale } from '@/components/ui/primitives';
+import { AppButton, AppText, IconButton, PressableScale } from '@/components/ui/primitives';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore, useWishlistStore } from '@/store/cart';
-import { useCompareStore, MAX_COMPARE } from '@/store/compare';
+// import { useCompareStore, MAX_COMPARE } from '@/store/compare';
 import { useRecentStore } from '@/store/recent';
 import { colors, elevation, radii, spacing, typography } from '@/theme/tokens';
-import type { ProductCard as ProductCardType } from '@/types/catalog';
+import type { ProductCard as ProductCardType, ProductDetail } from '@/types/catalog';
 import { track } from '@/utils/analytics';
 import { discountPercent, formatInr, sellingPrice } from '@/utils/price';
+
+type VariantAttr = ProductDetail['variants'][number]['attributes'][number];
+type ProductVariant = ProductDetail['variants'][number];
+
+function isColorAttr(a: VariantAttr) {
+  const name = (a.attribute_name ?? '').toLowerCase();
+  return name.includes('color') || name.includes('colour') || !!a.hex;
+}
+
+function colorOf(v: ProductVariant) {
+  return v.attributes.find((a) => isColorAttr(a)) ?? null;
+}
+
+function variantSignature(v: ProductVariant) {
+  const parts = v.attributes
+    .filter((a) => !isColorAttr(a))
+    .map((a) => a.value)
+    .filter(Boolean);
+  return parts.length ? parts.join(' · ') : v.sku;
+}
 
 function StarsRow({
   value,
@@ -74,14 +97,18 @@ export default function ProductDetailScreen() {
   const { width } = useWindowDimensions();
   const add = useCartStore((s) => s.add);
   const wish = useWishlistStore();
-  const compare = useCompareStore();
+  // const compare = useCompareStore();
   const user = useAuthStore((s) => s.user);
   const pushRecent = useRecentStore((s) => s.push);
+  const scrollRef = useRef<ScrollView>(null);
+  const aboutRef = useRef<View>(null);
+  const scrollYRef = useRef(0);
   const [variantId, setVariantId] = useState<number | null>(null);
-  const [pincode, setPincode] = useState('');
-  const [pinMsg, setPinMsg] = useState<string | null>(null);
-  const [pinOk, setPinOk] = useState<boolean | null>(null);
-  const [pinBusy, setPinBusy] = useState(false);
+  // Check delivery (pincode) — temporarily disabled
+  // const [pincode, setPincode] = useState('');
+  // const [pinMsg, setPinMsg] = useState<string | null>(null);
+  // const [pinOk, setPinOk] = useState<boolean | null>(null);
+  // const [pinBusy, setPinBusy] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewPending, setReviewPending] = useState(false);
@@ -113,6 +140,88 @@ export default function ProductDetailScreen() {
     if (!data?.variants?.length) return null;
     return data.variants.find((v) => v.id === variantId) ?? data.variants[0];
   }, [data, variantId]);
+
+  const colorOptions = useMemo(() => {
+    if (!data?.variants?.length) return [];
+    const map = new Map<string, { key: string; label: string; hex?: string | null }>();
+    for (const v of data.variants) {
+      const c = colorOf(v);
+      if (!c) continue;
+      const key = String(c.value_id);
+      if (!map.has(key)) {
+        map.set(key, { key, label: c.value, hex: c.hex });
+      }
+    }
+    return Array.from(map.values());
+  }, [data]);
+
+  const variantOptions = useMemo(() => {
+    if (!data?.variants?.length) return [];
+    const selectedColorId = colorOf(selected)?.value_id ?? null;
+    const pool =
+      selectedColorId != null
+        ? data.variants.filter((v) => colorOf(v)?.value_id === selectedColorId)
+        : data.variants;
+
+    const map = new Map<string, { key: string; label: string; variantId: number; inStock: boolean }>();
+    for (const v of pool) {
+      const label = variantSignature(v);
+      const key = label;
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, {
+          key,
+          label,
+          variantId: v.id,
+          inStock: v.in_stock,
+        });
+      } else if (v.in_stock && !existing.inStock) {
+        map.set(key, { ...existing, variantId: v.id, inStock: true });
+      }
+    }
+
+    // If filtering by color emptied the list, fall back to all variants
+    if (!map.size) {
+      for (const v of data.variants) {
+        const label = variantSignature(v);
+        if (!map.has(label)) {
+          map.set(label, {
+            key: label,
+            label,
+            variantId: v.id,
+            inStock: v.in_stock,
+          });
+        }
+      }
+    }
+
+    return Array.from(map.values());
+  }, [data, selected]);
+
+  const pickVariant = (next: { colorValueId?: number | null; signature?: string | null }) => {
+    if (!data?.variants?.length) return;
+    const colorValueId =
+      next.colorValueId !== undefined
+        ? next.colorValueId
+        : colorOf(selected)?.value_id ?? null;
+    const signature =
+      next.signature !== undefined ? next.signature : selected ? variantSignature(selected) : null;
+
+    const match =
+      data.variants.find((v) => {
+        const c = colorOf(v);
+        const colorOk = colorValueId == null || c?.value_id === colorValueId;
+        const sigOk = !signature || variantSignature(v) === signature;
+        return colorOk && sigOk;
+      }) ??
+      data.variants.find((v) => {
+        const c = colorOf(v);
+        return colorValueId == null || c?.value_id === colorValueId;
+      }) ??
+      data.variants[0];
+
+    setVariantId(match.id);
+  };
 
   const gallery = useMemo(() => {
     if (!data) return [];
@@ -208,7 +317,7 @@ export default function ProductDetailScreen() {
   const price = sellingPrice(mrp, sale);
   const off = discountPercent(mrp, sale);
   const liked = wish.has(data.id);
-  const inCompare = compare.has(data.id);
+  // const inCompare = compare.has(data.id);
   const attrLabel = selected?.attributes.map((a) => a.value).join(' / ');
   const brandWarranty = data.brand?.warranty?.trim() || null;
   const productWarranty = data.warranty_info?.trim() || null;
@@ -218,30 +327,35 @@ export default function ProductDetailScreen() {
   const reviews = data.reviews ?? [];
   const related = data.related_products ?? [];
 
-  const checkDelivery = async () => {
-    const pin = pincode.trim();
-    if (pin.length < 4) {
-      Alert.alert('Enter pincode', 'Please enter a valid pincode.');
-      return;
-    }
-    setPinBusy(true);
-    try {
-      const res = await catalogApi.checkPincode(pin);
-      setPinOk(res.data.serviceable);
-      setPinMsg(res.data.message);
-    } catch (e) {
-      setPinOk(false);
-      setPinMsg(e instanceof Error ? e.message : 'Could not check delivery');
-    } finally {
-      setPinBusy(false);
-    }
-  };
+  // const checkDelivery = async () => {
+  //   const pin = pincode.trim();
+  //   if (pin.length < 4) {
+  //     Alert.alert('Enter pincode', 'Please enter a valid pincode.');
+  //     return;
+  //   }
+  //   setPinBusy(true);
+  //   try {
+  //     const res = await catalogApi.checkPincode(pin);
+  //     setPinOk(res.data.serviceable);
+  //     setPinMsg(res.data.message);
+  //   } catch (e) {
+  //     setPinOk(false);
+  //     setPinMsg(e instanceof Error ? e.message : 'Could not check delivery');
+  //   } finally {
+  //     setPinBusy(false);
+  //   }
+  // };
 
   return (
     <ScreenAtmosphere style={{ paddingTop: insets.top }}>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={{ paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
+          scrollYRef.current = e.nativeEvent.contentOffset.y;
+        }}
         refreshControl={
           <AppRefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />
         }
@@ -286,6 +400,7 @@ export default function ProductDetailScreen() {
               strokeWidth={2.1}
             />
           </IconButton>
+          {/* Compare temporarily disabled for client
           <IconButton
             style={[styles.floatBtn, { top: 12, right: 116 }]}
             onPress={() => {
@@ -300,6 +415,7 @@ export default function ProductDetailScreen() {
               strokeWidth={2.1}
             />
           </IconButton>
+          */}
           <IconButton
             style={[styles.floatBtn, { top: 12, right: 66 }]}
             onPress={() => {
@@ -352,6 +468,7 @@ export default function ProductDetailScreen() {
             ) : null}
           </View>
 
+          {/* Compare temporarily disabled for client
           <View style={styles.compareRow}>
             <PressableScale
               style={[styles.compareBtn, inCompare && styles.compareBtnOn]}
@@ -385,39 +502,34 @@ export default function ProductDetailScreen() {
               </PressableScale>
             ) : null}
           </View>
+          */}
 
           {data.variants?.length ? (
-            <View style={{ marginTop: spacing.lg, gap: 10 }}>
-              <AppText variant="label">Choose variant</AppText>
-              <View style={styles.wrap}>
-                {data.variants.map((v) => {
-                  const label = v.attributes.map((a) => a.value).join(' · ') || v.sku;
-                  const hex =
-                    v.attributes.map((a) => a.hex).find((h) => !!h && String(h).trim()) ?? null;
-                  return (
-                    <Chip
-                      key={v.id}
-                      label={label}
-                      selected={(selected?.id ?? null) === v.id}
-                      onPress={() => setVariantId(v.id)}
-                      leading={
-                        hex ? (
-                          <View
-                            style={[
-                              styles.swatch,
-                              {
-                                backgroundColor: String(hex).startsWith('#')
-                                  ? String(hex)
-                                  : `#${hex}`,
-                              },
-                            ]}
-                          />
-                        ) : undefined
-                      }
-                    />
-                  );
-                })}
-              </View>
+            <View style={{ marginTop: spacing.lg, gap: 14 }}>
+              {colorOptions.length ? (
+                <OptionDropdown
+                  label="Color"
+                  valueLabel={colorOf(selected)?.value ?? null}
+                  valueKey={colorOf(selected) ? String(colorOf(selected)!.value_id) : null}
+                  valueHex={colorOf(selected)?.hex}
+                  options={colorOptions}
+                  placeholder="Choose color"
+                  onSelect={(key) => pickVariant({ colorValueId: Number(key) })}
+                />
+              ) : null}
+
+              <OptionDropdown
+                label="Variant"
+                valueLabel={selected ? variantSignature(selected) : null}
+                valueKey={selected ? variantSignature(selected) : null}
+                options={variantOptions.map((o) => ({
+                  key: o.key,
+                  label: o.inStock ? o.label : `${o.label} · Out of stock`,
+                }))}
+                placeholder="Choose variant"
+                onSelect={(key) => pickVariant({ signature: key })}
+              />
+
               {outOfStock ? (
                 <View style={{ gap: 8 }}>
                   <AppText style={{ color: colors.danger }}>Out of stock</AppText>
@@ -441,6 +553,7 @@ export default function ProductDetailScreen() {
             </View>
           ) : null}
 
+          {/* Check delivery — temporarily disabled
           <View style={styles.section}>
             <AppText variant="label">Check delivery</AppText>
             <View style={styles.pinRow}>
@@ -468,11 +581,31 @@ export default function ProductDetailScreen() {
               </AppText>
             ) : null}
           </View>
+          */}
 
           {data.description ? (
-            <View style={{ marginTop: spacing.xl }}>
+            <View
+              ref={aboutRef}
+              collapsable={false}
+              style={{ marginTop: spacing.xl }}
+            >
               <AppText variant="label">About</AppText>
-              <HtmlContent html={data.description} />
+              <HtmlContent
+                html={data.description}
+                collapsible
+                maxWords={1000}
+                onCollapse={() => {
+                  aboutRef.current?.measureInWindow((_x, aboutY) => {
+                    scrollRef.current?.measureInWindow((_sx, scrollViewY) => {
+                      const target = Math.max(
+                        0,
+                        scrollYRef.current + (aboutY - scrollViewY) - 16
+                      );
+                      scrollRef.current?.scrollTo({ y: target, animated: true });
+                    });
+                  });
+                }}
+              />
             </View>
           ) : null}
 
@@ -622,7 +755,7 @@ export default function ProductDetailScreen() {
         </View>
         <View style={{ flex: 1 }}>
           <AppButton
-            label="Add to bag"
+            label="Add to cart"
             icon={<ShoppingBag size={18} color={colors.paper} strokeWidth={2.1} />}
             disabled={outOfStock}
             onPress={() => {

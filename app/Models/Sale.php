@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\PublishingWindow;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute as CastAttribute;
 use Illuminate\Database\Eloquent\Model;
@@ -71,20 +72,11 @@ class Sale extends Model
 
     public function isCurrentlyLive(): bool
     {
-        if (! $this->status) {
-            return false;
-        }
+        return PublishingWindow::isVisibleOnApp((bool) $this->status, $this->starts_at, $this->ends_at);
+    }
 
-        $now = now();
-
-        if ($this->starts_at && $this->starts_at->gt($now)) {
-            return false;
-        }
-
-        if ($this->ends_at && $this->ends_at->lt($now)) {
-            return false;
-        }
-
-        return true;
+    public function scheduleState(): string
+    {
+        return PublishingWindow::state((bool) $this->status, $this->starts_at, $this->ends_at);
     }
 }

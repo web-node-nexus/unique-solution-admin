@@ -13,7 +13,7 @@
 
     <div class="card">
         <div class="card-body">
-            <form method="POST" action="{{ route('admin.coupons.store') }}" enctype="multipart/form-data">
+            <form method="POST" action="{{ route('admin.coupons.store') }}" enctype="multipart/form-data" data-publish-form="coupon">
                 @csrf
                 <div class="row g-3">
                     <div class="col-md-4">
@@ -71,15 +71,15 @@
                         <div class="form-text">Shown in app coupons / offers section.</div>
                         <img id="couponImagePreview" src="" alt="" class="rounded border mt-2 d-none" style="max-height:140px;object-fit:cover;">
                     </div>
-                    <div class="col-md-4 d-flex align-items-end">
-                        <div class="form-check mb-3">
-                            <input type="hidden" name="status" value="0">
-                            <input type="checkbox" name="status" id="status" value="1" class="form-check-input" @checked(old('status', true))>
-                            <label class="form-check-label" for="status">Active</label>
-                        </div>
+                    <div class="col-md-4">
+                        @include('admin.partials.publish-toggle', [
+                            'checked' => filter_var(old('status', false), FILTER_VALIDATE_BOOLEAN),
+                            'scheduled' => true,
+                        ])
                     </div>
                 </div>
                 <div class="d-flex gap-2 mt-3">
+                    @include('admin.partials.preview-button', ['type' => 'coupon'])
                     <button type="submit" class="btn btn-primary">Create coupon</button>
                     <a href="{{ route('admin.coupons.index') }}" class="btn btn-outline-secondary">Cancel</a>
                 </div>

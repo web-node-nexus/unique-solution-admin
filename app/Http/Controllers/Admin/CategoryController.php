@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\TogglesPublishable;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreCategoryRequest;
 use App\Http\Requests\Admin\UpdateCategoryRequest;
 use App\Models\Attribute;
 use App\Models\Category;
+use App\Services\ActivationGuard;
+use App\Services\CatalogDuplicator;
 use App\Services\ImageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -17,7 +20,13 @@ use Yajra\DataTables\Facades\DataTables;
 
 class CategoryController extends Controller
 {
-    public function __construct(protected ImageService $imageService) {}
+    use TogglesPublishable;
+
+    public function __construct(
+        protected ImageService $imageService,
+        protected CatalogDuplicator $duplicator,
+        protected ActivationGuard $activationGuard,
+    ) {}
 
     public function index(): View
     {
@@ -49,9 +58,12 @@ class CategoryController extends Controller
                 return '<img src="'.e(asset('storage/'.$category->image)).'" alt="" class="rounded border" style="width:40px;height:40px;object-fit:cover;">';
             })
             ->addColumn('status', function (Category $category) {
-                $badge = $category->status ? 'success' : 'secondary';
-                $label = $category->status ? 'Active' : 'Inactive';
-                $html = '<span class="badge bg-'.$badge.'">'.$label.'</span>';
+                $can = (bool) auth()->user()?->can('categories.update');
+                $html = admin_publish_toggle(
+                    route('admin.categories.toggle-status', $category),
+                    (bool) $category->status,
+                    $can
+                );
 
                 if ($category->hasActiveSaleBanner()) {
                     $html .= ' <span class="badge bg-danger">Sale</span>';
@@ -65,6 +77,9 @@ class CategoryController extends Controller
                     $buttons .= '<button type="button" class="btn btn-sm btn-outline-secondary me-1 btn-move-category" data-id="'.$category->id.'" data-direction="up" title="Move up"><i class="bi bi-arrow-up"></i></button>';
                     $buttons .= '<button type="button" class="btn btn-sm btn-outline-secondary me-1 btn-move-category" data-id="'.$category->id.'" data-direction="down" title="Move down"><i class="bi bi-arrow-down"></i></button>';
                     $buttons .= '<a href="'.route('admin.categories.edit', $category).'" class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></a>';
+                }
+                if (auth()->user()?->can('categories.create')) {
+                    $buttons .= admin_duplicate_button(route('admin.categories.duplicate', $category), 'Duplicate this category as a deactive copy?');
                 }
                 if (auth()->user()?->can('categories.delete')) {
                     $buttons .= '<form action="'.route('admin.categories.destroy', $category).'" method="POST" class="d-inline" data-confirm="Delete this category?">'
@@ -93,8 +108,12 @@ class CategoryController extends Controller
     {
         $data = $request->validated();
         $data['slug'] = $data['slug'] ?? Str::slug($data['name']);
-        $data['status'] = $data['status'] ?? true;
+        $data['status'] = $data['status'] ?? false;
         $data['sort_order'] = $data['sort_order'] ?? 0;
+
+        if (($data['status'] ?? false) === true) {
+            $this->activationGuard->assertCanActivate('category', $request);
+        }
 
         if ($request->hasFile('image')) {
             $data['image'] = $this->imageService->upload($request->file('image'), 'categories');
@@ -162,6 +181,10 @@ class CategoryController extends Controller
         }
 
         $data['sale_active'] = (bool) ($data['sale_active'] ?? false);
+
+        if (($data['status'] ?? $category->status) === true) {
+            $this->activationGuard->assertCanActivate('category', $request);
+        }
 
         $attributeIds = $data['attribute_ids'] ?? [];
         unset($data['attribute_ids'], $data['remove_sale_banner'], $data['parent_id']);
@@ -272,5 +295,32 @@ class CategoryController extends Controller
             'success' => true,
             'message' => 'Category position updated. App will show new order.',
         ]);
+    }
+
+    public function toggleStatus(Request $request, Category $category): JsonResponse
+    {
+        $this->authorize('update', $category);
+
+        return $this->togglePublishStatus(
+            $request,
+            $category,
+            'categories.update',
+            'category',
+            'categories',
+            function (Category $item, bool $active): void {
+                $item->update(['status' => $active]);
+            }
+        );
+    }
+
+    public function duplicate(Category $category): RedirectResponse
+    {
+        $this->authorize('create', Category::class);
+
+        $copy = $this->duplicator->category($category);
+
+        return redirect()
+            ->route('admin.categories.edit', $copy)
+            ->with('success', 'Category duplicated as a deactive copy. Review it, then turn it on.');
     }
 }

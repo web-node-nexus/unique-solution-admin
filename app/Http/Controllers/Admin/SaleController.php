@@ -2,14 +2,18 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\TogglesPublishable;
 use App\Http\Controllers\Controller;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Coupon;
 use App\Models\Product;
 use App\Models\Sale;
+use App\Services\ActivationGuard;
 use App\Services\AnnouncementService;
+use App\Services\CatalogDuplicator;
 use App\Services\ImageService;
+use App\Support\PublishingWindow;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,9 +23,13 @@ use Yajra\DataTables\Facades\DataTables;
 
 class SaleController extends Controller
 {
+    use TogglesPublishable;
+
     public function __construct(
         protected ImageService $imageService,
         protected AnnouncementService $announcements,
+        protected CatalogDuplicator $duplicator,
+        protected ActivationGuard $activationGuard,
     ) {}
 
     public function index(): View
@@ -48,18 +56,27 @@ class SaleController extends Controller
                 return $start.' → '.$end;
             })
             ->addColumn('live', function (Sale $sale) {
-                return $sale->isCurrentlyLive()
-                    ? '<span class="badge bg-danger">Live</span>'
-                    : '<span class="badge bg-secondary">Off</span>';
+                $state = $sale->scheduleState();
+                $label = PublishingWindow::label($state);
+                $badge = PublishingWindow::badgeClass($state);
+
+                return '<span class="badge bg-'.$badge.'">'.$label.'</span>';
             })
             ->addColumn('status', function (Sale $sale) {
-                return '<span class="badge bg-'.($sale->status ? 'success' : 'secondary').'">'
-                    .($sale->status ? 'Active' : 'Inactive').'</span>';
+                return admin_publish_toggle(
+                    route('admin.sales.toggle-status', $sale),
+                    (bool) $sale->status,
+                    (bool) auth()->user()?->can('sales.update'),
+                    $sale->scheduleState()
+                );
             })
             ->addColumn('action', function (Sale $sale) {
                 $buttons = '';
                 if (auth()->user()?->can('sales.update')) {
                     $buttons .= '<a href="'.route('admin.sales.edit', $sale).'" class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></a>';
+                }
+                if (auth()->user()?->can('sales.create')) {
+                    $buttons .= admin_duplicate_button(route('admin.sales.duplicate', $sale), 'Duplicate this offer as a deactive copy?');
                 }
                 if (auth()->user()?->can('sales.delete')) {
                     $buttons .= '<form action="'.route('admin.sales.destroy', $sale).'" method="POST" class="d-inline" data-confirm="Delete this sale?">'
@@ -92,16 +109,20 @@ class SaleController extends Controller
             $data['image'] = $this->imageService->upload($request->file('image'), 'sales');
         }
 
-        $data['status'] = (bool) ($data['status'] ?? true);
+        $data['status'] = (bool) ($data['status'] ?? false);
         $data['notify_users'] = $notifyUsers;
         $data['sort_order'] = $data['sort_order'] ?? ((int) Sale::query()->max('sort_order') + 1);
+
+        if ($data['status']) {
+            $this->activationGuard->assertCanActivate('sale', $request);
+        }
 
         $sale = Sale::query()->create($data);
         activity_log('created', 'sales', "Created sale #{$sale->id}: {$sale->title}");
 
         $message = 'Sale created successfully.';
 
-        if ($notifyUsers) {
+        if ($notifyUsers && $sale->status) {
             $this->announcements->announceSale($sale, $request->user());
             activity_log('sent', 'notifications', "Sale #{$sale->id} announced to all users");
             $message = 'Sale created and notification sent to all users (in-app + FCM).';
@@ -137,6 +158,11 @@ class SaleController extends Controller
 
         $data['status'] = (bool) ($data['status'] ?? false);
         $data['notify_users'] = $notifyUsers;
+
+        if ($data['status']) {
+            $this->activationGuard->assertCanActivate('sale', $request);
+        }
+
         $sale->update($data);
 
         activity_log('updated', 'sales', "Updated sale #{$sale->id}: {$sale->title}");
@@ -144,7 +170,7 @@ class SaleController extends Controller
         $message = 'Sale updated successfully.';
 
         // Send (or re-send) when admin checks notify on save.
-        if ($notifyUsers && $request->boolean('send_notification_now')) {
+        if ($notifyUsers && $request->boolean('send_notification_now') && $sale->status) {
             $this->announcements->announceSale($sale->fresh(), $request->user());
             activity_log('sent', 'notifications', "Sale #{$sale->id} announced to all users");
             $message = 'Sale updated and notification sent to all users (in-app + FCM).';
@@ -164,6 +190,33 @@ class SaleController extends Controller
         activity_log('deleted', 'sales', "Deleted sale: {$title}");
 
         return redirect()->route('admin.sales.index')->with('success', 'Sale deleted.');
+    }
+
+    public function toggleStatus(Request $request, Sale $sale): JsonResponse
+    {
+        $this->authorize('update', $sale);
+
+        return $this->togglePublishStatus(
+            $request,
+            $sale,
+            'sales.update',
+            'sale',
+            'sales',
+            function (Sale $item, bool $active): void {
+                $item->update(['status' => $active]);
+            }
+        );
+    }
+
+    public function duplicate(Sale $sale): RedirectResponse
+    {
+        $this->authorize('create', Sale::class);
+
+        $copy = $this->duplicator->sale($sale);
+
+        return redirect()
+            ->route('admin.sales.edit', $copy)
+            ->with('success', 'Offer duplicated as a deactive copy. Review it, then turn it on.');
     }
 
     /**

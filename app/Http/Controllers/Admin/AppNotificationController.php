@@ -2,14 +2,19 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\TogglesPublishable;
 use App\Http\Controllers\Controller;
 use App\Models\AppNotification;
+use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Coupon;
 use App\Models\Product;
 use App\Models\Sale;
+use App\Services\ActivationGuard;
 use App\Services\AnnouncementService;
+use App\Services\CatalogDuplicator;
 use App\Services\ImageService;
+use App\Support\PublishingWindow;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,9 +24,13 @@ use Yajra\DataTables\Facades\DataTables;
 
 class AppNotificationController extends Controller
 {
+    use TogglesPublishable;
+
     public function __construct(
         protected ImageService $imageService,
         protected AnnouncementService $announcements,
+        protected CatalogDuplicator $duplicator,
+        protected ActivationGuard $activationGuard,
     ) {}
 
     public function index(): View
@@ -51,10 +60,24 @@ class AppNotificationController extends Controller
 
                 return '<span class="badge bg-'.$badge.'">'.ucfirst($n->type).'</span>';
             })
-            ->addColumn('status', function (AppNotification $n) {
-                $badge = $n->status === 'sent' ? 'success' : 'secondary';
+            ->addColumn('window', function (AppNotification $n) {
+                $start = $n->starts_at?->format('d M Y H:i') ?? 'Anytime';
+                $end = $n->ends_at?->format('d M Y H:i') ?? 'No end';
 
-                return '<span class="badge bg-'.$badge.'">'.ucfirst($n->status).'</span>';
+                return $start.' → '.$end;
+            })
+            ->addColumn('status', function (AppNotification $n) {
+                $toggle = admin_publish_toggle(
+                    route('admin.notifications.toggle-status', $n),
+                    (bool) $n->is_active,
+                    (bool) auth()->user()?->can('notifications.update'),
+                    $n->scheduleState()
+                );
+                $sent = $n->status === 'sent'
+                    ? ' <span class="badge bg-success">Sent</span>'
+                    : ' <span class="badge bg-secondary">Draft</span>';
+
+                return $toggle.$sent;
             })
             ->addColumn('fcm', function (AppNotification $n) {
                 if ($n->status !== 'sent') {
@@ -68,9 +91,9 @@ class AppNotificationController extends Controller
                 $buttons = '';
                 if (auth()->user()?->can('notifications.update') && $n->status !== 'sent') {
                     $buttons .= '<a href="'.route('admin.notifications.edit', $n).'" class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></a>';
-                    $buttons .= '<form action="'.route('admin.notifications.send', $n).'" method="POST" class="d-inline" data-confirm="Send this announcement to all app users (in-app + FCM)?">'
-                        .csrf_field()
-                        .'<button type="submit" class="btn btn-sm btn-outline-success me-1"><i class="bi bi-send"></i></button></form>';
+                }
+                if (auth()->user()?->can('notifications.create')) {
+                    $buttons .= admin_duplicate_button(route('admin.notifications.duplicate', $n), 'Duplicate this announcement as a deactive copy?');
                 }
                 if (auth()->user()?->can('notifications.delete')) {
                     $buttons .= '<form action="'.route('admin.notifications.destroy', $n).'" method="POST" class="d-inline" data-confirm="Delete this announcement?">'
@@ -96,28 +119,38 @@ class AppNotificationController extends Controller
         $this->authorize('create', AppNotification::class);
 
         $data = $this->validated($request);
-        $sendNow = (bool) ($data['send_now'] ?? false);
+        $isActive = (bool) ($data['is_active'] ?? false);
         unset($data['image'], $data['send_now'], $data['remove_image']);
+
+        if ($isActive) {
+            $this->activationGuard->assertCanActivate('announcement', $request);
+        }
 
         if ($request->hasFile('image')) {
             $data['image'] = $this->imageService->upload($request->file('image'), 'notifications');
         }
 
         $data['type'] = 'announcement';
+        $data['is_active'] = $isActive;
 
+        $sendNow = $isActive && $this->shouldSendNow($data);
         $notification = $this->announcements->createAndSend($data, $sendNow, $request->user());
 
         if ($sendNow) {
             activity_log('sent', 'notifications', "Announced #{$notification->id}: {$notification->title}");
 
             return redirect()->route('admin.notifications.index')
-                ->with('success', 'Announcement sent to all users (in-app + FCM).');
+                ->with('success', 'Announcement sent to all users (in-app + push).');
         }
 
         activity_log('created', 'notifications', "Created announcement draft #{$notification->id}");
 
+        $message = $isActive
+            ? 'Announcement saved and scheduled. It will appear on the app at the start date and time.'
+            : 'Announcement saved as deactive. Turn it on after you review the preview.';
+
         return redirect()->route('admin.notifications.index')
-            ->with('success', 'Announcement draft saved.');
+            ->with('success', $message);
     }
 
     public function edit(AppNotification $notification): View
@@ -134,8 +167,12 @@ class AppNotificationController extends Controller
         abort_if($notification->status === 'sent', 403, 'Sent announcements cannot be edited.');
 
         $data = $this->validated($request);
-        $sendNow = (bool) ($data['send_now'] ?? false);
+        $isActive = (bool) ($data['is_active'] ?? false);
         unset($data['image'], $data['send_now'], $data['remove_image']);
+
+        if ($isActive) {
+            $this->activationGuard->assertCanActivate('announcement', $request);
+        }
 
         if ($request->boolean('remove_image')) {
             if ($notification->related_type !== Sale::class) {
@@ -151,9 +188,10 @@ class AppNotificationController extends Controller
             $data['image'] = $this->imageService->upload($request->file('image'), 'notifications');
         }
 
+        $data['is_active'] = $isActive;
         $notification->update($data);
 
-        if ($sendNow) {
+        if ($isActive && $notification->fresh()?->isDueToSend()) {
             $this->announcements->send($notification);
             activity_log('sent', 'notifications', "Announced #{$notification->id}");
 
@@ -163,8 +201,12 @@ class AppNotificationController extends Controller
 
         activity_log('updated', 'notifications', "Updated announcement #{$notification->id}");
 
+        $message = $isActive
+            ? 'Announcement updated. It will show on the app only during the scheduled window.'
+            : 'Announcement updated and kept deactive.';
+
         return redirect()->route('admin.notifications.index')
-            ->with('success', 'Announcement updated.');
+            ->with('success', $message);
     }
 
     public function send(AppNotification $notification): RedirectResponse
@@ -194,6 +236,38 @@ class AppNotificationController extends Controller
             ->with('success', 'Announcement deleted.');
     }
 
+    public function toggleStatus(Request $request, AppNotification $notification): JsonResponse
+    {
+        $this->authorize('update', $notification);
+
+        $response = $this->togglePublishStatus(
+            $request,
+            $notification,
+            'notifications.update',
+            'announcement',
+            'notifications',
+            function (AppNotification $item, bool $active): void {
+                $item->update(['is_active' => $active]);
+                if ($active && $item->fresh()?->isDueToSend()) {
+                    $this->announcements->send($item);
+                }
+            }
+        );
+
+        return $response;
+    }
+
+    public function duplicate(AppNotification $notification): RedirectResponse
+    {
+        $this->authorize('create', AppNotification::class);
+
+        $copy = $this->duplicator->announcement($notification);
+
+        return redirect()
+            ->route('admin.notifications.edit', $copy)
+            ->with('success', 'Announcement duplicated as a deactive copy. Review it, then turn it on.');
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -207,11 +281,17 @@ class AppNotificationController extends Controller
             'link_type' => ['required', Rule::in(['none', 'category', 'brand', 'product', 'url', 'sale', 'coupon'])],
             'link_value' => ['nullable', 'string', 'max:500'],
             'audience' => ['required', Rule::in(['all', 'customers'])],
+            'is_active' => ['sometimes', 'boolean'],
+            'starts_at' => ['nullable', 'date'],
+            'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
             'send_now' => ['sometimes', 'boolean'],
         ]);
 
+        $data['is_active'] = filter_var($request->input('is_active'), FILTER_VALIDATE_BOOLEAN);
         $data['send_now'] = filter_var($request->input('send_now'), FILTER_VALIDATE_BOOLEAN);
         $data['remove_image'] = filter_var($request->input('remove_image'), FILTER_VALIDATE_BOOLEAN);
+        $data['starts_at'] = $request->filled('starts_at') ? $request->input('starts_at') : null;
+        $data['ends_at'] = $request->filled('ends_at') ? $request->input('ends_at') : null;
         if (($data['link_type'] ?? 'none') === 'none') {
             $data['link_value'] = null;
         }
@@ -226,10 +306,21 @@ class AppNotificationController extends Controller
     {
         return [
             'categories' => Category::query()->where('status', true)->orderBy('sort_order')->orderBy('name')->get(['id', 'name']),
-            'brands' => \App\Models\Brand::query()->where('status', true)->orderBy('name')->get(['id', 'name']),
+            'brands' => Brand::query()->where('status', true)->orderBy('name')->get(['id', 'name']),
             'products' => Product::query()->where('status', 'active')->orderBy('name')->limit(200)->get(['id', 'name']),
             'sales' => Sale::query()->orderByDesc('id')->limit(100)->get(['id', 'title']),
             'coupons' => Coupon::query()->orderByDesc('id')->limit(100)->get(['id', 'code', 'title']),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function shouldSendNow(array $data): bool
+    {
+        $start = $data['starts_at'] ?? null;
+        $end = $data['ends_at'] ?? null;
+
+        return PublishingWindow::isVisibleOnApp(true, $start, $end);
     }
 }

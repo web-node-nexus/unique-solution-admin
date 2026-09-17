@@ -28,6 +28,7 @@ class ProductsImport implements SkipsEmptyRows, ToCollection, WithHeadingRow
 
                 if ($name === '') {
                     $this->skipped++;
+
                     continue;
                 }
 
@@ -40,6 +41,7 @@ class ProductsImport implements SkipsEmptyRows, ToCollection, WithHeadingRow
 
                 if ($categoryName === '') {
                     $this->skipped++;
+
                     continue;
                 }
 
@@ -47,7 +49,7 @@ class ProductsImport implements SkipsEmptyRows, ToCollection, WithHeadingRow
                     ['slug' => Str::slug($categoryName)],
                     [
                         'name' => $categoryName,
-                        'status' => true,
+                        'status' => false,
                         'sort_order' => 0,
                     ]
                 );
@@ -56,7 +58,7 @@ class ProductsImport implements SkipsEmptyRows, ToCollection, WithHeadingRow
                 if ($brandName !== '') {
                     $brand = Brand::query()->firstOrCreate(
                         ['name' => $brandName],
-                        ['status' => true]
+                        ['status' => false]
                     );
                     $brandId = $brand->id;
                 }
@@ -70,7 +72,7 @@ class ProductsImport implements SkipsEmptyRows, ToCollection, WithHeadingRow
                     'slug' => $slug,
                     'description' => $row['description'] ?? null,
                     'base_price' => $basePrice > 0 ? $basePrice : $price,
-                    'status' => 'active',
+                    'status' => 'inactive',
                     'is_featured' => false,
                     'created_by' => Auth::id(),
                 ]);

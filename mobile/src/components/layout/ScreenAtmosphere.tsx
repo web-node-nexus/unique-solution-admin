@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import { colors } from '@/theme/tokens';
+import { colors, gradients } from '@/theme/tokens';
 
 export function ScreenAtmosphere({
   children,
@@ -28,8 +28,8 @@ export function ScreenAtmosphere({
   return (
     <View style={[styles.root, style]}>
       <LinearGradient
-        colors={['#F7FAFD', '#F4F7FB', '#EEF3F8']}
-        start={{ x: 0.2, y: 0 }}
+        colors={[...gradients.mist]}
+        start={{ x: 0.15, y: 0 }}
         end={{ x: 0.9, y: 1 }}
         style={StyleSheet.absoluteFillObject}
       />

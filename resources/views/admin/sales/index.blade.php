@@ -4,11 +4,11 @@
 
 @section('content')
     @include('admin.partials.page-header', [
-        'title' => 'Sales & Promotions',
-        'subtitle' => 'App pe dikhne wali sales — image, start & expiry date ke saath',
+        'title' => 'Offers & Promotions',
+        'subtitle' => 'Offers shown in the app. Active items still wait for their start date and time.',
         'breadcrumbs' => ['Marketing' => null, 'Sales'],
         'actions' => auth()->user()?->can('sales.create')
-            ? '<a href="'.route('admin.sales.create').'" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Add Sale</a>'
+            ? '<a href="'.route('admin.sales.create').'" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Add Offer</a>'
             : null,
     ])
 

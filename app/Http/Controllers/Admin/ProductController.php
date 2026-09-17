@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Exports\ProductsExport;
+use App\Http\Controllers\Admin\Concerns\TogglesPublishable;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreProductRequest;
 use App\Http\Requests\Admin\UpdateProductRequest;
@@ -10,22 +11,28 @@ use App\Imports\ProductsImport;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
-use App\Services\ProductService;
+use App\Services\ActivationGuard;
 use App\Services\PolicyService;
+use App\Services\ProductService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
+use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Yajra\DataTables\Facades\DataTables;
 
 class ProductController extends Controller
 {
+    use TogglesPublishable;
+
     public function __construct(
         protected ProductService $productService,
-        protected PolicyService $policyService
+        protected PolicyService $policyService,
+        protected ActivationGuard $activationGuard,
     ) {}
 
     public function index(): View
@@ -77,14 +84,13 @@ class ProductController extends Controller
             ->addColumn('category_name', fn (Product $product) => $product->category?->name ?? '—')
             ->addColumn('brand_name', fn (Product $product) => $product->brand?->name ?? '—')
             ->addColumn('status', function (Product $product) {
-                $map = [
-                    'active' => 'success',
-                    'inactive' => 'secondary',
-                    'draft' => 'warning',
-                ];
-                $badge = $map[$product->status] ?? 'secondary';
+                $can = (bool) auth()->user()?->can('products.update');
 
-                return '<span class="badge bg-'.$badge.'">'.e(ucfirst($product->status)).'</span>';
+                return admin_publish_toggle(
+                    route('admin.products.toggle-status', $product),
+                    $product->status === 'active',
+                    $can
+                );
             })
             ->addColumn('action', function (Product $product) {
                 $buttons = '<a href="'.route('admin.products.show', $product).'" class="btn btn-sm btn-outline-secondary me-1"><i class="bi bi-eye"></i></a>';
@@ -99,9 +105,7 @@ class ProductController extends Controller
                         .' title="Quick edit"><i class="bi bi-lightning"></i></button>';
                 }
                 if (auth()->user()?->can('products.create')) {
-                    $buttons .= '<form action="'.route('admin.products.clone', $product).'" method="POST" class="d-inline me-1" data-confirm="Clone this product?" data-confirm-title="Clone product" data-confirm-button="Yes, clone">'
-                        .csrf_field()
-                        .'<button type="submit" class="btn btn-sm btn-outline-info" title="Clone"><i class="bi bi-copy"></i></button></form>';
+                    $buttons .= admin_duplicate_button(route('admin.products.clone', $product), 'Duplicate this product as a deactive copy?');
                 }
                 if (auth()->user()?->can('products.delete')) {
                     $buttons .= '<form action="'.route('admin.products.destroy', $product).'" method="POST" class="d-inline" data-confirm="Delete this product?">'
@@ -125,7 +129,10 @@ class ProductController extends Controller
     public function store(StoreProductRequest $request): RedirectResponse
     {
         $data = $request->validated();
-        unset($data['policies']);
+        unset($data['policies'], $data['brand_policy_ids'], $data['use_brand_policies']);
+        if (($data['status'] ?? 'inactive') === 'active') {
+            $this->activationGuard->assertCanActivate('product', $request);
+        }
         $product = $this->productService->create($data, $request->user());
         $this->syncPoliciesFromRequest($request, $product);
 
@@ -154,7 +161,7 @@ class ProductController extends Controller
     {
         $this->authorize('update', $product);
 
-        $product->load(['images', 'variants.attributeValues', 'variants.images', 'policies']);
+        $product->load(['images', 'variants.attributeValues', 'variants.images', 'brandPolicies']);
 
         return view('admin.products.edit', array_merge($this->productFormCatalog(), [
             'product' => $product,
@@ -164,7 +171,10 @@ class ProductController extends Controller
     public function update(UpdateProductRequest $request, Product $product): RedirectResponse
     {
         $data = $request->validated();
-        unset($data['policies']);
+        unset($data['policies'], $data['brand_policy_ids'], $data['use_brand_policies']);
+        if (($data['status'] ?? $product->status) === 'active') {
+            $this->activationGuard->assertCanActivate('product', $request);
+        }
         $product = $this->productService->update($product, $data);
         $this->syncPoliciesFromRequest($request, $product);
 
@@ -196,7 +206,7 @@ class ProductController extends Controller
 
         return redirect()
             ->route('admin.products.edit', $clone)
-            ->with('success', 'Product cloned successfully.');
+            ->with('success', 'Product duplicated as a deactive copy. Review it, then turn it on.');
     }
 
     public function bulkAction(Request $request): JsonResponse|RedirectResponse
@@ -210,6 +220,7 @@ class ProductController extends Controller
         if ($data['action'] === 'delete') {
             abort_unless(auth()->user()?->can('products.delete'), 403);
             $count = $this->productService->bulkDelete($data['ids']);
+            $message = "Bulk action completed on {$count} product(s).";
         } else {
             abort_unless(auth()->user()?->can('products.update'), 403);
             $status = match ($data['action']) {
@@ -217,10 +228,22 @@ class ProductController extends Controller
                 'deactivate' => 'inactive',
                 'draft' => 'draft',
             };
-            $count = $this->productService->bulkStatus($data['ids'], $status);
+            if ($status === 'active') {
+                $ready = Product::query()->whereIn('id', $data['ids'])->get()
+                    ->filter(fn (Product $product) => $this->activationGuard->issues('product', $product) === [])
+                    ->pluck('id')
+                    ->all();
+                $skipped = count($data['ids']) - count($ready);
+                $count = $ready === [] ? 0 : $this->productService->bulkStatus($ready, $status);
+                $message = "Activated {$count} product(s).";
+                if ($skipped > 0) {
+                    $message .= " {$skipped} skipped — complete photos/price/name first.";
+                }
+            } else {
+                $count = $this->productService->bulkStatus($data['ids'], $status);
+                $message = "Bulk action completed on {$count} product(s).";
+            }
         }
-
-        $message = "Bulk action completed on {$count} product(s).";
 
         if ($request->expectsJson()) {
             return response()->json(['success' => true, 'message' => $message, 'count' => $count]);
@@ -258,7 +281,7 @@ class ProductController extends Controller
         $this->authorize('create', Product::class);
 
         $headers = [['name', 'category', 'brand', 'base_price', 'price', 'sku', 'stock', 'description']];
-        $export = new class($headers) implements \Maatwebsite\Excel\Concerns\FromArray
+        $export = new class($headers) implements FromArray
         {
             public function __construct(private array $rows) {}
 
@@ -311,7 +334,14 @@ class ProductController extends Controller
             return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
         }
 
-        $product->update($validator->validated());
+        $data = $validator->validated();
+        if (($data['status'] ?? $product->status) === 'active') {
+            $this->activationGuard->assertCanActivate('product', $product->fill([
+                'name' => $data['name'] ?? $product->name,
+            ]));
+        }
+
+        $product->update($data);
 
         activity_log('quick_updated', 'products', "Quick updated product #{$product->id}");
 
@@ -322,8 +352,24 @@ class ProductController extends Controller
         ]);
     }
 
+    public function toggleStatus(Request $request, Product $product): JsonResponse
+    {
+        $this->authorize('update', $product);
+
+        return $this->togglePublishStatus(
+            $request,
+            $product,
+            'products.update',
+            'product',
+            'products',
+            function (Product $item, bool $active): void {
+                $item->update(['status' => $active ? 'active' : 'inactive']);
+            }
+        );
+    }
+
     /**
-     * @return array{categories: \Illuminate\Support\Collection, brands: \Illuminate\Support\Collection, categoryBrandMap: array<int, list<int>>}
+     * @return array{categories: Collection, brands: Collection, categoryBrandMap: array<int, list<int>>}
      */
     private function productFormCatalog(): array
     {
@@ -362,27 +408,11 @@ class ProductController extends Controller
 
     protected function syncPoliciesFromRequest(Request $request, Product $product): void
     {
-        $rows = $request->input('policies', []);
-        if (! is_array($rows)) {
-            $rows = [];
+        $ids = $request->input('brand_policy_ids', []);
+        if (! is_array($ids)) {
+            $ids = $ids === null || $ids === '' ? [] : [(int) $ids];
         }
 
-        $icons = [];
-        foreach (array_keys($rows) as $index) {
-            $file = $request->file("policies.{$index}.icon");
-            if ($file) {
-                $icons[(int) $index] = $file;
-            }
-        }
-
-        $orderedRows = array_values($rows);
-        $orderedIcons = [];
-        foreach (array_keys($rows) as $i => $originalIndex) {
-            if (isset($icons[(int) $originalIndex])) {
-                $orderedIcons[$i] = $icons[(int) $originalIndex];
-            }
-        }
-
-        $this->policyService->syncProductPolicies($product, $orderedRows, $orderedIcons);
+        $this->policyService->syncProductBrandPolicies($product, $ids);
     }
 }

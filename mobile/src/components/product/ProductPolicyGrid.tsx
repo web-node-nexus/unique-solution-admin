@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText, PressableScale } from '@/components/ui/primitives';
-import { colors, elevation, radii, spacing, typography } from '@/theme/tokens';
+import { colors, radii, spacing, typography } from '@/theme/tokens';
 
 export type PolicyItem = {
   id: number | string;
@@ -15,7 +15,8 @@ export type PolicyItem = {
   source?: string;
 };
 
-const TINTS = ['#EEF2FF', '#ECFDF5', '#FFF7ED', '#FDF2F8'];
+const ICON_TINTS = ['#E8F1FF', '#E8F8EF', '#FFF4E5', '#F3E8FF'];
+const ICON_COLORS = ['#3B82F6', '#16A34A', '#F59E0B', '#8B5CF6'];
 
 export function ProductPolicyGrid({ policies }: { policies: PolicyItem[] }) {
   const insets = useSafeAreaInsets();
@@ -29,31 +30,39 @@ export function ProductPolicyGrid({ policies }: { policies: PolicyItem[] }) {
   return (
     <>
       <View style={styles.section}>
-        <AppText variant="label">Policies & support</AppText>
-        <View style={styles.grid}>
-          {items.map((policy, index) => (
-            <PressableScale
-              key={`${policy.source || 'p'}-${policy.id}`}
-              style={[styles.card, { backgroundColor: TINTS[index % TINTS.length] }, elevation.soft]}
-              onPress={() => {
-                void Haptics.selectionAsync();
-                setActive(policy);
-              }}
-            >
-              <View style={styles.iconWrap}>
-                {policy.icon_url ? (
-                  <Image source={{ uri: policy.icon_url }} style={styles.icon} contentFit="contain" />
-                ) : (
-                  <ShieldCheck size={22} color={colors.jade} strokeWidth={2} />
-                )}
-              </View>
-              <AppText style={styles.title} numberOfLines={2}>
-                {policy.title}
-              </AppText>
-              <AppText style={styles.more}>See More</AppText>
-            </PressableScale>
-          ))}
-        </View>
+        <AppText style={styles.heading}>POLICIES & SUPPORT</AppText>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.row}
+        >
+          {items.map((policy, index) => {
+            const tint = ICON_TINTS[index % ICON_TINTS.length];
+            const iconColor = ICON_COLORS[index % ICON_COLORS.length];
+            return (
+              <PressableScale
+                key={`${policy.source || 'p'}-${policy.id}`}
+                style={styles.card}
+                onPress={() => {
+                  void Haptics.selectionAsync();
+                  setActive(policy);
+                }}
+              >
+                <View style={[styles.iconWrap, { backgroundColor: tint }]}>
+                  {policy.icon_url ? (
+                    <Image source={{ uri: policy.icon_url }} style={styles.icon} contentFit="contain" />
+                  ) : (
+                    <ShieldCheck size={22} color={iconColor} strokeWidth={2.2} />
+                  )}
+                </View>
+                <AppText style={styles.title} numberOfLines={2}>
+                  {policy.title}
+                </AppText>
+                <AppText style={styles.more}>See More</AppText>
+              </PressableScale>
+            );
+          })}
+        </ScrollView>
       </View>
 
       <Modal visible={!!active} transparent animationType="fade" onRequestClose={() => setActive(null)}>
@@ -73,7 +82,10 @@ export function ProductPolicyGrid({ policies }: { policies: PolicyItem[] }) {
                 <Image source={{ uri: active.icon_url }} style={styles.sheetIcon} contentFit="contain" />
               ) : null}
               <AppText style={styles.sheetBody}>
-                {(active?.description || 'No extra details for this policy.').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()}
+                {(active?.description || 'No extra details for this policy.')
+                  .replace(/<[^>]+>/g, ' ')
+                  .replace(/\s+/g, ' ')
+                  .trim()}
               </AppText>
             </ScrollView>
           </Pressable>
@@ -87,45 +99,52 @@ const styles = StyleSheet.create({
   section: {
     marginTop: spacing.xl,
   },
-  grid: {
-    marginTop: 12,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  heading: {
+    fontFamily: typography.bodySemi,
+    fontSize: 12,
+    letterSpacing: 0.8,
+    color: '#9CA3AF',
+    textTransform: 'uppercase',
+    marginBottom: 12,
+  },
+  row: {
     gap: 10,
+    paddingRight: spacing.md,
   },
   card: {
-    width: '48%',
-    flexGrow: 1,
-    minWidth: '46%',
-    maxWidth: '48.5%',
-    borderRadius: radii.lg,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    minHeight: 128,
+    width: 118,
+    minHeight: 148,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingTop: 14,
+    paddingBottom: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#E5E7EB',
   },
   iconWrap: {
     width: 44,
     height: 44,
-    borderRadius: 14,
-    backgroundColor: colors.paper,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
-  icon: { width: 28, height: 28 },
+  icon: { width: 26, height: 26 },
   title: {
     fontFamily: typography.bodySemi,
-    fontSize: 14,
-    lineHeight: 18,
-    color: colors.ink,
-    minHeight: 36,
+    fontSize: 13,
+    lineHeight: 17,
+    color: '#111827',
+    minHeight: 34,
   },
   more: {
-    marginTop: 8,
+    marginTop: 'auto',
+    paddingTop: 10,
     fontFamily: typography.bodyMedium,
     fontSize: 12,
-    color: colors.jade,
+    color: '#2563EB',
+    textDecorationLine: 'underline',
   },
   backdrop: {
     flex: 1,

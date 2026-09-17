@@ -178,9 +178,9 @@ class OrderController extends Controller
 
                 $confirmUrl = route('admin.orders.update-status', $order);
                 $confirm = '<button type="button" class="ord-btn ord-btn-confirm" data-status-url="'.e($confirmUrl).'" data-status="confirmed">'
-                    .'<i class="bi bi-check-lg"></i> कन्फर्म</button>';
+                    .'<i class="bi bi-check-lg"></i> Confirm</button>';
                 $cancel = '<button type="button" class="ord-btn ord-btn-cancel" data-status-url="'.e($confirmUrl).'" data-status="cancelled">'
-                    .'<i class="bi bi-slash-circle"></i> कैंसिल</button>';
+                    .'<i class="bi bi-slash-circle"></i> Cancel</button>';
 
                 return '<div class="ord-actions">'.$confirm.$cancel.$view.'</div>';
             })

@@ -1,11 +1,8 @@
-import { DrawerContentScrollView, DrawerItem } from '@react-navigation/drawer';
-import type { DrawerContentComponentProps } from '@react-navigation/drawer';
-import { DrawerActions } from '@react-navigation/native';
-import { router, useNavigation } from 'expo-router';
+import { router } from 'expo-router';
 import {
   Bell,
   Building2,
-  GitCompare,
+  // GitCompare, // Compare temporarily disabled
   Heart,
   MapPin,
   Package,
@@ -13,18 +10,19 @@ import {
   Search,
   X,
 } from 'lucide-react-native';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText, PressableScale } from '@/components/ui/primitives';
 import { useAuthStore } from '@/store/auth';
 import { useWishlistStore } from '@/store/cart';
-import { useCompareStore } from '@/store/compare';
+// import { useCompareStore } from '@/store/compare';
+import { useDrawerStore } from '@/store/drawer';
 import { colors, elevation, radii, spacing, typography } from '@/theme/tokens';
 
 const links = [
   { label: 'Search', href: '/search', icon: Search },
   { label: 'Wishlist', href: '/wishlist', icon: Heart },
-  { label: 'Compare', href: '/compare', icon: GitCompare },
+  // { label: 'Compare', href: '/compare', icon: GitCompare },
   { label: 'My orders', href: '/orders', icon: Package },
   { label: 'Addresses', href: '/addresses', icon: MapPin },
   { label: 'Deals & coupons', href: '/deals', icon: Percent },
@@ -32,15 +30,15 @@ const links = [
   { label: 'Announcements', href: '/notifications', icon: Bell },
 ] as const;
 
-export function AppDrawerContent(props: DrawerContentComponentProps) {
+export function AppDrawerContent() {
   const insets = useSafeAreaInsets();
   const user = useAuthStore((s) => s.user);
   const wishlistCount = useWishlistStore((s) => s.items.length);
-  const compareCount = useCompareStore((s) => s.items.length);
-  const navigation = useNavigation();
+  // const compareCount = useCompareStore((s) => s.items.length);
+  const closeDrawer = useDrawerStore((s) => s.closeDrawer);
 
   const go = (href: string) => {
-    props.navigation.closeDrawer();
+    closeDrawer();
     router.push(href as never);
   };
 
@@ -60,37 +58,31 @@ export function AppDrawerContent(props: DrawerContentComponentProps) {
             {user?.email ?? 'Sign in for orders & delivery'}
           </AppText>
         </View>
-        <PressableScale
-          style={styles.close}
-          onPress={() => navigation.dispatch(DrawerActions.closeDrawer())}
-        >
+        <PressableScale style={styles.close} onPress={closeDrawer}>
           <X size={18} color={colors.ink} />
         </PressableScale>
       </View>
 
-      <DrawerContentScrollView {...props} contentContainerStyle={{ paddingTop: 8 }}>
+      <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 16 }}>
         {links.map((item) => {
           const Icon = item.icon;
           let badge = '';
           if (item.href === '/wishlist' && wishlistCount > 0) badge = ` · ${wishlistCount}`;
-          if (item.href === '/compare' && compareCount > 0) badge = ` · ${compareCount}`;
+          // if (item.href === '/compare' && compareCount > 0) badge = ` · ${compareCount}`;
           return (
-            <DrawerItem
+            <PressableScale
               key={item.href}
-              label={({ color }) => (
-                <AppText numberOfLines={1} style={[styles.label, { color }]}>
-                  {`${item.label}${badge}`}
-                </AppText>
-              )}
               onPress={() => go(item.href)}
-              icon={({ color, size }) => <Icon color={color} size={size} strokeWidth={2} />}
-              activeTintColor={colors.jade}
-              inactiveTintColor={colors.ink}
               style={styles.item}
-            />
+            >
+              <Icon color={colors.ink} size={22} strokeWidth={2} />
+              <AppText numberOfLines={1} style={styles.label}>
+                {`${item.label}${badge}`}
+              </AppText>
+            </PressableScale>
           );
         })}
-      </DrawerContentScrollView>
+      </ScrollView>
 
       <View style={styles.footer}>
         {!user ? (
@@ -129,8 +121,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...elevation.soft,
   },
-  item: { borderRadius: radii.md, marginHorizontal: 8 },
-  label: { fontFamily: typography.bodyMedium, fontSize: 15 },
+  item: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginHorizontal: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderRadius: radii.md,
+  },
+  label: { fontFamily: typography.bodyMedium, fontSize: 15, color: colors.ink, flex: 1 },
   footer: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   cta: {
     backgroundColor: colors.jade,

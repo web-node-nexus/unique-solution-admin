@@ -1,42 +1,44 @@
 @php
     $sale = $sale ?? null;
-    $linkType = old('link_type', $sale->link_type ?? 'none');
-    $linkValue = old('link_value', $sale->link_value ?? '');
-    $notifyChecked = old('notify_users', $sale->notify_users ?? in_array($linkType, ['category', 'brand'], true));
+    $linkType = old('link_type', $sale?->link_type ?? 'none');
+    $linkValue = old('link_value', $sale?->link_value ?? '');
+    $notifyChecked = old('notify_users', $sale?->notify_users ?? in_array($linkType, ['category', 'brand'], true));
 @endphp
 
 <div class="row g-3">
     <div class="col-md-8">
         <label class="form-label" for="title">Title <span class="text-danger">*</span></label>
         <input type="text" name="title" id="title" class="form-control @error('title') is-invalid @enderror"
-               value="{{ old('title', $sale->title ?? '') }}" required>
+               value="{{ old('title', $sale?->title ?? '') }}" required>
         @error('title')<div class="invalid-feedback">{{ $message }}</div>@enderror
     </div>
     <div class="col-md-4">
         <label class="form-label" for="sort_order">Sort order</label>
         <input type="number" min="0" name="sort_order" id="sort_order" class="form-control"
-               value="{{ old('sort_order', $sale->sort_order ?? 0) }}">
+               value="{{ old('sort_order', $sale?->sort_order ?? 0) }}">
     </div>
     <div class="col-12">
         <label class="form-label" for="subtitle">Subtitle</label>
         <input type="text" name="subtitle" id="subtitle" class="form-control"
-               value="{{ old('subtitle', $sale->subtitle ?? '') }}">
+               value="{{ old('subtitle', $sale?->subtitle ?? '') }}">
     </div>
     <div class="col-12">
         <label class="form-label" for="description">Description</label>
-        <textarea name="description" id="description" rows="3" class="form-control">{{ old('description', $sale->description ?? '') }}</textarea>
+        <textarea name="description" id="description" rows="3" class="form-control">{{ old('description', $sale?->description ?? '') }}</textarea>
     </div>
     <div class="col-md-6">
         <label class="form-label" for="starts_at">Start date &amp; time</label>
         <input type="datetime-local" name="starts_at" id="starts_at" class="form-control @error('starts_at') is-invalid @enderror"
                value="{{ old('starts_at', optional($sale?->starts_at)->format('Y-m-d\TH:i')) }}">
         @error('starts_at')<div class="invalid-feedback">{{ $message }}</div>@enderror
+        <div class="form-text">Even if Active, the offer stays hidden until this time.</div>
     </div>
     <div class="col-md-6">
-        <label class="form-label" for="ends_at">Expiry date &amp; time</label>
+        <label class="form-label" for="ends_at">End date &amp; time</label>
         <input type="datetime-local" name="ends_at" id="ends_at" class="form-control @error('ends_at') is-invalid @enderror"
                value="{{ old('ends_at', optional($sale?->ends_at)->format('Y-m-d\TH:i')) }}">
         @error('ends_at')<div class="invalid-feedback">{{ $message }}</div>@enderror
+        <div class="form-text">Turns off automatically when this time is reached.</div>
     </div>
     <div class="col-md-8">
         <label class="form-label" for="image">Sale banner image</label>
@@ -92,10 +94,11 @@
                    placeholder="https://..." value="{{ $linkType === 'url' ? $linkValue : '' }}">
             <input type="hidden" name="link_value" id="link_value" value="{{ $linkValue }}">
         </div>
-        <div class="form-check form-switch mt-3">
-            <input type="hidden" name="status" value="0">
-            <input class="form-check-input" type="checkbox" name="status" id="status" value="1" @checked(old('status', $sale->status ?? true))>
-            <label class="form-check-label" for="status">Active</label>
+        <div class="mt-3">
+            @include('admin.partials.publish-toggle', [
+                'checked' => filter_var(old('status', $sale?->status ?? false), FILTER_VALIDATE_BOOLEAN),
+                'scheduled' => true,
+            ])
         </div>
         <div class="border rounded-3 p-3 mt-3 bg-light">
             <div class="form-check form-switch">

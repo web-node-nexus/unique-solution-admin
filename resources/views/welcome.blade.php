@@ -58,7 +58,7 @@
     <div class="box">
         <div class="mark">US</div>
         <h1>{{ setting('shop_name', 'Unique Solution') }}</h1>
-        <p>{{ setting('shop_tagline', 'आपकी अपनी दुकान') }}</p>
+        <p>{{ setting('shop_tagline', 'Your neighbourhood store') }}</p>
         <a href="{{ url('/admin') }}">Go to Admin</a>
         <p class="note">Root storefront routes can replace this page later.</p>
     </div>

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\PublishingWindow;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute as CastAttribute;
 use Illuminate\Database\Eloquent\Model;
@@ -63,5 +64,19 @@ class Coupon extends Model
 
             return Storage::disk('public')->url($this->image);
         });
+    }
+
+    public function isCurrentlyLive(): bool
+    {
+        $end = $this->expiry_date?->copy()->endOfDay();
+
+        return PublishingWindow::isVisibleOnApp((bool) $this->status, $this->start_date, $end);
+    }
+
+    public function scheduleState(): string
+    {
+        $end = $this->expiry_date?->copy()->endOfDay();
+
+        return PublishingWindow::state((bool) $this->status, $this->start_date, $end);
     }
 }

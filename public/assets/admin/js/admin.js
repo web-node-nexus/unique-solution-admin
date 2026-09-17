@@ -88,6 +88,22 @@
         },
 
         initNestedMenus() {
+            const closeSubmenu = (submenu, trigger) => {
+                submenu.style.maxHeight = '0px';
+                submenu.classList.remove('open');
+                trigger?.setAttribute('aria-expanded', 'false');
+            };
+
+            const openSubmenu = (submenu, trigger) => {
+                submenu.classList.add('open');
+                // Measure full content height so long menus (Orders, Catalog) never clip
+                submenu.style.maxHeight = '0px';
+                // Force reflow then expand to exact scrollHeight
+                void submenu.offsetHeight;
+                submenu.style.maxHeight = `${submenu.scrollHeight}px`;
+                trigger?.setAttribute('aria-expanded', 'true');
+            };
+
             document.querySelectorAll('[data-menu-toggle]').forEach((trigger) => {
                 trigger.addEventListener('click', (event) => {
                     event.preventDefault();
@@ -104,29 +120,37 @@
                     const parent = trigger.closest('.sidebar-nav');
                     parent?.querySelectorAll('.submenu.open').forEach((openMenu) => {
                         if (openMenu !== submenu) {
-                            openMenu.classList.remove('open');
                             const siblingTrigger = parent.querySelector(
                                 `[data-menu-toggle="${openMenu.id}"]`
                             );
-                            siblingTrigger?.setAttribute('aria-expanded', 'false');
+                            closeSubmenu(openMenu, siblingTrigger);
                         }
                     });
 
-                    submenu.classList.toggle('open', !isOpen);
-                    trigger.setAttribute('aria-expanded', String(!isOpen));
+                    if (isOpen) {
+                        closeSubmenu(submenu, trigger);
+                    } else {
+                        openSubmenu(submenu, trigger);
+                    }
                 });
             });
 
             // Keep parent open when a child route is active
             document.querySelectorAll('.submenu').forEach((submenu) => {
                 if (submenu.querySelector('.nav-link.active')) {
-                    submenu.classList.add('open');
                     const trigger = document.querySelector(
                         `[data-menu-toggle="${submenu.id}"]`
                     );
-                    trigger?.setAttribute('aria-expanded', 'true');
+                    openSubmenu(submenu, trigger);
                     trigger?.classList.add('active');
                 }
+            });
+
+            // Recalculate open submenu heights after fonts/layout settle
+            window.addEventListener('resize', () => {
+                document.querySelectorAll('.submenu.open').forEach((submenu) => {
+                    submenu.style.maxHeight = `${submenu.scrollHeight}px`;
+                });
             });
         },
 

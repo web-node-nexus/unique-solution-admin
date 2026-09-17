@@ -153,7 +153,6 @@ export type HomePayload = {
 export type ProductDetail = Omit<ProductCard, 'brand' | 'category'> & {
   description?: string | null;
   warranty_info?: string | null;
-  use_brand_policies?: boolean;
   policies?: {
     id: number;
     title: string;

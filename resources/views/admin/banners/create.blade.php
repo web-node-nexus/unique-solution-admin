@@ -14,10 +14,11 @@
 
     <div class="card border-0 shadow-sm">
         <div class="card-body">
-            <form action="{{ route('admin.banners.store') }}" method="POST" enctype="multipart/form-data" id="bannerForm">
+            <form action="{{ route('admin.banners.store') }}" method="POST" enctype="multipart/form-data" id="bannerForm" data-publish-form="banner">
                 @csrf
                 @include('admin.banners._form', ['banner' => null, 'nextSort' => $nextSort])
                 <div class="mt-4 d-flex gap-2">
+                    @include('admin.partials.preview-button', ['type' => 'banner'])
                     <button type="submit" class="btn btn-primary" data-loading-text="Saving...">
                         <i class="bi bi-check-lg me-1"></i>Save Banner
                     </button>
