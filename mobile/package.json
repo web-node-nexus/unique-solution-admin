@@ -9,7 +9,8 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "prebuild:android": "expo prebuild --platform android",
-    "apk": "expo prebuild --platform android && cd android && ./gradlew assembleRelease"
+    "apk": "EXPO_PUBLIC_API_URL=http://94.103.163.218/unique-solution/api/v1 ./android/gradlew -p android assembleRelease --build-cache",
+    "apk:fresh": "EXPO_PUBLIC_API_URL=http://94.103.163.218/unique-solution/api/v1 npx expo prebuild --platform android && EXPO_PUBLIC_API_URL=http://94.103.163.218/unique-solution/api/v1 ./android/gradlew -p android assembleRelease --build-cache"
   },
   "dependencies": {
     "@expo-google-fonts/source-sans-3": "^0.4.1",
@@ -27,6 +28,7 @@
     "expo-image": "~57.0.4",
     "expo-linear-gradient": "~57.0.1",
     "expo-linking": "~57.0.9",
+    "expo-navigation-bar": "~57.0.2",
     "expo-notifications": "~57.0.17",
     "expo-router": "~57.0.19",
     "expo-splash-screen": "~57.0.8",

@@ -12,10 +12,13 @@ import {
   useFonts as useSourceSerif,
 } from '@expo-google-fonts/source-serif-4';
 import { Stack } from 'expo-router';
+import * as NavigationBar from 'expo-navigation-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
+import { Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { persistOptions, queryClient } from '@/api/queryClient';
 // Compare temporarily disabled for client
 // import { CompareDock } from '@/components/catalog/CompareDock';
@@ -32,6 +35,40 @@ import { getNotifications } from '@/utils/notifications';
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 initCrashReporting();
 installGlobalCrashHandlers();
+
+/** Solid blue strip behind Android back/home/recent (edge-to-edge). */
+const SYSTEM_NAV_BLUE = '#1565C0';
+
+function AndroidSystemNavBackdrop() {
+  const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    try {
+      // Light icons on dark blue
+      NavigationBar.setStyle('dark');
+    } catch {
+      // ignore — older devices / missing native module
+    }
+  }, []);
+
+  if (Platform.OS !== 'android' || insets.bottom <= 0) return null;
+
+  return (
+    <View
+      pointerEvents="none"
+      style={{
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        height: insets.bottom,
+        backgroundColor: SYSTEM_NAV_BLUE,
+        zIndex: 10000,
+      }}
+    />
+  );
+}
 
 export default function RootLayout() {
   const bootstrap = useAuthStore((s) => s.bootstrap);
@@ -115,6 +152,7 @@ export default function RootLayout() {
                 <Stack.Screen name="compare/index" />
                 */}
               </Stack>
+              <AndroidSystemNavBackdrop />
               {/* <CompareDock /> */}
             </AnalyticsProvider>
           </PersistQueryClientProvider>

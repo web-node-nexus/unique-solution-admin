@@ -25,13 +25,16 @@ export default function CategoriesScreen() {
   const parentId = trail.at(-1)?.id;
   const cardW = (width - spacing.lg * 2 - 12) / 2;
 
-  const { data, refetch, isRefetching } = useQuery({
+  const { data, refetch, isRefetching, isLoading, isError, error } = useQuery({
     queryKey: ['categories', parentId ?? 'root'],
     queryFn: async () => {
       if (parentId == null) {
-        return (await catalogApi.categories({ roots_only: true })).data;
+        // Prefer roots; if admin has no parent_id roots, fall back to full list.
+        const roots = (await catalogApi.categories({ roots_only: true })).data ?? [];
+        if (roots.length > 0) return roots;
+        return (await catalogApi.categories()).data ?? [];
       }
-      return (await catalogApi.categories({ parent_id: parentId })).data;
+      return (await catalogApi.categories({ parent_id: parentId })).data ?? [];
     },
   });
 
@@ -72,16 +75,16 @@ export default function CategoriesScreen() {
         showMenu={trail.length === 0}
         showBack={trail.length > 0}
         onBack={trail.length > 0 ? goUp : undefined}
-        eyebrow="Departments"
-        title={trail.at(-1)?.name ?? 'The floor'}
+        eyebrow="Browse"
+        title={trail.at(-1)?.name ?? 'Categories'}
       />
 
       <FlatList
         data={data ?? []}
         keyExtractor={(item) => String(item.id)}
         numColumns={2}
-        columnWrapperStyle={{ gap: 12, paddingHorizontal: spacing.lg }}
-        contentContainerStyle={{ gap: 12, paddingBottom: 120 }}
+        columnWrapperStyle={(data?.length ?? 0) > 0 ? { gap: 12, paddingHorizontal: spacing.lg } : undefined}
+        contentContainerStyle={{ gap: 12, paddingBottom: 24, flexGrow: 1 }}
         refreshControl={
           <AppRefreshControl
             refreshing={isRefetching || salesRefreshing}
@@ -111,7 +114,7 @@ export default function CategoriesScreen() {
               </PressableScale>
             ) : (
               <AppText style={styles.lead}>
-                Walk the showroom — tap a department, then drill into the aisle.
+                Choose a category to explore products.
               </AppText>
             )}
             {saleForParent ? (
@@ -148,10 +151,35 @@ export default function CategoriesScreen() {
         }
         ListEmptyComponent={
           <View style={styles.empty}>
-            <View style={styles.emptyIcon}>
-              <LayoutGrid size={28} color={colors.inkSoft} />
-            </View>
-            <AppText variant="caption">Categories will appear here.</AppText>
+            {isLoading ? (
+              <>
+                <AppText style={styles.emptyTitle}>Loading categories…</AppText>
+                <AppText variant="caption">Please wait a moment.</AppText>
+              </>
+            ) : isError ? (
+              <>
+                <View style={styles.emptyIcon}>
+                  <LayoutGrid size={28} color={colors.inkSoft} />
+                </View>
+                <AppText style={styles.emptyTitle}>Couldn’t load categories</AppText>
+                <AppText variant="caption" style={{ textAlign: 'center' }}>
+                  {error instanceof Error ? error.message : 'Check your connection and try again.'}
+                </AppText>
+                <PressableScale style={styles.shopAll} onPress={() => void refetch()}>
+                  <AppText style={styles.shopAllText}>Retry</AppText>
+                </PressableScale>
+              </>
+            ) : (
+              <>
+                <View style={styles.emptyIcon}>
+                  <LayoutGrid size={28} color={colors.inkSoft} />
+                </View>
+                <AppText style={styles.emptyTitle}>No categories yet</AppText>
+                <AppText variant="caption" style={{ textAlign: 'center' }}>
+                  Categories added in admin will show up here.
+                </AppText>
+              </>
+            )}
           </View>
         }
         renderItem={({ item, index }) => {
@@ -285,7 +313,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.inkMuted,
   },
-  empty: { alignItems: 'center', gap: 10, marginTop: 48 },
+  empty: { alignItems: 'center', gap: 10, marginTop: 48, paddingHorizontal: spacing.lg },
+  emptyTitle: {
+    fontFamily: typography.displayBold,
+    fontSize: 20,
+    color: colors.ink,
+    textAlign: 'center',
+  },
   emptyIcon: {
     width: 64,
     height: 64,

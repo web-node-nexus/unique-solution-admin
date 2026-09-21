@@ -58,7 +58,7 @@
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-md-4">
-                        <label class="form-label" for="tax_percentage">Tax %</label>
+                        <label class="form-label" for="tax_percentage">Tax % <span class="text-muted small">(info only — app prices already include GST)</span></label>
                         <input type="number" step="0.01" min="0" max="100" name="tax_percentage" id="tax_percentage" class="form-control"
                                value="{{ old('tax_percentage', $settings['tax_percentage'] ?? '') }}">
                     </div>

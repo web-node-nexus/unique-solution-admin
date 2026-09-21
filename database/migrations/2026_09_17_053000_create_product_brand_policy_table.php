@@ -9,18 +9,20 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('product_brand_policy', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('product_id')->constrained('products')->cascadeOnDelete();
-            $table->foreignId('brand_policy_id')->constrained('brand_policies')->cascadeOnDelete();
-            $table->unsignedInteger('sort_order')->default(0);
-            $table->timestamps();
+        if (! Schema::hasTable('product_brand_policy')) {
+            Schema::create('product_brand_policy', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('product_id')->constrained('products')->cascadeOnDelete();
+                $table->foreignId('brand_policy_id')->constrained('brand_policies')->cascadeOnDelete();
+                $table->unsignedInteger('sort_order')->default(0);
+                $table->timestamps();
 
-            $table->unique(['product_id', 'brand_policy_id']);
-        });
+                $table->unique(['product_id', 'brand_policy_id']);
+            });
+        }
 
         // Migrate products that previously used “all brand policies”
-        if (Schema::hasColumn('products', 'use_brand_policies')) {
+        if (Schema::hasTable('product_brand_policy') && Schema::hasColumn('products', 'use_brand_policies')) {
             $products = DB::table('products')
                 ->where('use_brand_policies', true)
                 ->whereNotNull('brand_id')
@@ -34,6 +36,15 @@ return new class extends Migration
                     ->pluck('id');
 
                 foreach ($policyIds as $index => $policyId) {
+                    $exists = DB::table('product_brand_policy')
+                        ->where('product_id', $product->id)
+                        ->where('brand_policy_id', $policyId)
+                        ->exists();
+
+                    if ($exists) {
+                        continue;
+                    }
+
                     DB::table('product_brand_policy')->insert([
                         'product_id' => $product->id,
                         'brand_policy_id' => $policyId,

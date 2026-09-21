@@ -2,7 +2,7 @@ import { Check, ChevronDown } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { AppText, PressableScale } from '@/components/ui/primitives';
-import { colors, elevation, radii, spacing, typography } from '@/theme/tokens';
+import { colors, radii, spacing, typography } from '@/theme/tokens';
 
 export type DropdownOption = {
   key: string;
@@ -19,6 +19,7 @@ export function OptionDropdown({
   options,
   onSelect,
   placeholder = 'Select',
+  style,
 }: {
   label: string;
   valueLabel: string | null;
@@ -27,6 +28,7 @@ export function OptionDropdown({
   options: DropdownOption[];
   onSelect: (key: string) => void;
   placeholder?: string;
+  style?: object;
 }) {
   const [open, setOpen] = useState(false);
   const selectedKey = useMemo(() => {
@@ -35,8 +37,8 @@ export function OptionDropdown({
   }, [options, valueKey, valueLabel]);
 
   return (
-    <View style={styles.wrap}>
-      <AppText variant="label">{label}</AppText>
+    <View style={[styles.wrap, style]}>
+      <AppText style={styles.label}>{label}</AppText>
       <PressableScale style={styles.trigger} onPress={() => setOpen(true)}>
         <View style={styles.triggerLeft}>
           {valueHex ? (
@@ -101,7 +103,7 @@ export function OptionDropdown({
                         {opt.label}
                       </AppText>
                     </View>
-                    {active ? <Check size={18} color={colors.jade} strokeWidth={2.4} /> : null}
+                    {active ? <Check size={18} color={colors.sky} strokeWidth={2.4} /> : null}
                   </PressableScale>
                 );
               })}
@@ -114,32 +116,36 @@ export function OptionDropdown({
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: 8 },
+  wrap: { gap: 6, flex: 1, minWidth: 0 },
+  label: {
+    fontFamily: typography.bodyMedium,
+    fontSize: 12,
+    color: colors.inkMuted,
+  },
   trigger: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 8,
     backgroundColor: colors.paper,
     borderWidth: 1,
-    borderColor: colors.borderStrong,
-    borderRadius: radii.lg,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    minHeight: 52,
-    ...elevation.soft,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    minHeight: 48,
   },
-  triggerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 },
+  triggerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 },
   triggerText: {
     fontFamily: typography.bodySemi,
-    fontSize: 15,
+    fontSize: 14,
     color: colors.ink,
     flexShrink: 1,
   },
   swatch: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.borderStrong,
   },
@@ -170,7 +176,7 @@ const styles = StyleSheet.create({
   },
   close: {
     fontFamily: typography.bodySemi,
-    color: colors.jade,
+    color: colors.sky,
     fontSize: 14,
   },
   option: {
@@ -184,7 +190,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   optionOn: {
-    backgroundColor: colors.jadeSoft,
+    backgroundColor: colors.skySoft,
   },
   optionOff: {
     opacity: 0.45,
@@ -197,6 +203,6 @@ const styles = StyleSheet.create({
   },
   optionTextOn: {
     fontFamily: typography.bodySemi,
-    color: colors.jadeDeep,
+    color: colors.sky,
   },
 });

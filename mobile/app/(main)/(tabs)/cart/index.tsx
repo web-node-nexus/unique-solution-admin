@@ -12,7 +12,7 @@ import { AppButton, AppText, PressableScale } from '@/components/ui/primitives';
 import { useCartStore } from '@/store/cart';
 import { useShopStore } from '@/store/shop';
 import { colors, elevation, radii, spacing, typography } from '@/theme/tokens';
-import { formatInr, sellingPrice } from '@/utils/price';
+import { formatInr, orderTotals, sellingPrice } from '@/utils/price';
 
 export default function CartScreen() {
   const insets = useSafeAreaInsets();
@@ -21,17 +21,16 @@ export default function CartScreen() {
   const shop = useShopStore((s) => s.shop);
   const cartSubtotal = subtotal();
   const shipping = Number(shop?.default_shipping_charge ?? 0);
-  const taxPct = Number(shop?.tax_percentage ?? 0);
-  const tax = Math.round(((cartSubtotal * taxPct) / 100) * 100) / 100;
-  const total = Math.round((cartSubtotal + tax + shipping) * 100) / 100;
+  // Listed prices already include GST — do not add tax on top.
+  const { total } = orderTotals(cartSubtotal, shipping);
   const itemCount = lines.reduce((s, l) => s + l.qty, 0);
-  const footerPad = Math.max(insets.bottom, 10) + 78;
+  const footerPad = Math.max(insets.bottom, 10) + 8;
   const { refreshing, onRefresh } = usePullRefresh(async () => {
     await Promise.all([hydrateFromServer(), loadShop()]);
   });
 
   return (
-    <ScreenAtmosphere style={{ paddingTop: insets.top + 8 }}>
+    <ScreenAtmosphere style={{ paddingTop: insets.top + 8, flex: 1 }}>
       <ScreenHeader
         showMenu
         eyebrow="Your bag"
@@ -42,7 +41,13 @@ export default function CartScreen() {
       <FlatList
         data={lines}
         keyExtractor={(item) => item.key}
-        contentContainerStyle={{ padding: spacing.md, gap: 10, paddingBottom: 220 + footerPad }}
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          padding: spacing.md,
+          gap: 10,
+          paddingBottom: lines.length ? 12 : 40,
+          flexGrow: lines.length ? 0 : 1,
+        }}
         refreshControl={
           <AppRefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -53,7 +58,7 @@ export default function CartScreen() {
             </View>
             <AppText style={styles.emptyTitle}>Bag is empty</AppText>
             <AppText variant="caption" style={{ textAlign: 'center' }}>
-              Add products from the showroom — they’ll show up here ready for checkout.
+              Add products from the catalog — they’ll show up here ready for checkout.
             </AppText>
             <AppButton label="Browse products" onPress={() => router.push('/products')} />
           </View>
@@ -140,18 +145,13 @@ export default function CartScreen() {
               <AppText style={styles.sumLabel}>Subtotal</AppText>
               <AppText style={styles.sumValue}>{formatInr(cartSubtotal)}</AppText>
             </View>
-            {tax > 0 ? (
-              <View style={styles.sumLine}>
-                <AppText style={styles.sumLabel}>Tax ({taxPct}%)</AppText>
-                <AppText style={styles.sumValue}>{formatInr(tax)}</AppText>
-              </View>
-            ) : null}
             <View style={styles.sumLine}>
               <AppText style={styles.sumLabel}>Shipping</AppText>
               <AppText style={styles.sumValue}>
                 {shipping > 0 ? formatInr(shipping) : 'Free / at checkout'}
               </AppText>
             </View>
+            <AppText style={styles.taxNote}>Prices include GST</AppText>
             <View style={[styles.sumLine, styles.totalLine]}>
               <AppText style={styles.totalLabel}>Estimated total</AppText>
               <AppText style={styles.total}>{formatInr(total)}</AppText>
@@ -244,10 +244,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   footer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
     backgroundColor: colors.paper,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.borderStrong,
@@ -270,6 +266,12 @@ const styles = StyleSheet.create({
   },
   sumLabel: { fontFamily: typography.body, fontSize: 13, color: colors.inkMuted },
   sumValue: { fontFamily: typography.bodyMedium, fontSize: 13, color: colors.ink },
+  taxNote: {
+    fontFamily: typography.body,
+    fontSize: 12,
+    color: colors.inkSoft,
+    marginTop: 2,
+  },
   totalLine: {
     marginTop: 4,
     paddingTop: 8,

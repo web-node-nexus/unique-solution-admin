@@ -1,13 +1,19 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   InteractionManager,
-  LayoutAnimation,
   Platform,
   StyleSheet,
   UIManager,
   View,
 } from 'react-native';
+import Animated, {
+  Easing,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { WebView } from 'react-native-webview';
 import { AppText, PressableScale } from '@/components/ui/primitives';
 import { colors, elevation, radii, typography } from '@/theme/tokens';
@@ -63,18 +69,8 @@ const HEIGHT_SCRIPT = `
   true;
 `;
 
-/** Default: keep ~1000 words visible before See more. */
-const DEFAULT_MAX_WORDS = 1000;
-
-/**
- * Approximate on-screen height for N words (15px / 1.65 leading, ~9 words/line on phones).
- * Kept generous so rich HTML cards still show plenty before collapse.
- */
-function heightForWordBudget(words: number): number {
-  const lines = Math.ceil(words / 9);
-  // Cap preview height so product page doesn't freeze on huge HTML docs
-  return Math.min(1600, Math.max(520, Math.round(lines * 28)));
-}
+/** ~3 physical inches in dp (160dp ≈ 1"). */
+const DEFAULT_COLLAPSED_INCHES = 3;
 
 function stripScripts(html: string): string {
   return html
@@ -116,66 +112,96 @@ function wrapHtml(raw: string): string {
   }
 }
 
-function countWords(html: string): number {
-  const text = html
+function toPlainText(html: string): string {
+  return String(html ?? '')
     .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, ' ')
     .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
     .replace(/\s+/g, ' ')
     .trim();
-  if (!text) return 0;
-  return text.split(/\s+/).filter(Boolean).length;
 }
 
 export function HtmlContent({
   html,
   framed = true,
   collapsible = false,
-  maxWords = DEFAULT_MAX_WORDS,
+  collapsedInches = DEFAULT_COLLAPSED_INCHES,
   onCollapse,
 }: {
   html: string;
   framed?: boolean;
-  /** When true, long content shows See more after ~maxWords. */
+  /** When true, content taller than ~collapsedInches shows Show more. */
   collapsible?: boolean;
-  maxWords?: number;
-  /** Called after collapsing (See less) so the parent can scroll the section into view. */
+  /** Visible height before Show more (About = 3 inches ≈ 480dp). */
+  collapsedInches?: number;
+  /** Called after Show less finishes animating closed. */
   onCollapse?: () => void;
 }) {
-  const [height, setHeight] = useState(0);
+  const collapsedCap = useMemo(
+    () => Math.round(collapsedInches * 160),
+    [collapsedInches]
+  );
+  const [fullHeight, setFullHeight] = useState(0);
   const [measured, setMeasured] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const source = useMemo(() => ({ html: wrapHtml(html) }), [html]);
-  const words = useMemo(() => countWords(html), [html]);
-  const collapsedCap = useMemo(() => heightForWordBudget(maxWords), [maxWords]);
-  const plainText = useMemo(() => {
-    return String(html ?? '')
-      .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, ' ')
-      .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, ' ')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/&nbsp;/gi, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-  }, [html]);
+  const plainText = useMemo(() => toPlainText(html), [html]);
+  const onCollapseRef = useRef(onCollapse);
+  onCollapseRef.current = onCollapse;
+
+  const needsToggle = collapsible && measured && fullHeight > collapsedCap + 36;
+  const animH = useSharedValue(collapsedCap);
+  const animStyle = useAnimatedStyle(() => ({
+    height: animH.value,
+    overflow: 'hidden' as const,
+  }));
+
+  const notifyCollapsed = () => {
+    onCollapseRef.current?.();
+  };
 
   useEffect(() => {
     setExpanded(false);
-    setHeight(0);
+    setFullHeight(0);
     setMeasured(false);
     setFailed(false);
     setReady(false);
+    animH.value = collapsedCap;
     const task = InteractionManager.runAfterInteractions(() => {
       setReady(true);
     });
     return () => task.cancel();
-  }, [html]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when html/cap changes
+  }, [html, collapsedCap]);
+
+  useEffect(() => {
+    if (!measured) return;
+
+    const target =
+      !collapsible || !needsToggle || expanded
+        ? Math.max(fullHeight, 48)
+        : collapsedCap;
+
+    const collapsing = !expanded && needsToggle;
+    animH.value = withTiming(
+      target,
+      {
+        duration: collapsing ? 520 : 360,
+        easing: collapsing
+          ? Easing.bezier(0.22, 1, 0.36, 1)
+          : Easing.out(Easing.cubic),
+      },
+      (finished) => {
+        if (finished && collapsing) {
+          runOnJS(notifyCollapsed)();
+        }
+      }
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded, measured, fullHeight, needsToggle, collapsible, collapsedCap]);
 
   if (!html?.trim()) {
     return null;
@@ -189,37 +215,11 @@ export function HtmlContent({
     );
   }
 
-  const contentTallerThanPreview = measured && height > collapsedCap + 48;
-  const needsToggle = collapsible && words > maxWords && contentTallerThanPreview;
-  const showCollapsed = needsToggle && !expanded;
-  const webHeight = !measured
-    ? collapsible && words > maxWords
-      ? collapsedCap
-      : 180
-    : showCollapsed
-      ? Math.min(height, collapsedCap)
-      : Math.max(height, 48);
-
-  const handleToggle = () => {
-    try {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    } catch {
-      // New Architecture may no-op LayoutAnimation
-    }
-
-    if (expanded) {
-      setExpanded(false);
-      requestAnimationFrame(() => {
-        setTimeout(() => onCollapse?.(), 40);
-      });
-    } else {
-      setExpanded(true);
-    }
-  };
+  const webHeight = measured ? Math.max(fullHeight, 48) : Math.max(collapsedCap, 160);
 
   return (
     <View style={framed ? styles.wrap : styles.bare} collapsable={false}>
-      <View style={showCollapsed ? [styles.collapsedClip, { maxHeight: collapsedCap }] : undefined}>
+      <Animated.View style={animStyle}>
         {ready ? (
           <WebView
             originWhitelist={['*']}
@@ -234,7 +234,7 @@ export function HtmlContent({
             onMessage={(e) => {
               const next = Number(e.nativeEvent.data);
               if (Number.isFinite(next) && next > 0) {
-                setHeight(Math.min(Math.max(next, 48), 6000));
+                setFullHeight(Math.min(Math.max(next, 48), 6000));
                 setMeasured(true);
               }
             }}
@@ -246,20 +246,20 @@ export function HtmlContent({
             style={[styles.web, { height: webHeight }]}
           />
         ) : (
-          <View style={{ height: Math.min(collapsedCap, 180) }} />
+          <View style={{ height: collapsedCap }} />
         )}
-        {showCollapsed ? (
+        {needsToggle && !expanded ? (
           <LinearGradient
             colors={['rgba(255,255,255,0)', colors.paper]}
             style={styles.fade}
             pointerEvents="none"
           />
         ) : null}
-      </View>
+      </Animated.View>
 
       {needsToggle ? (
-        <PressableScale onPress={handleToggle} style={styles.toggle}>
-          <AppText style={styles.toggleText}>{expanded ? 'See less' : 'See more'}</AppText>
+        <PressableScale onPress={() => setExpanded((v) => !v)} style={styles.toggle}>
+          <AppText style={styles.toggleText}>{expanded ? 'Show less' : 'Show more'}</AppText>
         </PressableScale>
       ) : null}
     </View>
@@ -287,15 +287,12 @@ const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: 'transparent',
   },
-  collapsedClip: {
-    overflow: 'hidden',
-  },
   fade: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    height: 72,
+    height: 56,
   },
   toggle: {
     alignSelf: 'flex-end',

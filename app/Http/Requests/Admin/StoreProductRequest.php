@@ -80,5 +80,38 @@ class StoreProductRequest extends FormRequest
         if (! $this->filled('status')) {
             $this->merge(['status' => 'inactive']);
         }
+
+        // Derive product-level MRP / sale from the cheapest-MRP variant.
+        $variants = $this->input('variants', []);
+        if (is_array($variants) && $variants !== []) {
+            $bestMrp = null;
+            $bestSale = null;
+            foreach ($variants as $variant) {
+                if (! is_array($variant)) {
+                    continue;
+                }
+                if (! isset($variant['price']) || $variant['price'] === '' || ! is_numeric($variant['price'])) {
+                    continue;
+                }
+                $mrp = (float) $variant['price'];
+                if ($bestMrp !== null && $mrp >= $bestMrp) {
+                    continue;
+                }
+                $bestMrp = $mrp;
+                $saleRaw = $variant['discount_price'] ?? null;
+                if ($saleRaw !== null && $saleRaw !== '' && is_numeric($saleRaw)) {
+                    $sale = (float) $saleRaw;
+                    $bestSale = ($sale >= 0 && $sale <= $mrp) ? $sale : null;
+                } else {
+                    $bestSale = null;
+                }
+            }
+            if ($bestMrp !== null && (! $this->filled('base_price') || (float) $this->input('base_price') <= 0)) {
+                $this->merge(['base_price' => $bestMrp]);
+            }
+            if (! $this->filled('sale_price') && $bestSale !== null) {
+                $this->merge(['sale_price' => $bestSale]);
+            }
+        }
     }
 }

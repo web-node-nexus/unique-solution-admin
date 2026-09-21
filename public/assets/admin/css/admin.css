@@ -1420,10 +1420,105 @@ body.sidebar-open-mobile .sidebar-backdrop {
     margin-bottom: 1rem;
     flex-wrap: wrap;
 }
+.policy-manager-kicker {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-bottom: 0.15rem;
+}
 .policy-list {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+}
+.policy-item {
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+    overflow: hidden;
+}
+.policy-item.is-open {
+    border-color: rgba(37, 99, 235, 0.35);
+    box-shadow: 0 12px 28px rgba(37, 99, 235, 0.08);
+}
+.policy-item-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.95rem 1rem;
+    flex-wrap: wrap;
+}
+.policy-item-summary-main {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    min-width: 0;
+    flex: 1;
+}
+.policy-item-icon,
+.policy-icon-preview {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: #eef2ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    flex-shrink: 0;
+}
+.policy-item-icon img,
+.policy-icon-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+.policy-item-icon i,
+.policy-icon-preview i {
+    font-size: 1.25rem;
+    color: #2563eb;
+}
+.policy-item-title {
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.35;
+}
+.policy-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+}
+.policy-item-editor {
+    padding: 1rem 1.05rem 1.15rem;
+    border-top: 1px solid rgba(15, 23, 42, 0.06);
+    background: linear-gradient(180deg, #f8fbff 0%, #ffffff 40%);
+}
+.policy-item-editor-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+.policy-icon-upload {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    flex-wrap: wrap;
+}
+.policy-empty {
+    border: 1px dashed rgba(15, 23, 42, 0.15);
+    border-radius: 0.9rem;
+    padding: 1.25rem 1rem;
+    text-align: center;
+    background: #fff;
 }
 .policy-card {
     display: grid;

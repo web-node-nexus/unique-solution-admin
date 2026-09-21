@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreCategoryRequest extends FormRequest
 {
@@ -18,9 +19,14 @@ class StoreCategoryRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255', 'unique:categories,slug'],
-            'image' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:4096'],
-            'sale_banner' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:5120'],
+            'slug' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::unique('categories', 'slug')->whereNull('deleted_at'),
+            ],
+            'image' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:8192'],
+            'sale_banner' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:8192'],
             'sale_title' => ['nullable', 'string', 'max:255'],
             'sale_subtitle' => ['nullable', 'string', 'max:255'],
             'sale_active' => ['sometimes', 'boolean'],

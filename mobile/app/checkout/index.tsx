@@ -31,7 +31,7 @@ import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
 import { useShopStore } from '@/store/shop';
 import { colors, elevation, radii, spacing, typography } from '@/theme/tokens';
-import { formatInr, sellingPrice } from '@/utils/price';
+import { formatInr, orderTotals, sellingPrice } from '@/utils/price';
 import { track } from '@/utils/analytics';
 
 type PayMethod = 'cod' | 'razorpay' | 'upi';
@@ -110,17 +110,14 @@ export default function CheckoutScreen() {
   }, [selected, addressId]);
 
   const cartSubtotal = subtotal();
-  const taxPct = Number(shop?.tax_percentage ?? 0);
   const shipping = Number(
     couponPreview?.shipping_charge ?? shop?.default_shipping_charge ?? 0,
   );
   const discountPreview = couponPreview?.discount_amount ?? 0;
-  const taxPreview = couponPreview
-    ? couponPreview.tax
-    : Math.round(((cartSubtotal * taxPct) / 100) * 100) / 100;
+  // Prices are GST-inclusive — never add tax% on top.
   const totalPreview = couponPreview
-    ? couponPreview.total
-    : Math.round((cartSubtotal + taxPreview + shipping) * 100) / 100;
+    ? Math.round((Number(couponPreview.subtotal) - discountPreview + shipping) * 100) / 100
+    : orderTotals(cartSubtotal, shipping, discountPreview).total;
 
   const applyCoupon = async () => {
     const code = coupon.trim();
@@ -440,20 +437,15 @@ export default function CheckoutScreen() {
               </AppText>
             </View>
           ) : null}
-          {taxPreview > 0 ? (
-            <View style={styles.line}>
-              <AppText variant="caption">
-                Tax{!couponPreview && taxPct > 0 ? ` (${taxPct}%)` : ''}
-              </AppText>
-              <AppText style={styles.price}>{formatInr(taxPreview)}</AppText>
-            </View>
-          ) : null}
           <View style={styles.line}>
             <AppText variant="caption">Shipping</AppText>
             <AppText style={styles.price}>
               {shipping > 0 ? formatInr(shipping) : 'Free'}
             </AppText>
           </View>
+          <AppText variant="caption" style={{ color: colors.inkSoft }}>
+            Prices include GST
+          </AppText>
           <View style={[styles.line, { marginTop: 10 }]}>
             <AppText style={{ fontFamily: typography.bodySemi }}>Total payable</AppText>
             <AppText style={styles.total}>{formatInr(totalPreview)}</AppText>

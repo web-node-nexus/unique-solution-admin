@@ -1,11 +1,15 @@
 @php
     $title = $title ?? '';
+    $subtitle = $subtitle ?? null;
     $breadcrumbs = $breadcrumbs ?? [];
 @endphp
 
 <div class="page-header">
     <div>
         <h1 class="page-title">{{ $title }}</h1>
+        @if (! empty($subtitle))
+            <p class="text-muted mb-1" style="max-width: 42rem;">{{ $subtitle }}</p>
+        @endif
         @if (! empty($breadcrumbs))
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">

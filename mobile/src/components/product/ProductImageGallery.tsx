@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
-import { Images, X, ZoomIn } from 'lucide-react-native';
+import { X } from 'lucide-react-native';
 import { useCallback, useRef, useState } from 'react';
 import {
   Modal,
@@ -17,12 +17,13 @@ import Animated, {
   FadeIn,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText, IconButton, PressableScale } from '@/components/ui/primitives';
-import { colors, elevation, radii, typography } from '@/theme/tokens';
+import { colors, typography } from '@/theme/tokens';
+
+const ACCENT = '#2C64E3';
 
 type GalleryImage = { id: number | string; url: string };
 
@@ -112,7 +113,6 @@ export function ProductImageGallery({
   const [open, setOpen] = useState(false);
   const [index, setIndex] = useState(0);
   const usable = images.filter((i) => !!i.url);
-  const progress = useSharedValue(0);
 
   const openAt = useCallback((i: number) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -124,7 +124,6 @@ export function ProductImageGallery({
     void Haptics.selectionAsync();
     setIndex(i);
     pagerRef.current?.scrollTo({ x: i * width, animated: true });
-    progress.value = withSpring(i);
   };
 
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -136,12 +135,12 @@ export function ProductImageGallery({
   };
 
   if (!usable.length) {
-    return <View style={{ width, height, backgroundColor: colors.canvasDeep }}>{fallback}</View>;
+    return <View style={{ width, height, backgroundColor: '#F8FAFC' }}>{fallback}</View>;
   }
 
   return (
     <>
-      <View style={{ width, height, backgroundColor: colors.canvasDeep }}>
+      <View style={{ width, height, backgroundColor: '#FFFFFF' }}>
         <ScrollView
           ref={pagerRef}
           horizontal
@@ -157,15 +156,16 @@ export function ProductImageGallery({
                 style={{
                   width,
                   height,
-                  padding: 22,
+                  paddingHorizontal: 20,
+                  paddingVertical: 12,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: colors.canvasDeep,
+                  backgroundColor: '#FFFFFF',
                 }}
               >
                 <Image
                   source={{ uri: img.url }}
-                  style={{ width: width - 44, height: height - 44 }}
+                  style={{ width: width - 40, height: height - 24 }}
                   contentFit="contain"
                   transition={350}
                 />
@@ -174,27 +174,11 @@ export function ProductImageGallery({
           ))}
         </ScrollView>
 
-        <View style={styles.topMeta} pointerEvents="none">
-          <View style={styles.countPill}>
-            <Images size={12} color={colors.ink} strokeWidth={2} />
-            <AppText style={styles.countText}>
-              {index + 1} / {usable.length}
-            </AppText>
-          </View>
+        <View style={styles.countPill} pointerEvents="none">
+          <AppText style={styles.countText}>
+            {index + 1} / {usable.length}
+          </AppText>
         </View>
-
-        <View style={styles.zoomHint} pointerEvents="none">
-          <ZoomIn size={13} color={colors.inkMuted} strokeWidth={2.2} />
-          <AppText style={styles.zoomHintText}>Tap to enlarge</AppText>
-        </View>
-
-        {usable.length > 1 ? (
-          <View style={styles.dots}>
-            {usable.map((img, i) => (
-              <View key={img.id} style={[styles.dot, i === index && styles.dotOn]} />
-            ))}
-          </View>
-        ) : null}
       </View>
 
       {usable.length > 1 ? (
@@ -237,12 +221,12 @@ export function ProductImageGallery({
             contentOffset={{ x: index * winW, y: 0 }}
           >
             {usable.map((img) => (
-              <View key={img.id} style={{ width: winW, height: winH * 0.78, backgroundColor: colors.canvasDeep }}>
+              <View key={img.id} style={{ width: winW, height: winH * 0.78, backgroundColor: '#0F172A' }}>
                 <ZoomableImage uri={img.url} width={winW} height={winH * 0.78} />
               </View>
             ))}
           </ScrollView>
-          <AppText style={styles.help}>Pinch · double-tap · swipe for next angle</AppText>
+          <AppText style={styles.help}>Pinch · double-tap · swipe</AppText>
         </View>
       </Modal>
     </>
@@ -250,88 +234,40 @@ export function ProductImageGallery({
 }
 
 const styles = StyleSheet.create({
-  topMeta: {
-    position: 'absolute',
-    left: 16,
-    bottom: 18,
-  },
   countPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.paper,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...elevation.soft,
-  },
-  countText: {
-    color: colors.ink,
-    fontFamily: typography.bodyMedium,
-    fontSize: 12,
-  },
-  zoomHint: {
     position: 'absolute',
     right: 14,
-    bottom: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.paper,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...elevation.soft,
+    bottom: 14,
+    backgroundColor: 'rgba(15, 23, 42, 0.72)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
   },
-  zoomHintText: {
-    color: colors.inkMuted,
-    fontFamily: typography.body,
-    fontSize: 11,
-  },
-  dots: {
-    position: 'absolute',
-    top: 14,
-    alignSelf: 'center',
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 5,
-  },
-  dot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: colors.borderStrong,
-  },
-  dotOn: {
-    width: 16,
-    backgroundColor: colors.jade,
+  countText: {
+    color: '#FFFFFF',
+    fontFamily: typography.bodyMedium,
+    fontSize: 12,
   },
   thumbs: {
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 4,
-    gap: 8,
+    paddingBottom: 2,
+    gap: 10,
   },
   thumbWrap: {},
   thumb: {
-    width: 56,
-    height: 56,
-    borderRadius: radii.sm,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-    backgroundColor: colors.canvasDeep,
+    width: 58,
+    height: 58,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F8FAFC',
     padding: 4,
   },
   thumbOn: {
-    borderColor: colors.jade,
+    borderColor: ACCENT,
   },
-  modal: { flex: 1, backgroundColor: colors.canvas },
+  modal: { flex: 1, backgroundColor: '#0F172A' },
   modalTop: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -340,7 +276,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   counter: {
-    color: colors.inkMuted,
+    color: '#E2E8F0',
     fontFamily: typography.bodyMedium,
     fontSize: 14,
   },
@@ -350,7 +286,7 @@ const styles = StyleSheet.create({
   },
   help: {
     textAlign: 'center',
-    color: colors.inkSoft,
+    color: '#94A3B8',
     fontFamily: typography.body,
     fontSize: 12,
     marginTop: 8,

@@ -1,92 +1,118 @@
 @php
-    $owner = $owner ?? 'brand'; // brand|product
     $policies = collect($policies ?? []);
     $field = $field ?? 'policies';
-    $heading = $heading ?? 'Policy manager';
-    $hint = $hint ?? 'Add warranty, return, delivery and support cards shown on the product page.';
-    $palette = ['#EEF2FF', '#ECFDF5', '#FFF7ED', '#FDF2F8', '#EFF6FF', '#F0FDF4'];
+    $heading = $heading ?? 'Policy details';
+    $hint = $hint ?? 'Add warranty, replacement, delivery and support cards. Products only select which policies to show.';
 @endphp
 
-<div class="policy-manager" data-policy-manager data-field="{{ $field }}">
+<div class="policy-manager policy-manager--accordion" data-policy-manager data-field="{{ $field }}">
     <div class="policy-manager-head">
         <div>
-            <div class="fw-semibold">{{ $heading }}</div>
-            <div class="small text-muted">{{ $hint }}</div>
+            <div class="policy-manager-kicker">Policies</div>
+            <div class="fw-semibold fs-5">{{ $heading }}</div>
+            <div class="small text-muted mt-1">{{ $hint }}</div>
         </div>
-        <button type="button" class="btn btn-sm btn-primary" data-policy-add>
+        <button type="button" class="btn btn-primary" data-policy-add>
             <i class="bi bi-plus-lg me-1"></i>Add policy
         </button>
     </div>
 
-    <div class="row g-3">
-        <div class="col-lg-7">
-            <div class="policy-list" data-policy-list>
-                @forelse ($policies as $index => $policy)
-                    @php
-                        $bg = $palette[$index % count($palette)];
-                        $iconUrl = method_exists($policy, 'iconUrl') ? $policy->iconUrl() : ($policy->icon ? asset('storage/'.$policy->icon) : null);
-                    @endphp
-                    <div class="policy-card" data-policy-card data-index="{{ $index }}" style="--policy-tint: {{ $bg }}">
-                        <input type="hidden" name="{{ $field }}[{{ $index }}][id]" value="{{ $policy->id }}" data-policy-id>
-                        <input type="hidden" name="{{ $field }}[{{ $index }}][remove]" value="0" data-policy-remove>
-                        <input type="hidden" name="{{ $field }}[{{ $index }}][title]" value="{{ $policy->title }}" data-policy-title-input>
-                        <input type="hidden" name="{{ $field }}[{{ $index }}][description]" value="{{ $policy->description }}" data-policy-description-input>
+    <div class="policy-list" data-policy-list>
+        @forelse ($policies as $index => $policy)
+            @php
+                $iconUrl = method_exists($policy, 'iconUrl') ? $policy->iconUrl() : ($policy->icon ? asset('storage/'.$policy->icon) : null);
+                $title = old("{$field}.{$index}.title", $policy->title);
+                $description = old("{$field}.{$index}.description", $policy->description);
+            @endphp
+            <div class="policy-item" data-policy-card data-index="{{ $index }}">
+                <input type="hidden" name="{{ $field }}[{{ $index }}][id]" value="{{ $policy->id }}" data-policy-id>
+                <input type="hidden" name="{{ $field }}[{{ $index }}][remove]" value="0" data-policy-remove>
 
-                        <div class="policy-card-icon" data-policy-icon-wrap>
+                <div class="policy-item-summary" data-policy-summary>
+                    <div class="policy-item-summary-main">
+                        <div class="policy-item-icon" data-policy-icon-wrap>
                             @if ($iconUrl)
                                 <img src="{{ $iconUrl }}" alt="" data-policy-icon-img>
                             @else
                                 <i class="bi bi-shield-check" data-policy-icon-fallback></i>
                             @endif
                         </div>
-                        <div class="policy-card-body">
-                            <div class="policy-card-title" data-policy-title-text>{{ $policy->title }}</div>
-                            <div class="policy-card-desc" data-policy-description-text>{{ \Illuminate\Support\Str::limit(strip_tags((string) $policy->description), 90) }}</div>
-                        </div>
-                        <div class="policy-card-actions">
-                            <button type="button" class="btn btn-link btn-sm text-decoration-none" data-policy-edit>Edit</button>
-                            <button type="button" class="btn btn-link btn-sm text-danger text-decoration-none" data-policy-delete>Delete</button>
-                        </div>
+                        <div class="policy-item-title" data-policy-title-text>{{ $title }}</div>
                     </div>
-                @empty
-                    <div class="policy-empty text-muted small" data-policy-empty>
-                        No policies yet. Click <strong>Add policy</strong> to create the first card.
+                    <div class="policy-item-actions">
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-policy-edit>
+                            <i class="bi bi-pencil me-1"></i>Edit
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" data-policy-delete>
+                            <i class="bi bi-trash me-1"></i>Remove
+                        </button>
                     </div>
-                @endforelse
-            </div>
+                </div>
 
-            <button type="button" class="policy-add-dashed mt-3" data-policy-add>
-                <i class="bi bi-plus-circle me-1"></i>Add more policy
-            </button>
-        </div>
+                <div class="policy-item-editor" data-policy-editor-panel hidden>
+                    <div class="policy-item-editor-toolbar">
+                        <div class="fw-semibold text-muted small text-uppercase">Editing policy</div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-primary" data-policy-done>
+                                <i class="bi bi-check-lg me-1"></i>Done
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" data-policy-delete>
+                                <i class="bi bi-trash me-1"></i>Remove
+                            </button>
+                        </div>
+                    </div>
 
-        <div class="col-lg-5">
-            <div class="policy-editor card border-0 shadow-sm" data-policy-editor hidden>
-                <div class="card-body">
-                    <div class="text-uppercase small fw-bold text-muted mb-3" data-policy-editor-label>Editing policy</div>
                     <div class="mb-3">
-                        <label class="form-label">Policy title <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" data-policy-editor-title maxlength="120" placeholder="e.g. 1 Year Warranty">
+                        <label class="form-label">Tagline <span class="text-danger">*</span></label>
+                        <input type="text"
+                               class="form-control"
+                               name="{{ $field }}[{{ $index }}][title]"
+                               value="{{ $title }}"
+                               maxlength="160"
+                               placeholder="e.g. 1 Year Manufacturer Warranty | Pan-India Service"
+                               data-policy-title-input>
                     </div>
+
                     <div class="mb-3">
-                        <label class="form-label">Upload PNG icon</label>
-                        <input type="file" class="form-control" accept="image/png,image/jpeg,image/webp" data-policy-editor-icon>
-                        <div class="form-text">Square PNG works best. Max 2MB.</div>
-                        <img src="" alt="" class="policy-editor-preview d-none mt-2" data-policy-editor-preview>
+                        <label class="form-label">Policy icon / photo</label>
+                        <div class="policy-icon-upload">
+                            <div class="policy-icon-preview" data-policy-icon-wrap>
+                                @if ($iconUrl)
+                                    <img src="{{ $iconUrl }}" alt="" data-policy-icon-img>
+                                @else
+                                    <i class="bi bi-shield-check" data-policy-icon-fallback></i>
+                                @endif
+                            </div>
+                            <div>
+                                <label class="btn btn-sm btn-outline-secondary mb-0">
+                                    <i class="bi bi-upload me-1"></i>Change photo
+                                    <input type="file"
+                                           class="d-none"
+                                           name="{{ $field }}[{{ $index }}][icon]"
+                                           accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                                           data-policy-file-input>
+                                </label>
+                                <div class="form-text mt-1">PNG / JPG / WebP. Square icon works best.</div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Description</label>
-                        <textarea class="form-control" rows="4" data-policy-editor-description placeholder="Short details shown when customer taps See more"></textarea>
-                    </div>
-                    <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-primary flex-grow-1" data-policy-save>Update</button>
-                        <button type="button" class="btn btn-outline-secondary" data-policy-cancel>Cancel</button>
+
+                    <div class="mb-0">
+                        <label class="form-label">Full policy details</label>
+                        <textarea class="form-control"
+                                  rows="10"
+                                  name="{{ $field }}[{{ $index }}][description]"
+                                  id="{{ $field }}_desc_{{ $index }}"
+                                  data-policy-description-input
+                                  placeholder="HTML table / coverage / terms…">{{ $description }}</textarea>
+                        <div class="form-text">You can paste HTML tables (Coverage / Period / Terms) like the store sheet.</div>
                     </div>
                 </div>
             </div>
-            <div class="policy-editor-idle text-muted small" data-policy-editor-idle>
-                Select a policy card to edit, or add a new one.
+        @empty
+            <div class="policy-empty text-muted" data-policy-empty>
+                No policies yet. Click <strong>Add policy</strong> to create warranty, replacement, or delivery cards.
             </div>
-        </div>
+        @endforelse
     </div>
 </div>

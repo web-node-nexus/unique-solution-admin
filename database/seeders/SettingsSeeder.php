@@ -16,7 +16,7 @@ class SettingsSeeder extends Seeder
             'shop_logo' => null,
             'contact_number' => '+91 9876543210',
             'contact_email' => 'info@uniquesolution.com',
-            'tax_percentage' => '18',
+            'tax_percentage' => '0',
             'default_shipping_charge' => '99',
             'currency_symbol' => '₹',
             'razorpay_key' => '',

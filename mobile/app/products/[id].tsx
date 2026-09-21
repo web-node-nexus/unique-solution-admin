@@ -3,12 +3,10 @@ import { router, useLocalSearchParams } from 'expo-router';
 import {
   ArrowLeft,
   Bell,
-  // GitCompare, // Compare temporarily disabled
   Heart,
-  // MapPin,
   Package,
+  Search,
   Share2,
-  ShoppingBag,
   ShieldCheck,
   Star,
 } from 'lucide-react-native';
@@ -34,17 +32,19 @@ import { ProductCard } from '@/components/product/ProductCard';
 import { ProductImageGallery } from '@/components/product/ProductImageGallery';
 import { HtmlContent } from '@/components/product/HtmlContent';
 import { OptionDropdown } from '@/components/product/OptionDropdown';
-import { ProductPolicyGrid } from '@/components/product/ProductPolicyGrid';
+import { TrustHighlights } from '@/components/product/TrustHighlights';
 import { AppRefreshControl } from '@/components/ui/AppRefreshControl';
 import { AppButton, AppText, IconButton, PressableScale } from '@/components/ui/primitives';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore, useWishlistStore } from '@/store/cart';
-// import { useCompareStore, MAX_COMPARE } from '@/store/compare';
 import { useRecentStore } from '@/store/recent';
 import { colors, elevation, radii, spacing, typography } from '@/theme/tokens';
-import type { ProductCard as ProductCardType, ProductDetail } from '@/types/catalog';
+import type { ProductDetail } from '@/types/catalog';
 import { track } from '@/utils/analytics';
 import { discountPercent, formatInr, sellingPrice } from '@/utils/price';
+
+const ACCENT = '#2C64E3';
+const BUY_GREEN = '#1A9E4D';
 
 type VariantAttr = ProductDetail['variants'][number]['attributes'][number];
 type ProductVariant = ProductDetail['variants'][number];
@@ -63,7 +63,7 @@ function variantSignature(v: ProductVariant) {
     .filter((a) => !isColorAttr(a))
     .map((a) => a.value)
     .filter(Boolean);
-  return parts.length ? parts.join(' · ') : v.sku;
+  return parts.length ? parts.join(' / ') : v.sku;
 }
 
 function StarsRow({
@@ -81,8 +81,8 @@ function StarsRow({
         <PressableScale key={n} onPress={onChange ? () => onChange(n) : undefined} disabled={!onChange}>
           <Star
             size={size}
-            color={n <= value ? colors.brassDeep : colors.inkSoft}
-            fill={n <= value ? colors.brass : 'transparent'}
+            color={n <= value ? BUY_GREEN : colors.inkSoft}
+            fill={n <= value ? BUY_GREEN : 'transparent'}
             strokeWidth={1.8}
           />
         </PressableScale>
@@ -98,18 +98,12 @@ export default function ProductDetailScreen() {
   const { width } = useWindowDimensions();
   const add = useCartStore((s) => s.add);
   const wish = useWishlistStore();
-  // const compare = useCompareStore();
   const user = useAuthStore((s) => s.user);
   const pushRecent = useRecentStore((s) => s.push);
   const scrollRef = useRef<ScrollView>(null);
   const aboutRef = useRef<View>(null);
   const scrollYRef = useRef(0);
   const [variantId, setVariantId] = useState<number | null>(null);
-  // Check delivery (pincode) — temporarily disabled
-  // const [pincode, setPincode] = useState('');
-  // const [pinMsg, setPinMsg] = useState<string | null>(null);
-  // const [pinOk, setPinOk] = useState<boolean | null>(null);
-  // const [pinBusy, setPinBusy] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewPending, setReviewPending] = useState(false);
@@ -181,7 +175,6 @@ export default function ProductDetailScreen() {
       }
     }
 
-    // If filtering by color emptied the list, fall back to all variants
     if (!map.size) {
       for (const v of data.variants) {
         const label = variantSignature(v);
@@ -246,22 +239,6 @@ export default function ProductDetailScreen() {
     return data.variants.every((v) => !v.in_stock);
   }, [data, selected]);
 
-  const asCard = useMemo((): ProductCardType | null => {
-    if (!data) return null;
-    return {
-      id: data.id,
-      name: data.name,
-      slug: data.slug,
-      mrp: data.mrp,
-      base_price: data.base_price,
-      sale_price: data.sale_price,
-      brand: data.brand?.name ?? null,
-      image_url: data.image_url,
-      rating_average: data.rating_average,
-      rating_count: data.rating_count,
-    };
-  }, [data]);
-
   const submitReview = useMutation({
     mutationFn: () =>
       accountApi.submitReview(data!.id, {
@@ -285,6 +262,28 @@ export default function ProductDetailScreen() {
     onSuccess: () => Alert.alert('Got it', 'We will notify you when this is back in stock.'),
     onError: (e: Error) => Alert.alert('Could not set alert', e.message),
   });
+
+  const addToCart = (goCheckout: boolean) => {
+    if (!data || outOfStock) return;
+    const mrpVal = selected?.mrp ?? data.mrp;
+    const saleVal = selected?.sale_price ?? data.sale_price;
+    const priceVal = sellingPrice(mrpVal, saleVal);
+    add({
+      productId: data.id,
+      variantId: selected?.id,
+      name: data.name,
+      image_url: selected?.image_url ?? data.image_url,
+      mrp: mrpVal,
+      sale_price: saleVal,
+      attributeLabel: selected?.attributes.map((a) => a.value).join(' / '),
+    });
+    void track(goCheckout ? 'buy_now' : 'add_to_cart', {
+      product_id: data.id,
+      variant_id: selected?.id,
+      price: priceVal,
+    });
+    router.push(goCheckout ? '/checkout' : '/(main)/(tabs)/cart');
+  };
 
   if (!id) {
     return (
@@ -314,9 +313,6 @@ export default function ProductDetailScreen() {
         <AppText variant="caption" style={{ marginTop: 8 }}>
           {error instanceof Error ? error.message : 'This product is not available right now.'}
         </AppText>
-        <AppText variant="caption" style={{ marginTop: 6, color: colors.inkSoft }}>
-          If this keeps happening, the server needs the latest product API update.
-        </AppText>
         <View style={{ marginTop: 16, alignSelf: 'flex-start' }}>
           <AppButton label="Retry" onPress={() => void refetch()} />
         </View>
@@ -327,7 +323,7 @@ export default function ProductDetailScreen() {
   if (isLoading || !data) {
     return (
       <ScreenAtmosphere style={{ paddingTop: insets.top + 40, alignItems: 'center' }}>
-        <ActivityIndicator color={colors.jade} />
+        <ActivityIndicator color={ACCENT} />
       </ScreenAtmosphere>
     );
   }
@@ -337,8 +333,6 @@ export default function ProductDetailScreen() {
   const price = sellingPrice(mrp, sale);
   const off = discountPercent(mrp, sale);
   const liked = wish.has(data.id);
-  // const inCompare = compare.has(data.id);
-  const attrLabel = selected?.attributes.map((a) => a.value).join(' / ');
   const brandWarranty = data.brand?.warranty?.trim() || null;
   const productWarranty = data.warranty_info?.trim() || null;
   const ratingAvg = data.rating_average ?? 0;
@@ -346,31 +340,14 @@ export default function ProductDetailScreen() {
   const specs = data.specifications ?? [];
   const reviews = data.reviews ?? [];
   const related = data.related_products ?? [];
-
-  // const checkDelivery = async () => {
-  //   const pin = pincode.trim();
-  //   if (pin.length < 4) {
-  //     Alert.alert('Enter pincode', 'Please enter a valid pincode.');
-  //     return;
-  //   }
-  //   setPinBusy(true);
-  //   try {
-  //     const res = await catalogApi.checkPincode(pin);
-  //     setPinOk(res.data.serviceable);
-  //     setPinMsg(res.data.message);
-  //   } catch (e) {
-  //     setPinOk(false);
-  //     setPinMsg(e instanceof Error ? e.message : 'Could not check delivery');
-  //   } finally {
-  //     setPinBusy(false);
-  //   }
-  // };
+  const galleryH = Math.min(width * 0.92, 360);
+  const displayFont = typography.displayBold ?? typography.display;
 
   return (
-    <ScreenAtmosphere style={{ paddingTop: insets.top }}>
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
       <ScrollView
         ref={scrollRef}
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={{ paddingBottom: 110 + Math.max(insets.bottom, 8) }}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -385,147 +362,110 @@ export default function ProductDetailScreen() {
             key={selected?.id ?? 'base'}
             images={gallery}
             width={width}
-            height={width * 0.95}
+            height={galleryH}
             fallback={
-              <View style={[styles.imageFallback, { width, height: width * 0.95 }]}>
+              <View style={[styles.imageFallback, { width, height: galleryH }]}>
                 <Package size={40} color={colors.inkSoft} strokeWidth={1.5} />
               </View>
             }
           />
-          <IconButton style={[styles.floatBtn, { top: 12, left: 16 }]} onPress={() => router.back()}>
+          <IconButton
+            style={[styles.floatBtn, { top: 10, left: 14 }]}
+            onPress={() => router.back()}
+          >
             <ArrowLeft size={20} color={colors.ink} strokeWidth={2.2} />
           </IconButton>
           <IconButton
-            style={[styles.floatBtn, { top: 12, right: 16 }]}
-            onPress={() => {
-              wish.toggle({
-                id: data.id,
-                name: data.name,
-                slug: data.slug,
-                mrp: data.mrp,
-                base_price: data.base_price,
-                sale_price: data.sale_price,
-                brand: data.brand?.name ?? null,
-                image_url: data.image_url,
-                rating_average: data.rating_average,
-                rating_count: data.rating_count,
-              });
-              void track(liked ? 'wishlist_remove' : 'wishlist_add', { product_id: data.id });
-            }}
+            style={[styles.floatBtn, { top: 10, right: 14 }]}
+            onPress={() => router.push('/search')}
           >
-            <Heart
-              size={20}
-              color={liked ? colors.danger : colors.ink}
-              fill={liked ? colors.danger : 'transparent'}
-              strokeWidth={2.1}
-            />
-          </IconButton>
-          {/* Compare temporarily disabled for client
-          <IconButton
-            style={[styles.floatBtn, { top: 12, right: 116 }]}
-            onPress={() => {
-              if (!asCard) return;
-              const result = compare.toggle(asCard);
-              if (!result.ok && result.message) Alert.alert('Compare', result.message);
-            }}
-          >
-            <GitCompare
-              size={18}
-              color={inCompare ? colors.jade : colors.ink}
-              strokeWidth={2.1}
-            />
-          </IconButton>
-          */}
-          <IconButton
-            style={[styles.floatBtn, { top: 12, right: 66 }]}
-            onPress={() => {
-              void track('product_share', { product_id: data.id });
-              Share.share({
-                message: `Check out ${data.name} on Unique Solution\nuniquesolution://products/${data.id}`,
-                url: `uniquesolution://products/${data.id}`,
-                title: data.name,
-              }).catch(() => undefined);
-            }}
-          >
-            <Share2 size={18} color={colors.ink} strokeWidth={2.1} />
+            <Search size={18} color={colors.ink} strokeWidth={2.1} />
           </IconButton>
         </View>
 
         <Animated.View entering={FadeInDown.springify().damping(18)} style={styles.body}>
-          {data.brand?.name ? (
-            <AppText variant="label" style={{ color: colors.brass }} numberOfLines={1}>
-              {data.brand.name}
-            </AppText>
-          ) : null}
-          <AppText variant="display" style={styles.productName} numberOfLines={3}>
-            {data.name}
-          </AppText>
-
-          {ratingCount > 0 ? (
-            <View style={styles.ratingNearTitle}>
-              <StarsRow value={Math.round(ratingAvg)} size={16} />
-              <AppText style={styles.ratingMeta}>
-                {ratingAvg.toFixed(1)} ({ratingCount} review{ratingCount === 1 ? '' : 's'})
-              </AppText>
-            </View>
-          ) : null}
-
-          <View style={styles.priceRow}>
-            <AppText style={styles.price} numberOfLines={1}>
-              {formatInr(price)}
-            </AppText>
-            {sale ? (
-              <AppText style={styles.mrp} numberOfLines={1}>
-                {formatInr(mrp)}
-              </AppText>
-            ) : null}
-            {off ? (
-              <View style={styles.off}>
-                <AppText style={styles.offText} numberOfLines={1}>
-                  {off}% off
-                </AppText>
-              </View>
-            ) : null}
-          </View>
-
-          {/* Compare temporarily disabled for client
-          <View style={styles.compareRow}>
+          <View style={styles.actionRow}>
             <PressableScale
-              style={[styles.compareBtn, inCompare && styles.compareBtnOn]}
+              style={styles.iconOutline}
               onPress={() => {
-                if (!asCard) return;
-                const result = compare.toggle(asCard);
-                if (!result.ok && result.message) Alert.alert('Compare', result.message);
+                wish.toggle({
+                  id: data.id,
+                  name: data.name,
+                  slug: data.slug,
+                  mrp: data.mrp,
+                  base_price: data.base_price,
+                  sale_price: data.sale_price,
+                  brand: data.brand?.name ?? null,
+                  image_url: data.image_url,
+                  rating_average: data.rating_average,
+                  rating_count: data.rating_count,
+                });
+                void track(liked ? 'wishlist_remove' : 'wishlist_add', { product_id: data.id });
               }}
             >
-              <GitCompare
-                size={16}
-                color={inCompare ? colors.paper : colors.ink}
-                strokeWidth={2}
+              <Heart
+                size={18}
+                color={colors.danger}
+                fill={liked ? colors.danger : 'transparent'}
+                strokeWidth={2.1}
               />
-              <AppText
-                style={{
-                  color: inCompare ? colors.paper : colors.ink,
-                  fontFamily: typography.bodySemi,
-                }}
-              >
-                {inCompare
-                  ? 'Added to compare'
-                  : `Compare (${compare.items.length}/${MAX_COMPARE})`}
-              </AppText>
             </PressableScale>
-            {compare.items.length > 0 ? (
-              <PressableScale style={styles.viewCompare} onPress={() => router.push('/compare')}>
-                <AppText style={{ color: colors.jade, fontFamily: typography.bodySemi }}>
-                  View list
-                </AppText>
-              </PressableScale>
-            ) : null}
+            <PressableScale
+              style={styles.iconOutline}
+              onPress={() => {
+                void track('product_share', { product_id: data.id });
+                Share.share({
+                  message: `Check out ${data.name} on Unique Solution\nuniquesolution://products/${data.id}`,
+                  url: `uniquesolution://products/${data.id}`,
+                  title: data.name,
+                }).catch(() => undefined);
+              }}
+            >
+              <Share2 size={17} color={ACCENT} strokeWidth={2.1} />
+            </PressableScale>
           </View>
-          */}
+
+          <View style={styles.titlePriceRow}>
+            <View style={styles.titleCol}>
+              {data.brand?.name ? (
+                <View style={styles.brandBadge}>
+                  <AppText style={styles.brandBadgeText} numberOfLines={1}>
+                    {data.brand.name}
+                  </AppText>
+                </View>
+              ) : null}
+              <AppText style={[styles.productName, { fontFamily: displayFont }]} numberOfLines={3}>
+                {data.name}
+              </AppText>
+              {ratingCount > 0 ? (
+                <View style={styles.ratingNearTitle}>
+                  <Star size={14} color={BUY_GREEN} fill={BUY_GREEN} strokeWidth={0} />
+                  <AppText style={styles.ratingMeta}>
+                    {ratingAvg.toFixed(1)} ({ratingCount.toLocaleString('en-IN')} Reviews)
+                  </AppText>
+                </View>
+              ) : null}
+            </View>
+
+            <View style={styles.priceCol}>
+              <AppText style={[styles.price, { fontFamily: displayFont }]} numberOfLines={1}>
+                {formatInr(price)}
+              </AppText>
+              {sale ? (
+                <AppText style={styles.mrp} numberOfLines={1}>
+                  {formatInr(mrp)}
+                </AppText>
+              ) : null}
+              {off ? (
+                <View style={styles.off}>
+                  <AppText style={styles.offText}>{off}% OFF</AppText>
+                </View>
+              ) : null}
+            </View>
+          </View>
 
           {data.variants?.length ? (
-            <View style={{ marginTop: spacing.lg, gap: 14 }}>
+            <View style={styles.selectors}>
               {colorOptions.length ? (
                 <OptionDropdown
                   label="Color"
@@ -537,7 +477,6 @@ export default function ProductDetailScreen() {
                   onSelect={(key) => pickVariant({ colorValueId: Number(key) })}
                 />
               ) : null}
-
               <OptionDropdown
                 label="Variant"
                 valueLabel={selected ? variantSignature(selected) : null}
@@ -549,71 +488,39 @@ export default function ProductDetailScreen() {
                 placeholder="Choose variant"
                 onSelect={(key) => pickVariant({ signature: key })}
               />
-
-              {outOfStock ? (
-                <View style={{ gap: 8 }}>
-                  <AppText style={{ color: colors.danger }}>Out of stock</AppText>
-                  <AppButton
-                    label={notifyStock.isPending ? 'Saving…' : 'Notify me'}
-                    variant="ghost"
-                    icon={<Bell size={16} color={colors.jade} strokeWidth={2} />}
-                    onPress={() => {
-                      if (!user) {
-                        Alert.alert('Sign in required', 'Sign in to get stock alerts.', [
-                          { text: 'Cancel', style: 'cancel' },
-                          { text: 'Sign in', onPress: () => router.push('/auth/login') },
-                        ]);
-                        return;
-                      }
-                      notifyStock.mutate();
-                    }}
-                  />
-                </View>
-              ) : null}
             </View>
           ) : null}
 
-          {/* Check delivery — temporarily disabled
-          <View style={styles.section}>
-            <AppText variant="label">Check delivery</AppText>
-            <View style={styles.pinRow}>
-              <MapPin size={16} color={colors.jade} strokeWidth={2} />
-              <TextInput
-                value={pincode}
-                onChangeText={setPincode}
-                placeholder="Enter pincode"
-                placeholderTextColor={colors.inkSoft}
-                keyboardType="number-pad"
-                maxLength={12}
-                style={styles.pinInput}
+          {outOfStock ? (
+            <View style={{ marginTop: 12, gap: 8 }}>
+              <AppText style={{ color: colors.danger }}>Out of stock</AppText>
+              <AppButton
+                label={notifyStock.isPending ? 'Saving…' : 'Notify me'}
+                variant="ghost"
+                icon={<Bell size={16} color={ACCENT} strokeWidth={2} />}
+                onPress={() => {
+                  if (!user) {
+                    Alert.alert('Sign in required', 'Sign in to get stock alerts.', [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Sign in', onPress: () => router.push('/auth/login') },
+                    ]);
+                    return;
+                  }
+                  notifyStock.mutate();
+                }}
               />
-              <PressableScale onPress={checkDelivery} style={styles.pinCheck}>
-                {pinBusy ? (
-                  <ActivityIndicator color={colors.paper} size="small" />
-                ) : (
-                  <AppText style={styles.pinCheckText}>Check</AppText>
-                )}
-              </PressableScale>
             </View>
-            {pinMsg ? (
-              <AppText style={{ color: pinOk ? colors.jade : colors.danger, marginTop: 8 }}>
-                {pinMsg}
-              </AppText>
-            ) : null}
-          </View>
-          */}
+          ) : null}
+
+          <TrustHighlights policies={data.policies ?? []} />
 
           {data.description ? (
-            <View
-              ref={aboutRef}
-              collapsable={false}
-              style={{ marginTop: spacing.xl }}
-            >
-              <AppText variant="label">About</AppText>
+            <View ref={aboutRef} collapsable={false} style={styles.section}>
+              <AppText style={styles.descHeading}>Description</AppText>
               <HtmlContent
                 html={data.description}
                 collapsible
-                maxWords={1000}
+                collapsedInches={3}
                 onCollapse={() => {
                   aboutRef.current?.measureInWindow((_x, aboutY) => {
                     scrollRef.current?.measureInWindow((_sx, scrollViewY) => {
@@ -629,11 +536,9 @@ export default function ProductDetailScreen() {
             </View>
           ) : null}
 
-          <ProductPolicyGrid policies={data.policies ?? []} />
-
           {specs.length ? (
             <View style={styles.section}>
-              <AppText variant="label">Specifications</AppText>
+              <AppText style={styles.descHeading}>Specifications</AppText>
               <View style={styles.specTable}>
                 {specs.map((spec) => (
                   <View key={spec.name} style={styles.specRow}>
@@ -649,7 +554,7 @@ export default function ProductDetailScreen() {
 
           {productWarranty ? (
             <View style={styles.warranty}>
-              <ShieldCheck size={18} color={colors.jade} strokeWidth={2} />
+              <ShieldCheck size={18} color={ACCENT} strokeWidth={2} />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <AppText variant="label">Warranty</AppText>
                 {/<[a-z][\s\S]*>/i.test(productWarranty) ? (
@@ -665,7 +570,7 @@ export default function ProductDetailScreen() {
 
           {brandWarranty ? (
             <View style={styles.warranty}>
-              <ShieldCheck size={18} color={colors.brassDeep} strokeWidth={2} />
+              <ShieldCheck size={18} color={BUY_GREEN} strokeWidth={2} />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <AppText variant="label">
                   {data.brand?.name ? `${data.brand.name} warranty` : 'Brand warranty'}
@@ -682,7 +587,7 @@ export default function ProductDetailScreen() {
           ) : null}
 
           <View style={styles.section}>
-            <AppText variant="label">Reviews</AppText>
+            <AppText style={styles.descHeading}>Reviews</AppText>
             {reviews.length ? (
               <View style={{ gap: 12, marginTop: 10 }}>
                 {reviews.map((r) => (
@@ -697,7 +602,7 @@ export default function ProductDetailScreen() {
                       </AppText>
                     ) : null}
                     {r.admin_reply ? (
-                      <AppText variant="caption" style={{ marginTop: 6, color: colors.jade }}>
+                      <AppText variant="caption" style={{ marginTop: 6, color: ACCENT }}>
                         Shop reply: {r.admin_reply}
                       </AppText>
                     ) : null}
@@ -714,7 +619,7 @@ export default function ProductDetailScreen() {
               <View style={styles.writeBox}>
                 <AppText style={styles.itemName}>Write a review</AppText>
                 {reviewPending ? (
-                  <AppText variant="caption" style={{ marginTop: 8, color: colors.jade }}>
+                  <AppText variant="caption" style={{ marginTop: 8, color: BUY_GREEN }}>
                     Your review is pending approval.
                   </AppText>
                 ) : (
@@ -749,7 +654,7 @@ export default function ProductDetailScreen() {
 
           {related.length ? (
             <View style={styles.section}>
-              <AppText variant="label">Related products</AppText>
+              <AppText style={styles.descHeading}>Related products</AppText>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -766,170 +671,158 @@ export default function ProductDetailScreen() {
         </Animated.View>
       </ScrollView>
 
-      <View style={[styles.bar, { marginBottom: Math.max(insets.bottom, 8) }]}>
+      <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
         <View style={styles.barPrice}>
-          <AppText variant="caption">Pay</AppText>
-          <AppText style={styles.barAmount} numberOfLines={1}>
+          <AppText style={[styles.barAmount, { fontFamily: displayFont }]} numberOfLines={1}>
             {formatInr(price)}
           </AppText>
+          {sale || off ? (
+            <AppText style={styles.barMeta} numberOfLines={1}>
+              {sale ? formatInr(mrp) : ''}
+              {off ? ` · ${off}% OFF` : ''}
+            </AppText>
+          ) : null}
         </View>
-        <View style={{ flex: 1 }}>
-          <AppButton
-            label="Add to cart"
-            icon={<ShoppingBag size={18} color={colors.paper} strokeWidth={2.1} />}
-            disabled={outOfStock}
-            onPress={() => {
-              add({
-                productId: data.id,
-                variantId: selected?.id,
-                name: data.name,
-                image_url: selected?.image_url ?? data.image_url,
-                mrp,
-                sale_price: sale,
-                attributeLabel: attrLabel,
-              });
-              void track('add_to_cart', {
-                product_id: data.id,
-                variant_id: selected?.id,
-                price,
-              });
-              router.push('/(main)/(tabs)/cart');
-            }}
-          />
-        </View>
+        <PressableScale
+          disabled={outOfStock}
+          onPress={() => addToCart(false)}
+          style={[styles.ctaCart, outOfStock && styles.ctaDisabled]}
+        >
+          <AppText style={styles.ctaCartText}>Add to Cart</AppText>
+        </PressableScale>
+        <PressableScale
+          disabled={outOfStock}
+          onPress={() => addToCart(true)}
+          style={[styles.ctaBuy, outOfStock && styles.ctaDisabled]}
+        >
+          <AppText style={styles.ctaBuyText}>Buy Now</AppText>
+        </PressableScale>
       </View>
-    </ScreenAtmosphere>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: '#FFFFFF' },
   imageFallback: {
-    backgroundColor: colors.canvasDeep,
+    backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
   },
   floatBtn: {
     position: 'absolute',
-    backgroundColor: colors.paper,
+    backgroundColor: 'rgba(255,255,255,0.92)',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#E5E7EB',
     ...elevation.soft,
   },
-  body: { padding: spacing.lg },
-  productName: { fontSize: 28, lineHeight: 34 },
+  body: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  iconOutline: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  titlePriceRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  titleCol: { flex: 1, minWidth: 0 },
+  brandBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: ACCENT,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    marginBottom: 6,
+  },
+  brandBadgeText: {
+    color: '#FFFFFF',
+    fontFamily: typography.bodySemi,
+    fontSize: 11,
+    textTransform: 'lowercase',
+  },
+  productName: {
+    fontSize: 24,
+    lineHeight: 30,
+    color: colors.ink,
+  },
   ratingNearTitle: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 5,
     marginTop: 8,
-    flexWrap: 'wrap',
   },
   ratingMeta: {
     fontFamily: typography.bodyMedium,
     fontSize: 13,
-    color: colors.inkMuted,
+    color: BUY_GREEN,
   },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginTop: spacing.sm,
+  priceCol: {
+    alignItems: 'flex-end',
+    paddingTop: 2,
+    minWidth: 96,
   },
-  price: { fontFamily: typography.display, fontSize: 28, color: colors.ink, flexShrink: 1 },
+  price: {
+    fontSize: 22,
+    color: colors.ink,
+  },
   mrp: {
+    marginTop: 2,
     fontFamily: typography.body,
+    fontSize: 13,
     color: colors.inkSoft,
     textDecorationLine: 'line-through',
-    flexShrink: 1,
   },
   off: {
-    backgroundColor: colors.jadeSoft,
+    marginTop: 6,
+    backgroundColor: '#E8F8EF',
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: radii.pill,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
-  offText: { color: colors.jade, fontFamily: typography.bodySemi, fontSize: 12 },
-  compareRow: {
-    marginTop: spacing.md,
+  offText: {
+    color: BUY_GREEN,
+    fontFamily: typography.bodySemi,
+    fontSize: 11,
+  },
+  selectors: {
+    marginTop: 18,
     flexDirection: 'row',
-    alignItems: 'center',
     gap: 12,
-    flexWrap: 'wrap',
   },
-  compareBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.paper,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    borderRadius: radii.pill,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    ...elevation.soft,
+  section: { marginTop: 22 },
+  descHeading: {
+    fontFamily: typography.bodyBold,
+    fontSize: 20,
+    color: ACCENT,
+    marginBottom: 8,
   },
-  compareBtnOn: {
-    backgroundColor: colors.jade,
-    borderColor: colors.jade,
-  },
-  viewCompare: {
-    paddingHorizontal: 8,
-    paddingVertical: 10,
-  },
-  wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  swatch: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    marginRight: 2,
-  },
-  section: { marginTop: spacing.xl },
-  pinRow: {
-    marginTop: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.paper,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingLeft: 12,
-    overflow: 'hidden',
-    ...elevation.soft,
-  },
-  pinInput: {
-    flex: 1,
-    minWidth: 0,
-    paddingVertical: 12,
-    fontFamily: typography.bodyMedium,
-    color: colors.ink,
-    fontSize: 15,
-  },
-  pinCheck: {
-    backgroundColor: colors.jade,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  pinCheckText: { color: colors.paper, fontFamily: typography.bodySemi, fontSize: 13 },
   specTable: {
-    marginTop: 10,
+    marginTop: 4,
     backgroundColor: colors.paper,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#E5E7EB',
     overflow: 'hidden',
-    ...elevation.soft,
   },
   specRow: {
     flexDirection: 'row',
     gap: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E7EB',
   },
   specName: {
     width: '38%',
@@ -951,16 +844,14 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.border,
-    ...elevation.soft,
+    borderColor: '#E5E7EB',
   },
   reviewCard: {
     backgroundColor: colors.paper,
     borderRadius: radii.lg,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.border,
-    ...elevation.soft,
+    borderColor: '#E5E7EB',
   },
   reviewHead: {
     flexDirection: 'row',
@@ -970,13 +861,12 @@ const styles = StyleSheet.create({
   },
   writeBox: {
     marginTop: 14,
-    backgroundColor: colors.brassSoft,
+    backgroundColor: '#F8FAFC',
     borderRadius: radii.lg,
     padding: spacing.md,
     gap: 4,
     borderWidth: 1,
-    borderColor: colors.border,
-    ...elevation.soft,
+    borderColor: '#E5E7EB',
   },
   reviewInput: {
     marginTop: 10,
@@ -986,7 +876,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.paper,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#E5E7EB',
     padding: 12,
     fontFamily: typography.body,
     color: colors.ink,
@@ -995,24 +885,55 @@ const styles = StyleSheet.create({
   itemName: { fontFamily: typography.bodySemi, color: colors.ink },
   bar: {
     position: 'absolute',
-    left: 12,
-    right: 12,
-    bottom: 8,
-    padding: spacing.md,
-    backgroundColor: colors.paper,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingTop: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E5E7EB',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 8,
     ...elevation.lift,
   },
-  barPrice: { minWidth: 88 },
+  barPrice: { minWidth: 78, marginRight: 2 },
   barAmount: {
-    fontFamily: typography.displayBold,
-    fontSize: 20,
+    fontSize: 18,
     color: colors.ink,
-    marginTop: 2,
   },
+  barMeta: {
+    marginTop: 1,
+    fontFamily: typography.body,
+    fontSize: 10,
+    color: colors.inkSoft,
+  },
+  ctaCart: {
+    flex: 1,
+    backgroundColor: ACCENT,
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ctaCartText: {
+    color: '#FFFFFF',
+    fontFamily: typography.bodySemi,
+    fontSize: 14,
+  },
+  ctaBuy: {
+    flex: 1,
+    backgroundColor: BUY_GREEN,
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ctaBuyText: {
+    color: '#FFFFFF',
+    fontFamily: typography.bodySemi,
+    fontSize: 14,
+  },
+  ctaDisabled: { opacity: 0.45 },
 });

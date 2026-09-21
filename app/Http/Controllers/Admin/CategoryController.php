@@ -14,6 +14,7 @@ use App\Services\ImageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Yajra\DataTables\Facades\DataTables;
@@ -106,37 +107,50 @@ class CategoryController extends Controller
 
     public function store(StoreCategoryRequest $request): RedirectResponse
     {
-        $data = $request->validated();
-        $data['slug'] = $data['slug'] ?? Str::slug($data['name']);
-        $data['status'] = $data['status'] ?? false;
-        $data['sort_order'] = $data['sort_order'] ?? 0;
+        try {
+            $data = $request->validated();
+            $data['slug'] = $this->uniqueCategorySlug($data['slug'] ?? $data['name']);
+            $data['status'] = $data['status'] ?? false;
+            $data['sort_order'] = $data['sort_order'] ?? 0;
 
-        if (($data['status'] ?? false) === true) {
-            $this->activationGuard->assertCanActivate('category', $request);
+            if (($data['status'] ?? false) === true) {
+                $this->activationGuard->assertCanActivate('category', $request);
+            }
+
+            if ($request->hasFile('image')) {
+                $data['image'] = $this->imageService->upload($request->file('image'), 'categories');
+            }
+
+            if ($request->hasFile('sale_banner')) {
+                $data['sale_banner'] = $this->imageService->upload($request->file('sale_banner'), 'categories/sales');
+            }
+
+            $data['sale_active'] = (bool) ($data['sale_active'] ?? false);
+            $data['parent_id'] = null;
+
+            $attributeIds = $data['attribute_ids'] ?? [];
+            unset($data['attribute_ids']);
+
+            $data = $this->onlyCategoryColumns($data);
+
+            $category = Category::query()->create($data);
+            if (! empty($attributeIds)) {
+                $category->attributes()->sync($attributeIds);
+            }
+
+            activity_log('created', 'categories', "Created category #{$category->id}: {$category->name}");
+
+            return redirect()
+                ->route('admin.categories.index')
+                ->with('success', 'Category created successfully.');
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', 'Could not create category: '.$e->getMessage());
         }
-
-        if ($request->hasFile('image')) {
-            $data['image'] = $this->imageService->upload($request->file('image'), 'categories');
-        }
-
-        if ($request->hasFile('sale_banner')) {
-            $data['sale_banner'] = $this->imageService->upload($request->file('sale_banner'), 'categories/sales');
-        }
-
-        $data['sale_active'] = (bool) ($data['sale_active'] ?? false);
-        $data['parent_id'] = null;
-
-        $attributeIds = $data['attribute_ids'] ?? [];
-        unset($data['attribute_ids']);
-
-        $category = Category::query()->create($data);
-        $category->attributes()->sync($attributeIds);
-
-        activity_log('created', 'categories', "Created category #{$category->id}: {$category->name}");
-
-        return redirect()
-            ->route('admin.categories.index')
-            ->with('success', 'Category created successfully.');
     }
 
     public function show(Category $category): View
@@ -162,41 +176,52 @@ class CategoryController extends Controller
 
     public function update(UpdateCategoryRequest $request, Category $category): RedirectResponse
     {
-        $data = $request->validated();
-        $data['slug'] = $data['slug'] ?? Str::slug($data['name']);
+        try {
+            $data = $request->validated();
+            $data['slug'] = $this->uniqueCategorySlug($data['slug'] ?? $data['name'], $category->id);
 
-        if ($request->hasFile('image')) {
-            $this->imageService->delete($category->image);
-            $data['image'] = $this->imageService->upload($request->file('image'), 'categories');
+            if ($request->hasFile('image')) {
+                $this->imageService->delete($category->image);
+                $data['image'] = $this->imageService->upload($request->file('image'), 'categories');
+            }
+
+            if (! empty($data['remove_sale_banner'])) {
+                $this->imageService->delete($category->sale_banner);
+                $data['sale_banner'] = null;
+            }
+
+            if ($request->hasFile('sale_banner')) {
+                $this->imageService->delete($category->sale_banner);
+                $data['sale_banner'] = $this->imageService->upload($request->file('sale_banner'), 'categories/sales');
+            }
+
+            $data['sale_active'] = (bool) ($data['sale_active'] ?? false);
+
+            if (($data['status'] ?? $category->status) === true) {
+                $this->activationGuard->assertCanActivate('category', $request);
+            }
+
+            $attributeIds = $data['attribute_ids'] ?? [];
+            unset($data['attribute_ids'], $data['remove_sale_banner'], $data['parent_id']);
+
+            $data = $this->onlyCategoryColumns($data);
+
+            $category->update($data);
+            $category->attributes()->sync($attributeIds);
+
+            activity_log('updated', 'categories', "Updated category #{$category->id}: {$category->name}");
+
+            return redirect()
+                ->route('admin.categories.index')
+                ->with('success', 'Category updated successfully.');
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', 'Could not update category: '.$e->getMessage());
         }
-
-        if (! empty($data['remove_sale_banner'])) {
-            $this->imageService->delete($category->sale_banner);
-            $data['sale_banner'] = null;
-        }
-
-        if ($request->hasFile('sale_banner')) {
-            $this->imageService->delete($category->sale_banner);
-            $data['sale_banner'] = $this->imageService->upload($request->file('sale_banner'), 'categories/sales');
-        }
-
-        $data['sale_active'] = (bool) ($data['sale_active'] ?? false);
-
-        if (($data['status'] ?? $category->status) === true) {
-            $this->activationGuard->assertCanActivate('category', $request);
-        }
-
-        $attributeIds = $data['attribute_ids'] ?? [];
-        unset($data['attribute_ids'], $data['remove_sale_banner'], $data['parent_id']);
-
-        $category->update($data);
-        $category->attributes()->sync($attributeIds);
-
-        activity_log('updated', 'categories', "Updated category #{$category->id}: {$category->name}");
-
-        return redirect()
-            ->route('admin.categories.index')
-            ->with('success', 'Category updated successfully.');
     }
 
     public function destroy(Category $category): RedirectResponse
@@ -322,5 +347,54 @@ class CategoryController extends Controller
         return redirect()
             ->route('admin.categories.edit', $copy)
             ->with('success', 'Category duplicated as a deactive copy. Review it, then turn it on.');
+    }
+
+    /**
+     * Build a unique slug, including soft-deleted rows (unique index still applies).
+     */
+    private function uniqueCategorySlug(string $source, ?int $ignoreId = null): string
+    {
+        $base = Str::slug($source) ?: 'category';
+        $candidate = $base;
+        $i = 1;
+
+        while (
+            Category::withTrashed()
+                ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))
+                ->where('slug', $candidate)
+                ->exists()
+        ) {
+            $candidate = $base.'-'.$i;
+            $i++;
+        }
+
+        return $candidate;
+    }
+
+    /**
+     * Drop keys for columns that are not present yet (e.g. sale_* before migrate).
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function onlyCategoryColumns(array $data): array
+    {
+        $allowed = array_values(array_filter(
+            [
+                'name',
+                'slug',
+                'parent_id',
+                'image',
+                'sale_banner',
+                'sale_title',
+                'sale_subtitle',
+                'sale_active',
+                'status',
+                'sort_order',
+            ],
+            fn (string $col) => Schema::hasColumn('categories', $col)
+        ));
+
+        return array_intersect_key($data, array_flip($allowed));
     }
 }

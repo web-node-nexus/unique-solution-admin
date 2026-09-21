@@ -16,6 +16,7 @@ class ImageService
 
     /**
      * Store an uploaded image on the public disk (resized/compressed) + 300x300 thumb.
+     * Never throws — falls back to storing the raw upload if processing fails.
      */
     public function upload(UploadedFile $file, string $folder): string
     {
@@ -36,26 +37,38 @@ class ImageService
         }
 
         $source = $file->getRealPath() ?: $file->getPathname();
+        $stored = false;
 
         try {
-            $image = Image::decodePath($source);
-            $image->scaleDown(width: self::MAX_EDGE, height: self::MAX_EDGE);
+            $image = $this->decodeImage($source);
+            if ($image !== null) {
+                $image->scaleDown(width: self::MAX_EDGE, height: self::MAX_EDGE);
 
-            if (in_array($extension, ['jpg', 'jpeg'], true)) {
-                $image->toJpeg(82)->save($absolutePath);
-            } elseif ($extension === 'png') {
-                $image->toPng()->save($absolutePath);
-            } elseif ($extension === 'webp') {
-                $image->toWebp(82)->save($absolutePath);
-            } else {
-                $image->save($absolutePath);
+                if (in_array($extension, ['jpg', 'jpeg'], true)) {
+                    $image->toJpeg(82)->save($absolutePath);
+                } elseif ($extension === 'png') {
+                    $image->toPng()->save($absolutePath);
+                } elseif ($extension === 'webp') {
+                    $image->toWebp(82)->save($absolutePath);
+                } else {
+                    $image->save($absolutePath);
+                }
+                $stored = is_file($absolutePath);
             }
         } catch (\Throwable) {
+            $stored = false;
+        }
+
+        if (! $stored) {
             // Fallback: store original bytes if decode/resize fails.
             $file->storeAs($folder, $filename, 'public');
         }
 
-        $this->createThumbnail($path);
+        try {
+            $this->createThumbnail($path);
+        } catch (\Throwable) {
+            // Thumbnail is optional — never fail the upload.
+        }
 
         return $path;
     }
@@ -146,11 +159,35 @@ class ImageService
         }
 
         try {
-            Image::decodePath($absolutePath)
-                ->contain(300, 300)
-                ->save($thumbnailAbsolute);
+            $image = $this->decodeImage($absolutePath);
+            if ($image === null) {
+                return;
+            }
+            $image->contain(300, 300)->save($thumbnailAbsolute);
         } catch (\Throwable) {
             // ignore thumbnail failures
         }
+    }
+
+    /**
+     * @return mixed|null
+     */
+    private function decodeImage(string $source)
+    {
+        try {
+            if (method_exists(Image::getFacadeRoot(), 'decodePath')) {
+                return Image::decodePath($source);
+            }
+            if (method_exists(Image::getFacadeRoot(), 'read')) {
+                return Image::read($source);
+            }
+            if (method_exists(Image::getFacadeRoot(), 'make')) {
+                return Image::make($source);
+            }
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return null;
     }
 }

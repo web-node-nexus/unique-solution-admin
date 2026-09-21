@@ -35,8 +35,9 @@ class AppCatalogController extends Controller
                 'whatsapp_number' => Setting::get('whatsapp_number') ?: Setting::get('contact_number'),
                 'contact_email' => Setting::get('contact_email'),
                 'currency_symbol' => Setting::get('currency_symbol', '₹'),
-                'tax_percentage' => (float) Setting::get('tax_percentage', 18),
+                'tax_percentage' => (float) Setting::get('tax_percentage', 0),
                 'default_shipping_charge' => (float) Setting::get('default_shipping_charge', 99),
+                'prices_include_tax' => true,
             ],
         ]);
     }
@@ -942,11 +943,11 @@ class AppCatalogController extends Controller
             ? round($subtotal * ((float) $coupon->discount_value / 100), 2)
             : min((float) $coupon->discount_value, $subtotal);
 
-        $taxPct = (float) Setting::get('tax_percentage', 18);
         $shipping = (float) Setting::get('default_shipping_charge', 99);
         $afterDiscount = max(0, $subtotal - $discount);
-        $tax = round($afterDiscount * ($taxPct / 100), 2);
-        $total = round($afterDiscount + $tax + $shipping, 2);
+        // Catalog prices are GST-inclusive — do not add tax on top.
+        $tax = 0;
+        $total = round($afterDiscount + $shipping, 2);
 
         return response()->json([
             'success' => true,

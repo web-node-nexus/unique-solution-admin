@@ -211,11 +211,11 @@ class CustomerOrderController extends Controller
                 $coupon->increment('used_count');
             }
 
-            $taxPct = (float) Setting::get('tax_percentage', 0);
             $shipping = (float) Setting::get('default_shipping_charge', 0);
             $taxable = max($subtotal - $discount, 0);
-            $tax = round($taxable * ($taxPct / 100), 2);
-            $total = round($taxable + $tax + $shipping, 2);
+            // Catalog prices are GST-inclusive — do not add tax on top.
+            $tax = 0;
+            $total = round($taxable + $shipping, 2);
 
             $order = Order::query()->create([
                 'user_id' => $user->id,
