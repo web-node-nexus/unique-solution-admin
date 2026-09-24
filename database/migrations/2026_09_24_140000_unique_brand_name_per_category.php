@@ -11,8 +11,8 @@ return new class extends Migration
     {
         // Drop legacy global unique on brands.name (if present).
         $this->dropLegacyNameUniques();
-        $this->dropIndexIfExists('brands', 'brands_name_unique');
-        $this->dropIndexIfExists('brands', 'unique_category_brand');
+        $this->dropIndexQuietly('brands', 'brands_name_unique');
+        $this->dropIndexQuietly('brands', 'unique_category_brand');
 
         // Ensure every brand has a category_id for the composite unique (use first pivot mapping).
         if (Schema::hasTable('brand_category') && Schema::hasColumn('brands', 'category_id')) {
@@ -45,7 +45,6 @@ return new class extends Migration
                     ->pluck('id');
 
                 foreach ($extras as $extraId) {
-                    // Rename extras so the unique index can be applied safely.
                     DB::table('brands')->where('id', $extraId)->update([
                         'name' => $dupe->name.' #'.$extraId,
                     ]);
@@ -53,26 +52,38 @@ return new class extends Migration
             }
         }
 
-        Schema::table('brands', function (Blueprint $table) {
-            // Same name allowed in different categories; blocked twice in the same category.
-            if (! $this->indexExists('brands', 'unique_category_brand')) {
+        if (! $this->indexExists('brands', 'unique_category_brand')) {
+            Schema::table('brands', function (Blueprint $table) {
+                // Same name OK in different categories; blocked twice in the same category.
                 $table->unique(['category_id', 'name'], 'unique_category_brand');
-            }
-        });
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('brands', function (Blueprint $table) {
-            if ($this->indexExists('brands', 'unique_category_brand')) {
-                $table->dropUnique('unique_category_brand');
-            }
-        });
+        $this->dropIndexQuietly('brands', 'unique_category_brand');
     }
 
-    private function dropIndexIfExists(string $table, string $index): void
+    /**
+     * Drop any unique index that is only on brands.name (legacy global uniqueness).
+     */
+    private function dropLegacyNameUniques(): void
     {
-        if (! $this->indexExists($table, $index)) {
+        foreach ($this->indexes('brands') as $index) {
+            $name = (string) ($index['name'] ?? '');
+            $columns = array_values($index['columns'] ?? []);
+            $unique = (bool) ($index['unique'] ?? false);
+
+            if ($unique && $columns === ['name']) {
+                $this->dropIndexQuietly('brands', $name);
+            }
+        }
+    }
+
+    private function dropIndexQuietly(string $table, string $index): void
+    {
+        if ($index === '' || ! $this->indexExists($table, $index)) {
             return;
         }
 
@@ -81,41 +92,48 @@ return new class extends Migration
                 $blueprint->dropUnique($index);
             });
         } catch (\Throwable) {
-            // Index may already be gone or named differently on some environments.
-        }
-    }
-
-    /**
-     * Drop any unique index that is only on brands.name (legacy global uniqueness).
-     */
-    private function dropLegacyNameUniques(): void
-    {
-        $database = DB::getDatabaseName();
-        $indexes = DB::select(
-            'SELECT INDEX_NAME, COUNT(*) AS col_count,
-                    SUM(CASE WHEN COLUMN_NAME = ? THEN 1 ELSE 0 END) AS name_cols
-             FROM information_schema.statistics
-             WHERE table_schema = ? AND table_name = ? AND NON_UNIQUE = 0
-             GROUP BY INDEX_NAME',
-            ['name', $database, 'brands']
-        );
-
-        foreach ($indexes as $index) {
-            if ((int) $index->col_count === 1 && (int) $index->name_cols === 1) {
-                $this->dropIndexIfExists('brands', (string) $index->INDEX_NAME);
+            try {
+                // SQLite / some drivers prefer column-array form.
+                Schema::table($table, function (Blueprint $blueprint) use ($index) {
+                    if ($index === 'unique_category_brand') {
+                        $blueprint->dropUnique(['category_id', 'name']);
+                    } elseif ($index === 'brands_name_unique' || str_ends_with($index, '_name_unique')) {
+                        $blueprint->dropUnique(['name']);
+                    }
+                });
+            } catch (\Throwable) {
+                // Already gone or unsupported.
             }
         }
     }
 
     private function indexExists(string $table, string $index): bool
     {
-        $database = DB::getDatabaseName();
-        $row = DB::selectOne(
-            'SELECT COUNT(*) AS c FROM information_schema.statistics
-             WHERE table_schema = ? AND table_name = ? AND index_name = ?',
-            [$database, $table, $index]
-        );
+        foreach ($this->indexes($table) as $row) {
+            if (($row['name'] ?? null) === $index) {
+                return true;
+            }
+        }
 
-        return (int) ($row->c ?? 0) > 0;
+        return false;
+    }
+
+    /**
+     * @return list<array{name?: string, columns?: list<string>, unique?: bool}>
+     */
+    private function indexes(string $table): array
+    {
+        if (! Schema::hasTable($table)) {
+            return [];
+        }
+
+        try {
+            /** @var list<array{name?: string, columns?: list<string>, unique?: bool}> $indexes */
+            $indexes = Schema::getIndexes($table);
+
+            return $indexes;
+        } catch (\Throwable) {
+            return [];
+        }
     }
 };
