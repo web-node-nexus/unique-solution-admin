@@ -71,11 +71,27 @@ class ActivationGuard
         $hasImage = false;
 
         if ($source instanceof Product) {
-            $hasImage = $source->images()->exists();
+            $hasImage = $source->images()->exists()
+                || $source->variants()->whereHas('images')->exists();
         } elseif ($source instanceof Request) {
             $hasImage = $source->hasFile('images')
                 || filled($source->input('primary_image_id'))
                 || filled($source->input('gallery_order'));
+
+            // Wizard uploads photos per variant — count those too.
+            if (! $hasImage) {
+                foreach ((array) $source->file('variants', []) as $variantFiles) {
+                    if (! is_array($variantFiles)) {
+                        continue;
+                    }
+                    $image = $variantFiles['image'] ?? null;
+                    if ($image instanceof \Illuminate\Http\UploadedFile && $image->isValid()) {
+                        $hasImage = true;
+                        break;
+                    }
+                }
+            }
+
             if ($source->route('product') instanceof Product) {
                 $product = $source->route('product');
                 $removing = array_filter((array) $source->input('remove_image_ids', []));
@@ -83,12 +99,15 @@ class ActivationGuard
                     $removing !== [],
                     fn ($q) => $q->whereNotIn('id', $removing)
                 )->exists();
-                $hasImage = $hasImage || $remaining || $source->hasFile('images');
+                $hasImage = $hasImage
+                    || $remaining
+                    || $source->hasFile('images')
+                    || $product->variants()->whereHas('images')->exists();
             }
         }
 
         if (! $hasImage) {
-            $issues[] = 'Upload at least one product photo before activating.';
+            $issues[] = 'Upload at least one product photo (gallery or variant) before activating.';
         }
 
         return $issues;

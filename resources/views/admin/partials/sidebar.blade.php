@@ -24,14 +24,13 @@
             </a>
         @endcan
 
-        {{-- Catalog --}}
+        {{-- Catalog (categories, banners, brands, attributes) --}}
         @if (auth()->user()?->can('categories.view')
             || auth()->user()?->can('brands.view')
             || auth()->user()?->can('attributes.view')
-            || auth()->user()?->can('products.view')
             || auth()->user()?->can('banners.view'))
             <button type="button"
-                    class="nav-link {{ request()->routeIs('admin.categories*', 'admin.brands*', 'admin.attributes*', 'admin.products*', 'admin.banners*') ? 'active' : '' }}"
+                    class="nav-link {{ request()->routeIs('admin.categories*', 'admin.brands*', 'admin.attributes*', 'admin.banners*') ? 'active' : '' }}"
                     data-menu-toggle="menu-catalog"
                     aria-expanded="false">
                 <i class="bi bi-grid-1x2"></i>
@@ -71,48 +70,47 @@
                         </a>
                     </li>
                 @endcan
-                @can('products.view')
-                    @php
-                        $productsSectionOpen = request()->routeIs('admin.products*');
-                    @endphp
-                    <li class="has-nested">
-                        <button type="button"
-                                class="nav-link {{ $productsSectionOpen ? 'active' : '' }}"
-                                data-menu-toggle="menu-products"
-                                aria-expanded="{{ $productsSectionOpen ? 'true' : 'false' }}">
-                            <span class="nav-label">Products</span>
-                            <i class="bi bi-chevron-down nav-chevron"></i>
-                        </button>
-                        <ul class="submenu submenu-nested {{ $productsSectionOpen ? 'open' : '' }}" id="menu-products">
-                            <li>
-                                <a href="{{ route('admin.products.index') }}"
-                                   class="nav-link {{ request()->routeIs('admin.products.index') || request()->routeIs('admin.products.create') || request()->routeIs('admin.products.edit') || request()->routeIs('admin.products.show') ? 'active' : '' }}">
-                                    <span class="nav-label">All</span>
-                                </a>
-                            </li>
-                            <li>
-                                <a href="{{ route('admin.products.status', 'active') }}"
-                                   class="nav-link {{ request()->routeIs('admin.products.status') && request()->route('status') === 'active' ? 'active' : '' }}">
-                                    <span class="nav-label">Active</span>
-                                </a>
-                            </li>
-                            <li>
-                                <a href="{{ route('admin.products.status', 'deactive') }}"
-                                   class="nav-link {{ request()->routeIs('admin.products.status') && request()->route('status') === 'deactive' ? 'active' : '' }}">
-                                    <span class="nav-label">Deactive</span>
-                                </a>
-                            </li>
-                            <li>
-                                <a href="{{ route('admin.products.status', 'draft') }}"
-                                   class="nav-link {{ request()->routeIs('admin.products.status') && request()->route('status') === 'draft' ? 'active' : '' }}">
-                                    <span class="nav-label">Draft</span>
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-                @endcan
             </ul>
         @endif
+
+        {{-- Products (independent top-level menu) --}}
+        @can('products.view')
+            @php $productsSectionOpen = request()->routeIs('admin.products*'); @endphp
+            <button type="button"
+                    class="nav-link {{ $productsSectionOpen ? 'active' : '' }}"
+                    data-menu-toggle="menu-products"
+                    aria-expanded="{{ $productsSectionOpen ? 'true' : 'false' }}">
+                <i class="bi bi-box-seam"></i>
+                <span class="nav-label">Products</span>
+                <i class="bi bi-chevron-down nav-chevron"></i>
+            </button>
+            <ul class="submenu {{ $productsSectionOpen ? 'open' : '' }}" id="menu-products">
+                <li>
+                    <a href="{{ route('admin.products.index') }}"
+                       class="nav-link {{ request()->routeIs('admin.products.index') || request()->routeIs('admin.products.create') || request()->routeIs('admin.products.edit') || request()->routeIs('admin.products.show') ? 'active' : '' }}">
+                        <span class="nav-label">All</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ route('admin.products.status', 'active') }}"
+                       class="nav-link {{ request()->routeIs('admin.products.status') && request()->route('status') === 'active' ? 'active' : '' }}">
+                        <span class="nav-label">Active</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ route('admin.products.status', 'deactive') }}"
+                       class="nav-link {{ request()->routeIs('admin.products.status') && request()->route('status') === 'deactive' ? 'active' : '' }}">
+                        <span class="nav-label">Deactive</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ route('admin.products.status', 'draft') }}"
+                       class="nav-link {{ request()->routeIs('admin.products.status') && request()->route('status') === 'draft' ? 'active' : '' }}">
+                        <span class="nav-label">Draft</span>
+                    </a>
+                </li>
+            </ul>
+        @endcan
 
         @can('inventory.view')
             <a href="{{ route('admin.inventory.index') }}"

@@ -38,6 +38,10 @@
 
                     <div class="col-12">
                         <label class="form-label">Categories <span class="text-danger">*</span></label>
+                        <div class="form-text mb-2">
+                            Same brand name (e.g. Samsung) can be used in Mobile, TV, Fridge, AC separately.
+                            It cannot be added twice inside the same category.
+                        </div>
                         <div class="border rounded p-3 @error('category_ids') is-invalid border-danger @enderror" style="max-height: 240px; overflow: auto;">
                             @php $oldCats = collect(old('category_ids', []))->map(fn ($id) => (int) $id); @endphp
                             @foreach ($categories as $category)

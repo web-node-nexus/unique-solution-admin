@@ -40,6 +40,9 @@
 
                     <div class="col-12">
                         <label class="form-label">Categories <span class="text-danger">*</span></label>
+                        <div class="form-text mb-2">
+                            Same brand name can be linked to multiple categories. It cannot appear twice in one category.
+                        </div>
                         <div class="border rounded p-3 @error('category_ids') is-invalid border-danger @enderror" style="max-height: 240px; overflow: auto;">
                             @php
                                 $oldCats = collect(old('category_ids', $brand->categories->pluck('id')->all() ?: array_filter([$brand->category_id])))

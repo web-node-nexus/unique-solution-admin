@@ -6,7 +6,6 @@
     @include('admin.partials.page-header', [
         'title' => 'Add Product',
         'breadcrumbs' => [
-            'Catalog' => null,
             'Products' => route('admin.products.index'),
             'Add',
         ],
@@ -41,6 +40,17 @@
     <form action="{{ route('admin.products.store') }}" method="POST" enctype="multipart/form-data"
           id="productWizardForm" data-publish-form="product" novalidate>
         @csrf
+
+        @if ($errors->any())
+            <div class="alert alert-danger">
+                <div class="fw-semibold mb-1">Could not save product — please fix:</div>
+                <ul class="mb-0">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
 
         {{-- Product-level prices filled from variant matrix before submit --}}
         <input type="hidden" name="base_price" id="base_price" value="{{ old('base_price', '0') }}">
@@ -1132,24 +1142,24 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     document.getElementById('btnWizardNext').addEventListener('click', function () {
+        // Leaving step 2: auto-build variants if the list is still empty
+        if (currentStep === 2 && !variantsBody.querySelector('tr[data-variant-row]')) {
+            const groups = getSelectedAttributeGroups();
+            if (groups.length) {
+                generateVariants();
+            } else {
+                addVariantRow([]);
+                toastr.info('No attribute values selected — added one default variant');
+            }
+        }
+
         if (!validateStep(currentStep)) {
             return;
         }
         if (currentStep === 1 && document.getElementById('category_id').value && !categoryAttributes.length) {
             loadCategoryAttributes(document.getElementById('category_id').value);
         }
-        if (currentStep === 1) {
-            // Entering variants step — auto-generate if empty and attributes selected
-            // handled after showStep below via check on step 2 entry
-        }
-        const next = Math.min(TOTAL_STEPS, currentStep + 1);
-        if (next === 2 && !variantsBody.querySelector('tr[data-variant-row]')) {
-            const groups = getSelectedAttributeGroups();
-            if (groups.length) {
-                generateVariants();
-            }
-        }
-        showStep(next);
+        showStep(Math.min(TOTAL_STEPS, currentStep + 1));
     });
 
     document.getElementById('btnWizardPrev').addEventListener('click', function () {
@@ -1166,6 +1176,11 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         syncProductPricesFromVariants();
+        // Disabled selects are omitted from POST — re-enable brand before submit.
+        const brandSelect = document.getElementById('brand_id');
+        if (brandSelect) {
+            brandSelect.disabled = false;
+        }
         if (typeof tinymce !== 'undefined') {
             tinymce.triggerSave();
         }

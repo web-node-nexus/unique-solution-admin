@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\Brand;
+use App\Models\Category;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateBrandRequest extends FormRequest
 {
@@ -17,15 +19,9 @@ class UpdateBrandRequest extends FormRequest
      */
     public function rules(): array
     {
-        $brandId = $this->route('brand')?->id ?? $this->route('brand');
-
         return [
-            'name' => [
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('brands', 'name')->ignore($brandId),
-            ],
+            // Unique per category (not globally) — see withValidator().
+            'name' => ['required', 'string', 'max:255'],
             'category_ids' => ['required', 'array', 'min:1'],
             'category_ids.*' => ['integer', 'exists:categories,id'],
             'logo' => ['nullable', 'image', 'max:2048'],
@@ -48,6 +44,35 @@ class UpdateBrandRequest extends FormRequest
         return [
             'category_ids' => 'categories',
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            $brand = $this->route('brand');
+            $brandId = $brand instanceof Brand ? $brand->id : (int) $brand;
+
+            $name = trim((string) $this->input('name'));
+            $categoryIds = array_values(array_unique(array_filter(array_map(
+                'intval',
+                (array) $this->input('category_ids', [])
+            ))));
+
+            $conflictId = Brand::firstCategoryConflictingWithName($name, $categoryIds, $brandId ?: null);
+            if ($conflictId === null) {
+                return;
+            }
+
+            $categoryName = Category::query()->whereKey($conflictId)->value('name') ?: 'this category';
+            $validator->errors()->add(
+                'name',
+                "\"{$name}\" is already added in {$categoryName}. Same brand can be used in other categories, but not twice in the same category."
+            );
+        });
     }
 
     protected function prepareForValidation(): void

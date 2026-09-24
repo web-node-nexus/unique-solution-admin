@@ -21,8 +21,8 @@
     @include('admin.partials.page-header', [
         'title' => $pageTitle,
         'breadcrumbs' => $lockedTab
-            ? ['Catalog' => null, 'Products' => route('admin.products.index'), $pageTitle]
-            : ['Catalog' => null, 'Products'],
+            ? ['Products' => route('admin.products.index'), $pageTitle]
+            : ['Products'],
         'actions' => $headerActions !== '' ? $headerActions : null,
     ])
 

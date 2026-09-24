@@ -63,7 +63,7 @@ class StoreProductRequest extends FormRequest
             'variants.*.status' => ['sometimes', 'boolean'],
             'variants.*.attribute_value_ids' => ['nullable', 'array'],
             'variants.*.attribute_value_ids.*' => ['integer', 'exists:attribute_values,id'],
-            'variants.*.image' => ['nullable'],
+            'variants.*.image' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:5120'],
         ];
     }
 
@@ -106,11 +106,13 @@ class StoreProductRequest extends FormRequest
                     $bestSale = null;
                 }
             }
-            if ($bestMrp !== null && (! $this->filled('base_price') || (float) $this->input('base_price') <= 0)) {
+            if ($bestMrp !== null) {
                 $this->merge(['base_price' => $bestMrp]);
             }
-            if (! $this->filled('sale_price') && $bestSale !== null) {
+            if ($bestSale !== null) {
                 $this->merge(['sale_price' => $bestSale]);
+            } elseif ($this->input('sale_price') === '' || $this->input('sale_price') === null) {
+                $this->merge(['sale_price' => null]);
             }
         }
     }

@@ -6,7 +6,6 @@
     @include('admin.partials.page-header', [
         'title' => 'Edit Product',
         'breadcrumbs' => [
-            'Catalog' => null,
             'Products' => route('admin.products.index'),
             $product->name => route('admin.products.show', $product),
             'Edit',

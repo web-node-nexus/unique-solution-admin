@@ -70,8 +70,12 @@
             if (!val('name')) issues.push('Add a product name before activating.');
             if (!val('category_id')) issues.push('Select a category before activating.');
             if (!val('base_price') || Number(val('base_price')) <= 0) issues.push('Enter a valid MRP / price before activating.');
-            if (!firstGalleryImage() && !existingImage('#imagePreview')) {
-                issues.push('Upload at least one product photo before activating.');
+            const hasGallery = !!(firstGalleryImage() || existingImage('#imagePreview'));
+            const hasVariantPhoto = Array.from(
+                document.querySelectorAll('#variantsBody input[type="file"][name*="[image]"]')
+            ).some((input) => input.files && input.files.length > 0);
+            if (!hasGallery && !hasVariantPhoto) {
+                issues.push('Upload at least one product photo (gallery or variant) before activating.');
             }
         }
         if (type === 'category') {

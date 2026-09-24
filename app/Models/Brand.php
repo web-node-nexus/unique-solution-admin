@@ -90,4 +90,45 @@ class Brand extends Model
         $this->categories()->sync($categoryIds);
         $this->update(['category_id' => $categoryIds[0] ?? null]);
     }
+
+    /**
+     * True when another brand with the same name is already mapped to any of these categories.
+     *
+     * @param  list<int>  $categoryIds
+     */
+    public static function nameTakenInCategories(string $name, array $categoryIds, ?int $ignoreBrandId = null): bool
+    {
+        return self::firstCategoryConflictingWithName($name, $categoryIds, $ignoreBrandId) !== null;
+    }
+
+    /**
+     * Returns the first category id where this brand name is already used, or null.
+     *
+     * @param  list<int>  $categoryIds
+     */
+    public static function firstCategoryConflictingWithName(string $name, array $categoryIds, ?int $ignoreBrandId = null): ?int
+    {
+        $name = trim($name);
+        $categoryIds = array_values(array_unique(array_filter(array_map('intval', $categoryIds))));
+        if ($name === '' || $categoryIds === []) {
+            return null;
+        }
+
+        foreach ($categoryIds as $categoryId) {
+            $exists = static::query()
+                ->when($ignoreBrandId, fn (Builder $q) => $q->where('id', '!=', $ignoreBrandId))
+                ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($name)])
+                ->where(function (Builder $q) use ($categoryId) {
+                    $q->whereHas('categories', fn (Builder $c) => $c->where('categories.id', $categoryId))
+                        ->orWhere('category_id', $categoryId);
+                })
+                ->exists();
+
+            if ($exists) {
+                return $categoryId;
+            }
+        }
+
+        return null;
+    }
 }

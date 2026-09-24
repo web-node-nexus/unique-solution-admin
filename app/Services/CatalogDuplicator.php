@@ -66,7 +66,7 @@ class CatalogDuplicator
     public function brand(Brand $brand): Brand
     {
         $copy = $brand->replicate(['status']);
-        $copy->name = $this->uniqueBrandName($this->copiedName($brand->name));
+        $copy->name = $this->uniqueBrandName($this->copiedName($brand->name), $brand->mappedCategoryIds());
         $copy->status = false;
         $copy->logo = $this->images->copy($brand->logo, 'brands') ?? $brand->logo;
         $copy->save();
@@ -143,12 +143,16 @@ class CatalogDuplicator
         return $base.' (Copy)';
     }
 
-    private function uniqueBrandName(string $name): string
+    private function uniqueBrandName(string $name, array $categoryIds = []): string
     {
         $candidate = $name;
         $i = 2;
 
-        while (Brand::query()->where('name', $candidate)->exists()) {
+        while (
+            $categoryIds !== []
+                ? Brand::nameTakenInCategories($candidate, $categoryIds)
+                : Brand::query()->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($candidate)])->exists()
+        ) {
             $candidate = $name.' '.$i;
             $i++;
         }

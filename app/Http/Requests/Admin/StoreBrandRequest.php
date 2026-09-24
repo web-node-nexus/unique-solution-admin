@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\Brand;
+use App\Models\Category;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class StoreBrandRequest extends FormRequest
 {
@@ -17,7 +20,8 @@ class StoreBrandRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255', 'unique:brands,name'],
+            // Unique per category (not globally) — see withValidator().
+            'name' => ['required', 'string', 'max:255'],
             'category_ids' => ['required', 'array', 'min:1'],
             'category_ids.*' => ['integer', 'exists:categories,id'],
             'logo' => ['nullable', 'image', 'max:2048'],
@@ -40,6 +44,32 @@ class StoreBrandRequest extends FormRequest
         return [
             'category_ids' => 'categories',
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            $name = trim((string) $this->input('name'));
+            $categoryIds = array_values(array_unique(array_filter(array_map(
+                'intval',
+                (array) $this->input('category_ids', [])
+            ))));
+
+            $conflictId = Brand::firstCategoryConflictingWithName($name, $categoryIds);
+            if ($conflictId === null) {
+                return;
+            }
+
+            $categoryName = Category::query()->whereKey($conflictId)->value('name') ?: 'this category';
+            $validator->errors()->add(
+                'name',
+                "\"{$name}\" is already added in {$categoryName}. Same brand can be used in other categories, but not twice in the same category."
+            );
+        });
     }
 
     protected function prepareForValidation(): void

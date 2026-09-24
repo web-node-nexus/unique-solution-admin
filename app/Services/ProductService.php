@@ -82,6 +82,7 @@ class ProductService
 
             $this->syncProductImages($product, $data['images'] ?? [], $data['gallery_order'] ?? []);
             $this->createVariants($product, $data['variants'] ?? []);
+            $this->ensureProductHasPrimaryImage($product);
 
             activity_log('created', 'products', "Created product #{$product->id}: {$product->name}");
 
@@ -422,6 +423,39 @@ class ProductService
         }
 
         $this->syncProductImages($product, $images);
+    }
+
+    /**
+     * If the wizard only uploaded variant photos, copy the first one onto the product gallery
+     * so the app listing/home cards always have an image_url.
+     */
+    protected function ensureProductHasPrimaryImage(Product $product): void
+    {
+        $product->loadMissing(['images', 'variants.images']);
+
+        if ($product->images->isNotEmpty()) {
+            return;
+        }
+
+        $variantImage = $product->variants
+            ->flatMap(fn (ProductVariant $variant) => $variant->images)
+            ->first();
+
+        if (! $variantImage?->image_path) {
+            return;
+        }
+
+        $copied = $this->imageService->copy($variantImage->image_path, 'products');
+        if (! $copied) {
+            return;
+        }
+
+        ProductImage::query()->create([
+            'product_id' => $product->id,
+            'image_path' => $copied,
+            'is_primary' => true,
+            'sort_order' => 0,
+        ]);
     }
 
     /**

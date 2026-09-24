@@ -39,3 +39,9 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# local APK / Gradle cache (do not commit)
+.gradle-dist/
+dist-apk/
+apk-build.log
+apk-build.done
