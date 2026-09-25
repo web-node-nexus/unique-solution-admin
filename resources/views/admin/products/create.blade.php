@@ -1007,7 +1007,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const mrpVal = opts.price != null ? opts.price : '';
         const saleVal = opts.discount_price != null ? opts.discount_price : '';
-        const stockVal = opts.stock_quantity != null ? opts.stock_quantity : 0;
+        const stockVal = opts.stock_quantity != null ? opts.stock_quantity : 5;
 
         tr.innerHTML =
             '<td>' +
