@@ -218,7 +218,7 @@
                         @endphp
                         <div class="border rounded-3 p-3 mb-3 bg-light-subtle">
                             <div class="fw-semibold mb-1">{{ $item->product_name_snapshot }}</div>
-                            <div class="small text-muted mb-3">
+                            <div class="small text-muted mb-2">
                                 Qty {{ $qty }}
                                 @if (is_array($item->variant_details_snapshot) && count($item->variant_details_snapshot))
                                     ·
@@ -227,6 +227,19 @@
                                     @endforeach
                                 @endif
                             </div>
+                            @php $policyTitles = $item->policyTitles(); @endphp
+                            @if (count($policyTitles))
+                                <div class="mb-3">
+                                    <div class="small fw-semibold text-uppercase text-muted mb-1">Policies on this product</div>
+                                    <ul class="mb-0 ps-3 small">
+                                        @foreach ($policyTitles as $policyTitle)
+                                            <li>{{ $policyTitle }}</li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            @else
+                                <div class="small text-muted mb-3">No policies linked to this product.</div>
+                            @endif
                             @for ($u = 0; $u < $qty; $u++)
                                 @php $slot = $slots[$u] ?? ['imei' => '', 'serial_number' => '']; @endphp
                                 <div class="row g-2 align-items-end mb-2">
@@ -278,12 +291,34 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('generateBillForm');
+    const modalEl = document.getElementById('generateBillModal');
+    const submitBtn = document.getElementById('btnGenerateBillSubmit');
+
+    function closeBillModal() {
+        if (!modalEl || typeof bootstrap === 'undefined') {
+            return;
+        }
+        const modal = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.hide();
+        // Ensure backdrop / body lock clears even if download keeps the page open.
+        window.setTimeout(function () {
+            document.querySelectorAll('.modal-backdrop').forEach(function (el) { el.remove(); });
+            document.body.classList.remove('modal-open');
+            document.body.style.removeProperty('overflow');
+            document.body.style.removeProperty('padding-right');
+        }, 150);
+    }
+
     form?.addEventListener('submit', function () {
-        window.setButtonLoading?.(document.getElementById('btnGenerateBillSubmit'), true);
+        closeBillModal();
+        window.setButtonLoading?.(submitBtn, true);
+        // PDF download does not reload the page — unlock the button shortly after.
+        window.setTimeout(function () {
+            window.setButtonLoading?.(submitBtn, false);
+        }, 2500);
     });
 
     @if ($errors->any() || session('error') || request()->boolean('generate_bill') || old('devices'))
-    const modalEl = document.getElementById('generateBillModal');
     if (modalEl && typeof bootstrap !== 'undefined') {
         bootstrap.Modal.getOrCreateInstance(modalEl).show();
     }

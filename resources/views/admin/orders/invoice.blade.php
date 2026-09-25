@@ -79,6 +79,13 @@
                                 @endforeach
                             </div>
                         @endif
+                        @php $policyTitles = $item->policyTitles(); @endphp
+                        @if (count($policyTitles))
+                            <div style="margin-top:6px;font-size:11px;line-height:1.45;">
+                                <strong>Policies:</strong>
+                                {{ implode(' · ', $policyTitles) }}
+                            </div>
+                        @endif
                     </td>
                     <td>{{ $item->quantity }}</td>
                     <td>{{ format_money($item->price) }}</td>

@@ -16,6 +16,7 @@ class OrderItem extends Model
         'price',
         'subtotal',
         'device_units',
+        'policy_titles_snapshot',
     ];
 
     protected function casts(): array
@@ -23,6 +24,7 @@ class OrderItem extends Model
         return [
             'variant_details_snapshot' => 'array',
             'device_units' => 'array',
+            'policy_titles_snapshot' => 'array',
             'quantity' => 'integer',
             'price' => 'decimal:2',
             'subtotal' => 'decimal:2',
@@ -49,6 +51,36 @@ class OrderItem extends Model
         }
 
         return $slots;
+    }
+
+    /**
+     * Policy titles linked to this line's product (selected brand policies).
+     *
+     * @return list<string>
+     */
+    public function policyTitles(): array
+    {
+        if (is_array($this->policy_titles_snapshot) && $this->policy_titles_snapshot !== []) {
+            return array_values(array_filter(array_map(
+                static fn ($t) => trim((string) $t),
+                $this->policy_titles_snapshot
+            )));
+        }
+
+        $product = $this->variant?->product;
+
+        if (! $product) {
+            return [];
+        }
+
+        $product->loadMissing('brandPolicies');
+
+        return $product->brandPolicies
+            ->pluck('title')
+            ->map(static fn ($t) => trim((string) $t))
+            ->filter()
+            ->values()
+            ->all();
     }
 
     public function order(): BelongsTo

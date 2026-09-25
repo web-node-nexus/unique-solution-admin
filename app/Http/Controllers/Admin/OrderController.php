@@ -196,7 +196,7 @@ class OrderController extends Controller
 
         $order->load([
             'user',
-            'items.variant.product',
+            'items.variant.product.brandPolicies',
             'items.variant.attributeValues',
             'statusHistory.changedBy',
             'payments',
@@ -245,7 +245,7 @@ class OrderController extends Controller
 
         $order->load([
             'user',
-            'items.variant.product',
+            'items.variant.product.brandPolicies',
             'items.variant.attributeValues',
         ]);
 
@@ -265,7 +265,7 @@ class OrderController extends Controller
     {
         $this->authorize('view', $order);
 
-        $order->load('items');
+        $order->load(['items.variant.product.brandPolicies']);
 
         $payload = $request->validate([
             'devices' => ['required', 'array'],
@@ -295,7 +295,14 @@ class OrderController extends Controller
                         'serial_number' => '',
                     ];
                 }
-                $item->update(['device_units' => $units]);
+
+                // Snapshot current product policy titles onto the invoice line.
+                $policyTitles = $item->policyTitles();
+
+                $item->update([
+                    'device_units' => $units,
+                    'policy_titles_snapshot' => $policyTitles !== [] ? $policyTitles : null,
+                ]);
             }
         });
 
@@ -305,7 +312,11 @@ class OrderController extends Controller
             "Saved device IMEI/serial for order #{$order->id} ({$order->order_number})"
         );
 
-        return $this->invoice($order->fresh(['user', 'items.variant.product', 'items.variant.attributeValues']));
+        return $this->invoice($order->fresh([
+            'user',
+            'items.variant.product.brandPolicies',
+            'items.variant.attributeValues',
+        ]));
     }
 
     public function packingSlip(Order $order): View|Response
