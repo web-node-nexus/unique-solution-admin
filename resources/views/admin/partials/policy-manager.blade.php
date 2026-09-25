@@ -98,14 +98,17 @@
                     </div>
 
                     <div class="mb-0">
-                        <label class="form-label">Full policy details</label>
-                        <textarea class="form-control"
-                                  rows="10"
-                                  name="{{ $field }}[{{ $index }}][description]"
-                                  id="{{ $field }}_desc_{{ $index }}"
-                                  data-policy-description-input
-                                  placeholder="HTML table / coverage / terms…">{{ $description }}</textarea>
-                        <div class="form-text">You can paste HTML tables (Coverage / Period / Terms) like the store sheet.</div>
+                        @include('admin.partials.html-composer', [
+                            'id' => $field.'_desc_'.$index,
+                            'name' => "{$field}[{$index}][description]",
+                            'value' => $description,
+                            'label' => 'Full policy details',
+                            'rows' => 16,
+                            'invalid' => $errors->has("{$field}.{$index}.description"),
+                            'error' => $errors->first("{$field}.{$index}.description"),
+                            'hint' => 'Paste HTML with Ctrl+V (no popup). Max 1,000,000 characters. Use Preview to check how it looks in the app.',
+                            'sourceAttrs' => 'data-policy-description-input',
+                        ])
                     </div>
                 </div>
             </div>

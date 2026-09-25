@@ -3,28 +3,52 @@
     const managers = document.querySelectorAll('[data-policy-manager]');
     if (!managers.length) return;
 
-    function destroyEditor(textarea) {
-        if (!textarea || typeof tinymce === 'undefined') return;
-        const id = textarea.id;
-        if (id && tinymce.get(id)) {
-            tinymce.get(id).remove();
+    function bindComposers() {
+        if (window.Admin && typeof window.Admin.initHtmlComposers === 'function') {
+            window.Admin.initHtmlComposers();
         }
     }
 
-    function initEditor(textarea) {
-        if (!textarea) return;
-        if (!textarea.id) {
-            textarea.id = 'policy_desc_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
-        }
-        if (typeof window.initUniqueSolutionEditor === 'function') {
-            window.initUniqueSolutionEditor('#' + textarea.id, { height: 280, minHeight: 200 });
-        }
+    function escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
     }
 
-    function triggerSaveAll() {
-        if (typeof tinymce !== 'undefined') {
-            tinymce.triggerSave();
-        }
+    function composerMarkup(field, index, descId, value) {
+        const safeValue = escapeHtml(value || '');
+        return (
+            '<div class="html-composer" data-html-composer>' +
+            '  <div class="html-composer-head">' +
+            '    <div>' +
+            '      <label for="' + descId + '" class="form-label mb-0">Full policy details</label>' +
+            '      <p class="html-composer-kicker">Raw HTML · Ctrl+V paste · Preview available</p>' +
+            '    </div>' +
+            '    <div class="html-composer-switch" role="group" aria-label="Description view">' +
+            '      <button type="button" class="html-composer-btn is-active" data-html-mode="write">' +
+            '        <i class="bi bi-code-slash"></i> HTML' +
+            '      </button>' +
+            '      <button type="button" class="html-composer-btn" data-html-mode="preview">' +
+            '        <i class="bi bi-eye"></i> Preview' +
+            '      </button>' +
+            '    </div>' +
+            '  </div>' +
+            '  <div class="html-composer-panes">' +
+            '    <textarea name="' + field + '[' + index + '][description]" id="' + descId + '" rows="16" spellcheck="false" autocomplete="off" wrap="off" class="html-composer-source" placeholder="Paste HTML here with Ctrl+V — tables, lists, headings, inline styles…" data-html-source data-policy-description-input>' +
+            safeValue +
+            '</textarea>' +
+            '    <div class="html-composer-preview" data-html-preview hidden>' +
+            '      <div class="html-preview-device">' +
+            '        <div class="html-preview-chrome"><span></span><span></span><span></span><em>App preview</em></div>' +
+            '        <iframe title="Description preview" sandbox="allow-same-origin" data-html-frame></iframe>' +
+            '      </div>' +
+            '    </div>' +
+            '  </div>' +
+            '  <div class="form-text">Paste HTML with Ctrl+V (no popup). Max 1,000,000 characters. Use Preview to check how it looks in the app.</div>' +
+            '</div>'
+        );
     }
 
     managers.forEach(function (root) {
@@ -48,11 +72,7 @@
             const panel = card.querySelector('[data-policy-editor-panel]');
             const summary = card.querySelector('[data-policy-summary]');
             const titleInput = card.querySelector('[data-policy-title-input]');
-            const descInput = card.querySelector('[data-policy-description-input]');
             const titleText = card.querySelector('[data-policy-title-text]');
-
-            triggerSaveAll();
-            destroyEditor(descInput);
 
             if (titleText && titleInput) {
                 titleText.textContent = (titleInput.value || '').trim() || 'Untitled policy';
@@ -70,22 +90,21 @@
 
             const panel = card.querySelector('[data-policy-editor-panel]');
             const summary = card.querySelector('[data-policy-summary]');
-            const descInput = card.querySelector('[data-policy-description-input]');
             const titleInput = card.querySelector('[data-policy-title-input]');
+            const descInput = card.querySelector('[data-policy-description-input]');
 
             if (summary) summary.hidden = true;
             if (panel) panel.hidden = false;
             card.classList.add('is-open');
 
-            initEditor(descInput);
-            titleInput?.focus();
+            bindComposers();
+            // Prefer focusing the HTML box so Ctrl+V pastes straight in.
+            (descInput || titleInput)?.focus();
         }
 
         function removeCard(card) {
             const removeInput = card.querySelector('[data-policy-remove]');
             const id = card.querySelector('[data-policy-id]')?.value;
-            const descInput = card.querySelector('[data-policy-description-input]');
-            destroyEditor(descInput);
 
             if (id) {
                 if (removeInput) removeInput.value = '1';
@@ -141,11 +160,7 @@
                 '      </div>' +
                 '    </div>' +
                 '  </div>' +
-                '  <div class="mb-0">' +
-                '    <label class="form-label">Full policy details</label>' +
-                '    <textarea class="form-control" rows="10" name="' + field + '[' + index + '][description]" id="' + descId + '" data-policy-description-input placeholder="HTML table / coverage / terms…"></textarea>' +
-                '    <div class="form-text">You can paste HTML tables (Coverage / Period / Terms) like the store sheet.</div>' +
-                '  </div>' +
+                '  <div class="mb-0">' + composerMarkup(field, index, descId, '') + '</div>' +
                 '</div>';
 
             list.appendChild(card);
@@ -161,6 +176,11 @@
         });
 
         list.addEventListener('click', function (e) {
+            // Don't treat HTML/Preview toggle clicks as card actions.
+            if (e.target.closest('[data-html-mode]')) {
+                return;
+            }
+
             const card = e.target.closest('[data-policy-card]');
             if (!card) return;
 
@@ -210,12 +230,8 @@
             });
         });
 
-        const form = root.closest('form');
-        form?.addEventListener('submit', function () {
-            triggerSaveAll();
-        });
-
         refreshEmpty();
+        bindComposers();
     });
 })();
 </script>

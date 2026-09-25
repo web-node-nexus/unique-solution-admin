@@ -30,7 +30,7 @@ class UpdateBrandRequest extends FormRequest
             'policies' => ['nullable', 'array'],
             'policies.*.id' => ['nullable', 'integer'],
             'policies.*.title' => ['nullable', 'string', 'max:120'],
-            'policies.*.description' => ['nullable', 'string', 'max:5000'],
+            'policies.*.description' => ['nullable', 'string', 'max:1000000'],
             'policies.*.remove' => ['nullable'],
             'policies.*.icon' => image_upload_rules(),
         ];
