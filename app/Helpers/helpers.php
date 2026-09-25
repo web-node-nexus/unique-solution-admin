@@ -33,11 +33,15 @@ if (! function_exists('currency_symbol')) {
 }
 
 if (! function_exists('format_money')) {
-    function format_money(mixed $amount): string
+    function format_money(mixed $amount, int $decimals = 2): string
     {
         $value = is_numeric($amount) ? (float) $amount : 0.0;
+        if ($decimals <= 0) {
+            $value = round($value);
+            $decimals = 0;
+        }
 
-        return currency_symbol().number_format($value, 2, '.', ',');
+        return currency_symbol().number_format($value, $decimals, '.', ',');
     }
 }
 

@@ -152,7 +152,7 @@ class OrderController extends Controller
                 $extra = $items->count() > 1 ? ' +'.($items->count() - 1).' more' : '';
 
                 return '<div class="ord-product">'.e($label).e($extra).'</div>'
-                    .'<div class="ord-price">'.e(format_money($order->total_amount)).'</div>';
+                    .'<div class="ord-price">'.e(format_money($order->total_amount, 0)).'</div>';
             })
             ->addColumn('payment_block', function (Order $order) {
                 $payment = $order->payments->first();
