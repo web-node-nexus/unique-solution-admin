@@ -551,7 +551,7 @@ class ProductService
             $variant->attributeValues()->sync($attributeValueIds);
         }
 
-        $this->attachVariantImage($variant, $variantData['image'] ?? null);
+        $this->attachVariantImages($variant, $this->extractVariantImages($variantData));
 
         return $variant;
     }
@@ -591,13 +591,49 @@ class ProductService
             $variant->attributeValues()->sync($attributeValueIds);
         }
 
-        if (array_key_exists('image', $variantData) && $variantData['image']) {
+        $newImages = $this->extractVariantImages($variantData);
+        if ($newImages !== []) {
             foreach ($variant->images as $image) {
                 $this->imageService->delete($image->image_path);
                 $image->delete();
             }
 
-            $this->attachVariantImage($variant, $variantData['image']);
+            $this->attachVariantImages($variant, $newImages);
+        }
+    }
+
+    /**
+     * Collect uploaded variant photos from `images[]` and/or legacy single `image`.
+     *
+     * @param  array<string, mixed>  $variantData
+     * @return list<mixed>
+     */
+    protected function extractVariantImages(array $variantData): array
+    {
+        $images = [];
+
+        if (array_key_exists('images', $variantData)) {
+            foreach ((array) $variantData['images'] as $image) {
+                if ($image instanceof UploadedFile || is_array($image) || is_string($image)) {
+                    $images[] = $image;
+                }
+            }
+        }
+
+        if (array_key_exists('image', $variantData) && $variantData['image']) {
+            $images[] = $variantData['image'];
+        }
+
+        return $images;
+    }
+
+    /**
+     * @param  list<mixed>  $images
+     */
+    protected function attachVariantImages(ProductVariant $variant, array $images): void
+    {
+        foreach ($images as $image) {
+            $this->attachVariantImage($variant, $image);
         }
     }
 

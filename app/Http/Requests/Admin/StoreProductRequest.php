@@ -64,6 +64,8 @@ class StoreProductRequest extends FormRequest
             'variants.*.attribute_value_ids' => ['nullable', 'array'],
             'variants.*.attribute_value_ids.*' => ['integer', 'exists:attribute_values,id'],
             'variants.*.image' => image_upload_rules(),
+            'variants.*.images' => ['nullable', 'array', 'max:10'],
+            'variants.*.images.*' => image_upload_rules(),
         ];
     }
 

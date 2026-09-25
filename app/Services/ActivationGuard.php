@@ -84,10 +84,18 @@ class ActivationGuard
                     if (! is_array($variantFiles)) {
                         continue;
                     }
-                    $image = $variantFiles['image'] ?? null;
-                    if ($image instanceof \Illuminate\Http\UploadedFile && $image->isValid()) {
+
+                    $single = $variantFiles['image'] ?? null;
+                    if ($single instanceof \Illuminate\Http\UploadedFile && $single->isValid()) {
                         $hasImage = true;
                         break;
+                    }
+
+                    foreach ((array) ($variantFiles['images'] ?? []) as $image) {
+                        if ($image instanceof \Illuminate\Http\UploadedFile && $image->isValid()) {
+                            $hasImage = true;
+                            break 2;
+                        }
                     }
                 }
             }

@@ -243,7 +243,7 @@
                                 <th class="col-pricing" style="min-width: 90px;">Discount %</th>
                                 <th class="col-pricing" style="min-width: 90px;">Stock</th>
                                 <th class="col-pricing" style="min-width: 80px;">Status</th>
-                                <th class="col-image" style="min-width: 180px;">Image</th>
+                                <th class="col-image" style="min-width: 220px;">Images</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -504,20 +504,26 @@
     .variant-image-picker {
         display: flex;
         flex-direction: column;
+        gap: 0.45rem;
+        min-width: 190px;
+    }
+    .variant-image-grid {
+        display: flex;
+        flex-wrap: wrap;
         gap: 0.4rem;
-        min-width: 150px;
+    }
+    .variant-image-grid:empty {
+        display: none;
     }
     .variant-image-preview-wrap {
         position: relative;
-        width: 72px;
-        height: 72px;
+        width: 64px;
+        height: 64px;
         border-radius: 0.5rem;
         border: 1px solid #e2e8f0;
         background: #f8fafc;
         overflow: hidden;
-    }
-    .variant-image-preview-wrap.is-empty {
-        display: none;
+        flex: 0 0 auto;
     }
     .variant-image-preview-wrap img {
         width: 100%;
@@ -525,12 +531,26 @@
         object-fit: cover;
         display: block;
     }
+    .variant-image-preview-wrap.is-primary::after {
+        content: '1st';
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        right: 0;
+        background: rgba(13, 148, 136, 0.88);
+        color: #fff;
+        font-size: 0.6rem;
+        font-weight: 600;
+        text-align: center;
+        line-height: 1.2;
+        padding: 1px 0;
+    }
     .variant-image-clear {
         position: absolute;
         top: 2px;
         right: 2px;
-        width: 22px;
-        height: 22px;
+        width: 20px;
+        height: 20px;
         padding: 0;
         border: 0;
         border-radius: 999px;
@@ -541,12 +561,18 @@
         justify-content: center;
         line-height: 1;
         cursor: pointer;
+        z-index: 1;
     }
     .variant-image-clear:hover {
         background: #dc2626;
     }
     .variant-image-picker .form-control {
         font-size: 0.75rem;
+    }
+    .variant-image-hint {
+        font-size: 0.7rem;
+        color: #64748b;
+        line-height: 1.2;
     }
     .wizard-step.done .wizard-step-num::after {
         content: none;
@@ -997,58 +1023,138 @@ document.addEventListener('DOMContentLoaded', function () {
             '<td class="col-pricing"><span class="wizard-status-badge">Active</span></td>' +
             '<td class="col-image">' +
                 '<div class="variant-image-picker" data-variant-image-picker>' +
-                    '<div class="variant-image-preview-wrap is-empty" data-variant-image-preview-wrap>' +
-                        '<img src="" alt="Variant preview" data-variant-image-preview>' +
-                        '<button type="button" class="variant-image-clear" data-variant-image-clear title="Remove image" aria-label="Remove image">' +
-                            '<i class="bi bi-x-lg"></i>' +
-                        '</button>' +
-                    '</div>' +
-                    '<input type="file" accept="' + (document.body.dataset.imageAccept || 'image/jpeg,image/png,image/webp') + '" class="form-control form-control-sm" name="variants[' + i + '][image]" data-variant-image-input>' +
+                    '<div class="variant-image-grid" data-variant-image-grid></div>' +
+                    '<input type="file" accept="' + (document.body.dataset.imageAccept || 'image/jpeg,image/png,image/webp') + '" class="form-control form-control-sm" name="variants[' + i + '][images][]" multiple data-variant-image-input>' +
+                    '<div class="variant-image-hint">Multiple photos OK · 1st = thumbnail</div>' +
                 '</div>' +
             '</td>' +
             '<td><button type="button" class="btn btn-sm btn-outline-danger btn-remove-variant" title="Remove"><i class="bi bi-trash"></i></button></td>';
 
         variantsBody.appendChild(tr);
+        const picker = tr.querySelector('[data-variant-image-picker]');
+        if (picker) {
+            picker._variantFiles = [];
+        }
         document.getElementById('variantsEmptyHint')?.classList.add('d-none');
         updateRowDiscount(tr);
         refreshPricingStats();
     }
 
-    function clearVariantImagePreview(picker) {
+    function syncVariantImageInput(picker) {
         if (!picker) return;
         const input = picker.querySelector('[data-variant-image-input]');
-        const wrap = picker.querySelector('[data-variant-image-preview-wrap]');
-        const img = picker.querySelector('[data-variant-image-preview]');
-        if (input) {
-            input.value = '';
-        }
-        if (img) {
-            if (img.dataset.objectUrl) {
-                URL.revokeObjectURL(img.dataset.objectUrl);
-                delete img.dataset.objectUrl;
-            }
-            img.removeAttribute('src');
-        }
-        wrap?.classList.add('is-empty');
-    }
+        const files = Array.isArray(picker._variantFiles) ? picker._variantFiles : [];
+        if (!input) return;
 
-    function showVariantImagePreview(input) {
-        const picker = input.closest('[data-variant-image-picker]');
-        if (!picker) return;
-        const wrap = picker.querySelector('[data-variant-image-preview-wrap]');
-        const img = picker.querySelector('[data-variant-image-preview]');
-        const file = input.files && input.files[0];
-        if (!file || !img || !wrap) {
-            clearVariantImagePreview(picker);
+        if (typeof DataTransfer === 'undefined') {
+            if (!files.length) {
+                input.value = '';
+            }
             return;
         }
-        if (img.dataset.objectUrl) {
-            URL.revokeObjectURL(img.dataset.objectUrl);
+
+        const dt = new DataTransfer();
+        files.forEach(function (file) {
+            dt.items.add(file);
+        });
+        input.files = dt.files;
+    }
+
+    function renderVariantImagePreviews(picker) {
+        if (!picker) return;
+        const grid = picker.querySelector('[data-variant-image-grid]');
+        const files = Array.isArray(picker._variantFiles) ? picker._variantFiles : [];
+        if (!grid) return;
+
+        grid.querySelectorAll('img[data-object-url]').forEach(function (img) {
+            if (img.dataset.objectUrl) {
+                URL.revokeObjectURL(img.dataset.objectUrl);
+            }
+        });
+        grid.innerHTML = '';
+
+        files.forEach(function (file, index) {
+            const wrap = document.createElement('div');
+            wrap.className = 'variant-image-preview-wrap' + (index === 0 ? ' is-primary' : '');
+            wrap.setAttribute('data-variant-image-index', String(index));
+
+            const img = document.createElement('img');
+            const url = URL.createObjectURL(file);
+            img.src = url;
+            img.alt = 'Variant image ' + (index + 1);
+            img.dataset.objectUrl = url;
+            img.setAttribute('data-object-url', '');
+
+            const clearBtn = document.createElement('button');
+            clearBtn.type = 'button';
+            clearBtn.className = 'variant-image-clear';
+            clearBtn.setAttribute('data-variant-image-clear', '');
+            clearBtn.setAttribute('data-index', String(index));
+            clearBtn.title = 'Remove image';
+            clearBtn.setAttribute('aria-label', 'Remove image');
+            clearBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
+
+            wrap.appendChild(img);
+            wrap.appendChild(clearBtn);
+            grid.appendChild(wrap);
+        });
+    }
+
+    function clearVariantImagePreview(picker) {
+        if (!picker) return;
+        picker._variantFiles = [];
+        const grid = picker.querySelector('[data-variant-image-grid]');
+        if (grid) {
+            grid.querySelectorAll('img[data-object-url]').forEach(function (img) {
+                if (img.dataset.objectUrl) {
+                    URL.revokeObjectURL(img.dataset.objectUrl);
+                }
+            });
+            grid.innerHTML = '';
         }
-        const url = URL.createObjectURL(file);
-        img.dataset.objectUrl = url;
-        img.src = url;
-        wrap.classList.remove('is-empty');
+        syncVariantImageInput(picker);
+    }
+
+    function addVariantImagesFromInput(input) {
+        const picker = input.closest('[data-variant-image-picker]');
+        if (!picker) return;
+
+        const existing = Array.isArray(picker._variantFiles) ? picker._variantFiles.slice() : [];
+        const incoming = Array.from(input.files || []);
+        const maxFiles = 10;
+        const merged = existing.slice();
+
+        incoming.forEach(function (file) {
+            if (merged.length >= maxFiles) {
+                return;
+            }
+            const duplicate = merged.some(function (f) {
+                return f.name === file.name && f.size === file.size && f.lastModified === file.lastModified;
+            });
+            if (!duplicate) {
+                merged.push(file);
+            }
+        });
+
+        if (merged.length > maxFiles) {
+            toastr.warning('Max 10 images per variant');
+        } else if (existing.length + incoming.length > maxFiles) {
+            toastr.warning('Max 10 images per variant');
+        }
+
+        picker._variantFiles = merged.slice(0, maxFiles);
+        syncVariantImageInput(picker);
+        renderVariantImagePreviews(picker);
+    }
+
+    function removeVariantImageAt(picker, index) {
+        if (!picker) return;
+        const files = Array.isArray(picker._variantFiles) ? picker._variantFiles.slice() : [];
+        if (index < 0 || index >= files.length) return;
+        files.splice(index, 1);
+        picker._variantFiles = files;
+        syncVariantImageInput(picker);
+        renderVariantImagePreviews(picker);
     }
 
     function generateVariants() {
@@ -1091,7 +1197,9 @@ document.addEventListener('DOMContentLoaded', function () {
         const clearBtn = e.target.closest('[data-variant-image-clear]');
         if (clearBtn) {
             e.preventDefault();
-            clearVariantImagePreview(clearBtn.closest('[data-variant-image-picker]'));
+            const picker = clearBtn.closest('[data-variant-image-picker]');
+            const index = parseInt(clearBtn.getAttribute('data-index') || '-1', 10);
+            removeVariantImageAt(picker, index);
             return;
         }
 
@@ -1110,7 +1218,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     variantsBody.addEventListener('change', function (e) {
         if (e.target.matches('[data-variant-image-input]')) {
-            showVariantImagePreview(e.target);
+            addVariantImagesFromInput(e.target);
         }
     });
 
