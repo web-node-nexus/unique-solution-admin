@@ -85,9 +85,17 @@
                 <i class="bi bi-chevron-down nav-chevron"></i>
             </button>
             <ul class="submenu {{ $productsSectionOpen ? 'open' : '' }}" id="menu-products">
+                @can('products.create')
+                    <li>
+                        <a href="{{ route('admin.products.create') }}"
+                           class="nav-link {{ request()->routeIs('admin.products.create') ? 'active' : '' }}">
+                            <span class="nav-label">Add product</span>
+                        </a>
+                    </li>
+                @endcan
                 <li>
                     <a href="{{ route('admin.products.index') }}"
-                       class="nav-link {{ request()->routeIs('admin.products.index') || request()->routeIs('admin.products.create') || request()->routeIs('admin.products.edit') || request()->routeIs('admin.products.show') ? 'active' : '' }}">
+                       class="nav-link {{ request()->routeIs('admin.products.index') || request()->routeIs('admin.products.edit') || request()->routeIs('admin.products.show') ? 'active' : '' }}">
                         <span class="nav-label">All</span>
                     </a>
                 </li>

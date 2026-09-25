@@ -176,7 +176,7 @@
                     <span class="badge text-bg-primary-subtle text-primary-emphasis border border-primary-subtle mb-2">Step 2 / 4</span>
                     <h2 class="h5 mb-1">2. Variants &amp; Multiple Images</h2>
                     <p class="text-muted small mb-0">
-                        Select RAM, storage, color (and other attributes), generate variants, then upload a thumbnail / gallery per variant. The first photo is the customer thumbnail.
+                        By default 5 variants are ready. Select RAM, storage, color (and other attributes) then click Generate to replace them, and upload a photo per variant. The first photo is the customer thumbnail.
                     </p>
                 </div>
                 <span class="badge text-bg-success-subtle text-success-emphasis border border-success-subtle align-self-center" id="activeVariantBadge">0 active variants</span>
@@ -962,8 +962,8 @@ document.addEventListener('DOMContentLoaded', function () {
         variantIndex = 0;
 
         if (!groups.length) {
-            addVariantRow([]);
-            toastr.info('No attribute values selected — added one variant');
+            seedDefaultVariants(5);
+            toastr.info('No attribute values selected — added 5 default variants');
             return;
         }
 
@@ -971,6 +971,18 @@ document.addEventListener('DOMContentLoaded', function () {
             addVariantRow(combo);
         });
         toastr.success('Generated ' + combos.length + ' variant(s)');
+        refreshPricingStats();
+    }
+
+    function seedDefaultVariants(count) {
+        const n = Math.max(1, parseInt(count, 10) || 5);
+        variantsBody.innerHTML = '';
+        variantIndex = 0;
+        for (let i = 0; i < n; i++) {
+            addVariantRow([], {
+                sku: suggestSku([]) + (n > 1 ? '-' + (i + 1) : ''),
+            });
+        }
         refreshPricingStats();
     }
 
@@ -1149,6 +1161,11 @@ document.addEventListener('DOMContentLoaded', function () {
     } else {
         filterBrandsByCategory('');
     }
+
+    // Every new product starts with 5 default variants (unless validation old input already has rows).
+    @if (! old('variants'))
+    seedDefaultVariants(5);
+    @endif
 
     showStep(1);
 });

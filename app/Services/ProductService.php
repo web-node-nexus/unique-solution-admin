@@ -81,7 +81,20 @@ class ProductService
             ]);
 
             $this->syncProductImages($product, $data['images'] ?? [], $data['gallery_order'] ?? []);
-            $this->createVariants($product, $data['variants'] ?? []);
+            $variants = array_values($data['variants'] ?? []);
+            if ($variants === []) {
+                // Every new product gets 5 default variant slots when none were posted.
+                for ($i = 1; $i <= 5; $i++) {
+                    $variants[] = [
+                        'sku' => null,
+                        'price' => $data['base_price'] ?? 0,
+                        'discount_price' => $data['sale_price'] ?? null,
+                        'stock_quantity' => 0,
+                        'status' => true,
+                    ];
+                }
+            }
+            $this->createVariants($product, $variants);
             $this->ensureProductHasPrimaryImage($product);
 
             activity_log('created', 'products', "Created product #{$product->id}: {$product->name}");
