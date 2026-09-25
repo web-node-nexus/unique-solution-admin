@@ -128,15 +128,6 @@
                             ])
                         </div>
 
-                        <div class="col-md-6">
-                            @include('admin.partials.publish-toggle', [
-                                'name' => 'status',
-                                'id' => 'status',
-                                'onValue' => 'active',
-                                'offValue' => 'inactive',
-                                'checked' => old('status', 'inactive') === 'active',
-                            ])
-                        </div>
                         <div class="col-md-6 d-flex align-items-end">
                             <div class="form-check mb-2">
                                 <input type="hidden" name="is_featured" value="0">
@@ -252,7 +243,7 @@
                                 <th class="col-pricing" style="min-width: 90px;">Discount %</th>
                                 <th class="col-pricing" style="min-width: 90px;">Stock</th>
                                 <th class="col-pricing" style="min-width: 80px;">Status</th>
-                                <th class="col-image" style="min-width: 130px;">Image</th>
+                                <th class="col-image" style="min-width: 180px;">Image</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -301,6 +292,18 @@
                             <div class="small text-muted mt-1">MRP range: <span data-review="mrp_range">₹—</span></div>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-body">
+                    @include('admin.partials.publish-toggle', [
+                        'name' => 'status',
+                        'id' => 'status',
+                        'onValue' => 'active',
+                        'offValue' => 'inactive',
+                        'checked' => old('status', 'inactive') === 'active',
+                    ])
                 </div>
             </div>
 
@@ -497,6 +500,53 @@
     .wizard-variants-table.mode-pricing .col-image,
     .wizard-variants-table.mode-pricing td.col-image {
         display: none;
+    }
+    .variant-image-picker {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        min-width: 150px;
+    }
+    .variant-image-preview-wrap {
+        position: relative;
+        width: 72px;
+        height: 72px;
+        border-radius: 0.5rem;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        overflow: hidden;
+    }
+    .variant-image-preview-wrap.is-empty {
+        display: none;
+    }
+    .variant-image-preview-wrap img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+    .variant-image-clear {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        width: 22px;
+        height: 22px;
+        padding: 0;
+        border: 0;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.72);
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        cursor: pointer;
+    }
+    .variant-image-clear:hover {
+        background: #dc2626;
+    }
+    .variant-image-picker .form-control {
+        font-size: 0.75rem;
     }
     .wizard-step.done .wizard-step-num::after {
         content: none;
@@ -945,7 +995,17 @@ document.addEventListener('DOMContentLoaded', function () {
             '<td class="col-pricing"><div class="wizard-discount-display" data-discount-display>—</div></td>' +
             '<td class="col-pricing"><input type="number" min="0" class="form-control form-control-sm v-stock" name="variants[' + i + '][stock_quantity]" value="' + escapeHtml(String(stockVal)) + '"></td>' +
             '<td class="col-pricing"><span class="wizard-status-badge">Active</span></td>' +
-            '<td class="col-image"><input type="file" accept="' + (document.body.dataset.imageAccept || 'image/jpeg,image/png,image/webp') + '" class="form-control form-control-sm" name="variants[' + i + '][image]"></td>' +
+            '<td class="col-image">' +
+                '<div class="variant-image-picker" data-variant-image-picker>' +
+                    '<div class="variant-image-preview-wrap is-empty" data-variant-image-preview-wrap>' +
+                        '<img src="" alt="Variant preview" data-variant-image-preview>' +
+                        '<button type="button" class="variant-image-clear" data-variant-image-clear title="Remove image" aria-label="Remove image">' +
+                            '<i class="bi bi-x-lg"></i>' +
+                        '</button>' +
+                    '</div>' +
+                    '<input type="file" accept="' + (document.body.dataset.imageAccept || 'image/jpeg,image/png,image/webp') + '" class="form-control form-control-sm" name="variants[' + i + '][image]" data-variant-image-input>' +
+                '</div>' +
+            '</td>' +
             '<td><button type="button" class="btn btn-sm btn-outline-danger btn-remove-variant" title="Remove"><i class="bi bi-trash"></i></button></td>';
 
         variantsBody.appendChild(tr);
@@ -954,10 +1014,48 @@ document.addEventListener('DOMContentLoaded', function () {
         refreshPricingStats();
     }
 
+    function clearVariantImagePreview(picker) {
+        if (!picker) return;
+        const input = picker.querySelector('[data-variant-image-input]');
+        const wrap = picker.querySelector('[data-variant-image-preview-wrap]');
+        const img = picker.querySelector('[data-variant-image-preview]');
+        if (input) {
+            input.value = '';
+        }
+        if (img) {
+            if (img.dataset.objectUrl) {
+                URL.revokeObjectURL(img.dataset.objectUrl);
+                delete img.dataset.objectUrl;
+            }
+            img.removeAttribute('src');
+        }
+        wrap?.classList.add('is-empty');
+    }
+
+    function showVariantImagePreview(input) {
+        const picker = input.closest('[data-variant-image-picker]');
+        if (!picker) return;
+        const wrap = picker.querySelector('[data-variant-image-preview-wrap]');
+        const img = picker.querySelector('[data-variant-image-preview]');
+        const file = input.files && input.files[0];
+        if (!file || !img || !wrap) {
+            clearVariantImagePreview(picker);
+            return;
+        }
+        if (img.dataset.objectUrl) {
+            URL.revokeObjectURL(img.dataset.objectUrl);
+        }
+        const url = URL.createObjectURL(file);
+        img.dataset.objectUrl = url;
+        img.src = url;
+        wrap.classList.remove('is-empty');
+    }
+
     function generateVariants() {
         const groups = getSelectedAttributeGroups();
         const combos = cartesian(groups);
 
+        variantsBody.querySelectorAll('[data-variant-image-picker]').forEach(clearVariantImagePreview);
         variantsBody.innerHTML = '';
         variantIndex = 0;
 
@@ -976,6 +1074,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function seedDefaultVariants(count) {
         const n = Math.max(1, parseInt(count, 10) || 5);
+        variantsBody.querySelectorAll('[data-variant-image-picker]').forEach(clearVariantImagePreview);
         variantsBody.innerHTML = '';
         variantIndex = 0;
         for (let i = 0; i < n; i++) {
@@ -989,15 +1088,30 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('btnGenerateVariants').addEventListener('click', generateVariants);
 
     variantsBody.addEventListener('click', function (e) {
+        const clearBtn = e.target.closest('[data-variant-image-clear]');
+        if (clearBtn) {
+            e.preventDefault();
+            clearVariantImagePreview(clearBtn.closest('[data-variant-image-picker]'));
+            return;
+        }
+
         const btn = e.target.closest('.btn-remove-variant');
         if (!btn) {
             return;
         }
-        btn.closest('tr')?.remove();
+        const row = btn.closest('tr');
+        row?.querySelectorAll('[data-variant-image-picker]').forEach(clearVariantImagePreview);
+        row?.remove();
         if (!variantsBody.querySelector('tr[data-variant-row]')) {
             document.getElementById('variantsEmptyHint')?.classList.remove('d-none');
         }
         refreshPricingStats();
+    });
+
+    variantsBody.addEventListener('change', function (e) {
+        if (e.target.matches('[data-variant-image-input]')) {
+            showVariantImagePreview(e.target);
+        }
     });
 
     variantsBody.addEventListener('input', function (e) {
