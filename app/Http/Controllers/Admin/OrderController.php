@@ -171,9 +171,11 @@ class OrderController extends Controller
             ->addColumn('action', function (Order $order) use ($canUpdate) {
                 $view = '<a href="'.route('admin.orders.show', $order).'" class="ord-btn-view" title="View">'
                     .'<i class="bi bi-eye"></i></a>';
+                $bill = '<a href="'.route('admin.orders.show', ['order' => $order, 'generate_bill' => 1]).'" class="ord-btn ord-btn-confirm" title="Generate Bill">'
+                    .'<i class="bi bi-receipt"></i> Bill</a>';
 
                 if (! $canUpdate || $order->order_status !== 'pending') {
-                    return '<div class="ord-actions">'.$view.'</div>';
+                    return '<div class="ord-actions">'.$bill.$view.'</div>';
                 }
 
                 $confirmUrl = route('admin.orders.update-status', $order);
@@ -182,7 +184,7 @@ class OrderController extends Controller
                 $cancel = '<button type="button" class="ord-btn ord-btn-cancel" data-status-url="'.e($confirmUrl).'" data-status="cancelled">'
                     .'<i class="bi bi-slash-circle"></i> Cancel</button>';
 
-                return '<div class="ord-actions">'.$confirm.$cancel.$view.'</div>';
+                return '<div class="ord-actions">'.$confirm.$cancel.$bill.$view.'</div>';
             })
             ->rawColumns(['order_block', 'customer_block', 'address_block', 'product_block', 'payment_block', 'action'])
             ->make(true);
@@ -254,6 +256,64 @@ class OrderController extends Controller
         ]);
 
         return $pdf->download('invoice-'.$order->order_number.'.pdf');
+    }
+
+    /**
+     * Save per-device IMEI / serial numbers, then download the invoice PDF.
+     */
+    public function generateBill(Request $request, Order $order): Response|RedirectResponse
+    {
+        $this->authorize('view', $order);
+
+        $order->load('items');
+
+        $payload = $request->validate([
+            'devices' => ['required', 'array'],
+            'devices.*.item_id' => ['required', 'integer'],
+            'devices.*.unit' => ['required', 'integer', 'min:0'],
+            'devices.*.imei' => ['required', 'string', 'max:64'],
+            'devices.*.serial_number' => ['required', 'string', 'max:64'],
+        ]);
+
+        $byItem = [];
+        foreach ($payload['devices'] as $row) {
+            $itemId = (int) $row['item_id'];
+            $unit = (int) $row['unit'];
+            $byItem[$itemId][$unit] = [
+                'imei' => trim((string) $row['imei']),
+                'serial_number' => trim((string) $row['serial_number']),
+            ];
+        }
+
+        foreach ($order->items as $item) {
+            $qty = max(1, (int) $item->quantity);
+            for ($i = 0; $i < $qty; $i++) {
+                if (empty($byItem[$item->id][$i]['imei']) || empty($byItem[$item->id][$i]['serial_number'])) {
+                    return back()
+                        ->withInput()
+                        ->with('error', 'Enter IMEI and serial number for every device (including qty > 1).');
+                }
+            }
+        }
+
+        DB::transaction(function () use ($order, $byItem) {
+            foreach ($order->items as $item) {
+                $qty = max(1, (int) $item->quantity);
+                $units = [];
+                for ($i = 0; $i < $qty; $i++) {
+                    $units[] = $byItem[$item->id][$i];
+                }
+                $item->update(['device_units' => $units]);
+            }
+        });
+
+        activity_log(
+            'generate_bill',
+            'orders',
+            "Saved device IMEI/serial for order #{$order->id} ({$order->order_number})"
+        );
+
+        return $this->invoice($order->fresh(['user', 'items.variant.product', 'items.variant.attributeValues']));
     }
 
     public function packingSlip(Order $order): View|Response

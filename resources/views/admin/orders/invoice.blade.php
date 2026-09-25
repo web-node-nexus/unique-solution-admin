@@ -64,6 +64,21 @@
                                 {{ is_string($k) ? $k.': ' : '' }}{{ is_array($v) ? implode(', ', $v) : $v }}@if(!$loop->last); @endif
                             @endforeach
                         @endif
+                        @php $deviceSlots = $item->deviceSlots(); @endphp
+                        @if (collect($deviceSlots)->contains(fn ($d) => ($d['imei'] ?? '') !== '' || ($d['serial_number'] ?? '') !== ''))
+                            <div style="margin-top:6px;font-size:11px;line-height:1.45;">
+                                @foreach ($deviceSlots as $di => $device)
+                                    @if (($device['imei'] ?? '') !== '' || ($device['serial_number'] ?? '') !== '')
+                                        <div>
+                                            @if (count($deviceSlots) > 1)<strong>Unit {{ $di + 1 }}:</strong> @endif
+                                            @if (($device['imei'] ?? '') !== '')IMEI: {{ $device['imei'] }}@endif
+                                            @if (($device['imei'] ?? '') !== '' && ($device['serial_number'] ?? '') !== '') · @endif
+                                            @if (($device['serial_number'] ?? '') !== '')S/N: {{ $device['serial_number'] }}@endif
+                                        </div>
+                                    @endif
+                                @endforeach
+                            </div>
+                        @endif
                     </td>
                     <td>{{ $item->quantity }}</td>
                     <td>{{ format_money($item->price) }}</td>

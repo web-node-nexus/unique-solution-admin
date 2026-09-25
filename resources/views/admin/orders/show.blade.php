@@ -9,7 +9,7 @@
             'Orders' => route('admin.orders.index'),
             $order->order_number,
         ],
-        'actions' => '<a href="'.route('admin.orders.invoice', $order).'" class="btn btn-outline-primary me-2"><i class="bi bi-file-earmark-pdf me-1"></i>Invoice PDF</a>'
+        'actions' => '<button type="button" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#generateBillModal"><i class="bi bi-receipt me-1"></i>Generate Bill</button>'
             .'<a href="'.route('admin.orders.packing-slip', $order).'" class="btn btn-outline-secondary" target="_blank"><i class="bi bi-printer me-1"></i>Packing Slip</a>',
     ])
 
@@ -122,6 +122,18 @@
                                     <td>{{ format_money($item->price) }}</td>
                                     <td>{{ format_money($item->subtotal) }}</td>
                                 </tr>
+                                @foreach ($item->deviceSlots() as $di => $device)
+                                    @if (($device['imei'] ?? '') !== '' || ($device['serial_number'] ?? '') !== '')
+                                        <tr class="table-light">
+                                            <td colspan="5" class="small py-1 ps-4 text-muted">
+                                                @if ($item->quantity > 1)<strong>Unit {{ $di + 1 }}:</strong> @endif
+                                                @if (($device['imei'] ?? '') !== '')IMEI {{ $device['imei'] }}@endif
+                                                @if (($device['imei'] ?? '') !== '' && ($device['serial_number'] ?? '') !== '') · @endif
+                                                @if (($device['serial_number'] ?? '') !== '')S/N {{ $device['serial_number'] }}@endif
+                                            </td>
+                                        </tr>
+                                    @endif
+                                @endforeach
                             @endforeach
                         </tbody>
                     </table>
@@ -183,4 +195,100 @@
             </div>
         </div>
     </div>
+
+    {{-- Generate Bill: IMEI + Serial per device unit --}}
+    <div class="modal fade" id="generateBillModal" tabindex="-1" aria-labelledby="generateBillModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <form method="POST" action="{{ route('admin.orders.generate-bill', $order) }}" class="modal-content" id="generateBillForm">
+                @csrf
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title" id="generateBillModalLabel">Generate Bill</h5>
+                        <div class="small text-muted">Enter IMEI &amp; serial for every device, then download invoice PDF.</div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    @php $deviceIndex = 0; @endphp
+                    @forelse ($order->items as $item)
+                        @php
+                            $slots = $item->deviceSlots();
+                            $qty = max(1, (int) $item->quantity);
+                        @endphp
+                        <div class="border rounded-3 p-3 mb-3 bg-light-subtle">
+                            <div class="fw-semibold mb-1">{{ $item->product_name_snapshot }}</div>
+                            <div class="small text-muted mb-3">
+                                Qty {{ $qty }}
+                                @if (is_array($item->variant_details_snapshot) && count($item->variant_details_snapshot))
+                                    ·
+                                    @foreach ($item->variant_details_snapshot as $k => $v)
+                                        {{ is_string($k) ? $k.': ' : '' }}{{ is_array($v) ? implode(', ', $v) : $v }}@if(!$loop->last), @endif
+                                    @endforeach
+                                @endif
+                            </div>
+                            @for ($u = 0; $u < $qty; $u++)
+                                @php $slot = $slots[$u] ?? ['imei' => '', 'serial_number' => '']; @endphp
+                                <div class="row g-2 align-items-end mb-2">
+                                    <div class="col-12">
+                                        <div class="small fw-semibold text-uppercase text-muted">Device {{ $u + 1 }}@if($qty > 1) of {{ $qty }}@endif</div>
+                                    </div>
+                                    <input type="hidden" name="devices[{{ $deviceIndex }}][item_id]" value="{{ $item->id }}">
+                                    <input type="hidden" name="devices[{{ $deviceIndex }}][unit]" value="{{ $u }}">
+                                    <div class="col-md-6">
+                                        <label class="form-label">IMEI number <span class="text-danger">*</span></label>
+                                        <input type="text"
+                                               name="devices[{{ $deviceIndex }}][imei]"
+                                               class="form-control"
+                                               value="{{ old('devices.'.$deviceIndex.'.imei', $slot['imei']) }}"
+                                               required
+                                               maxlength="64"
+                                               placeholder="Enter IMEI"
+                                               autocomplete="off">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Serial number <span class="text-danger">*</span></label>
+                                        <input type="text"
+                                               name="devices[{{ $deviceIndex }}][serial_number]"
+                                               class="form-control"
+                                               value="{{ old('devices.'.$deviceIndex.'.serial_number', $slot['serial_number']) }}"
+                                               required
+                                               maxlength="64"
+                                               placeholder="Enter serial number"
+                                               autocomplete="off">
+                                    </div>
+                                </div>
+                                @php $deviceIndex++; @endphp
+                            @endfor
+                        </div>
+                    @empty
+                        <p class="text-muted mb-0">No products in this order.</p>
+                    @endforelse
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btnGenerateBillSubmit">
+                        <i class="bi bi-file-earmark-pdf me-1"></i>Save &amp; download invoice
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('generateBillForm');
+    form?.addEventListener('submit', function () {
+        window.setButtonLoading?.(document.getElementById('btnGenerateBillSubmit'), true);
+    });
+
+    @if ($errors->any() || session('error') || request()->boolean('generate_bill') || old('devices'))
+    const modalEl = document.getElementById('generateBillModal');
+    if (modalEl && typeof bootstrap !== 'undefined') {
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+    @endif
+});
+</script>
+@endpush

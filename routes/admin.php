@@ -228,6 +228,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->middleware('permission:orders.view')->name('orders.status');
         Route::get('orders/{order}/invoice', [OrderController::class, 'invoice'])
             ->middleware('permission:orders.view')->name('orders.invoice');
+        Route::post('orders/{order}/generate-bill', [OrderController::class, 'generateBill'])
+            ->middleware('permission:orders.view')->name('orders.generate-bill');
         Route::get('orders/{order}/packing-slip', [OrderController::class, 'packingSlip'])
             ->middleware('permission:orders.view')->name('orders.packing-slip');
         Route::patch('orders/{order}/status', [OrderController::class, 'updateStatus'])
