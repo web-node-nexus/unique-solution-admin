@@ -19,10 +19,10 @@
         </div>
         <div class="mb-3">
             <label class="form-label" for="image">Announcement image</label>
-            <input type="file" name="image" id="image" accept="image/jpeg,image/png,image/webp"
+            <input type="file" name="image" id="image" accept="{{ config('uploads.image_accept') }}"
                    class="form-control @error('image') is-invalid @enderror">
             @error('image')<div class="invalid-feedback">{{ $message }}</div>@enderror
-            <div class="form-text">Shown in the app inbox and as the FCM push image.</div>
+            @include('admin.partials.image-upload-hint', ['extra' => 'Shown in the app inbox and as the FCM push image.'])
             @php $imgUrl = $notification?->image ? asset('storage/'.$notification->image) : ''; @endphp
             <img id="notifImagePreview" src="{{ $imgUrl }}" alt=""
                  class="rounded border mt-2 {{ $imgUrl ? '' : 'd-none' }}" style="max-height:160px;object-fit:cover;">

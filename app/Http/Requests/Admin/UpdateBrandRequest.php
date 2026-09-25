@@ -24,7 +24,7 @@ class UpdateBrandRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'category_ids' => ['required', 'array', 'min:1'],
             'category_ids.*' => ['integer', 'exists:categories,id'],
-            'logo' => ['nullable', 'image', 'max:2048'],
+            'logo' => image_upload_rules(),
             'warranty' => ['nullable', 'string', 'max:10000000'],
             'status' => ['sometimes', 'boolean'],
             'policies' => ['nullable', 'array'],
@@ -32,7 +32,7 @@ class UpdateBrandRequest extends FormRequest
             'policies.*.title' => ['nullable', 'string', 'max:120'],
             'policies.*.description' => ['nullable', 'string', 'max:5000'],
             'policies.*.remove' => ['nullable'],
-            'policies.*.icon' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:2048'],
+            'policies.*.icon' => image_upload_rules(),
         ];
     }
 

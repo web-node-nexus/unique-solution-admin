@@ -27,7 +27,7 @@ class StoreCouponRequest extends FormRequest
             'max_uses' => ['nullable', 'integer', 'min:1'],
             'start_date' => ['nullable', 'date'],
             'expiry_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'image' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:5120'],
+            'image' => image_upload_rules(),
             'status' => ['sometimes', 'boolean'],
         ];
     }

@@ -13,6 +13,7 @@
             this.initTooltips();
             this.initHtmlComposers();
             this.setupToastr();
+            this.initImageUploadGuards();
         },
 
         setupAjaxCsrf() {
@@ -374,6 +375,151 @@
                     delete el.dataset.originalHtml;
                 }
             }
+        },
+
+        imageMaxBytes() {
+            const fromBody = Number(document.body?.dataset?.imageMaxBytes || 0);
+            return fromBody > 0 ? fromBody : 5 * 1024 * 1024;
+        },
+
+        imageMaxMb() {
+            const fromBody = Number(document.body?.dataset?.imageMaxMb || 0);
+            return fromBody > 0 ? fromBody : 5;
+        },
+
+        isImageFileInput(input) {
+            if (!(input instanceof HTMLInputElement) || input.type !== 'file') {
+                return false;
+            }
+            const accept = (input.getAttribute('accept') || '').toLowerCase();
+            if (!accept) {
+                return false;
+            }
+            if (accept.includes('image') || accept.includes('jpeg') || accept.includes('png') || accept.includes('webp') || accept.includes('jpg')) {
+                return true;
+            }
+            return false;
+        },
+
+        formHasImageFiles(form) {
+            return Array.from(form.querySelectorAll('input[type="file"]')).some((input) => {
+                if (!this.isImageFileInput(input) || !input.files?.length) {
+                    return false;
+                }
+                return Array.from(input.files).some(
+                    (file) => file.type.startsWith('image/') || /\.(jpe?g|png|webp)$/i.test(file.name)
+                );
+            });
+        },
+
+        rejectOversizedImages(input) {
+            if (!this.isImageFileInput(input) || !input.files?.length) {
+                return true;
+            }
+
+            const maxBytes = this.imageMaxBytes();
+            const maxMb = this.imageMaxMb();
+            const oversized = Array.from(input.files).filter((file) => file.size > maxBytes);
+
+            if (!oversized.length) {
+                return true;
+            }
+
+            input.value = '';
+            const names = oversized.map((f) => f.name).join(', ');
+            const message =
+                'Image too large. Maximum allowed is ' +
+                maxMb +
+                ' MB per image. (' +
+                names +
+                ')';
+
+            if (typeof toastr !== 'undefined') {
+                toastr.error(message);
+            } else {
+                window.alert(message);
+            }
+
+            return false;
+        },
+
+        showUploadOverlay(message) {
+            let overlay = document.getElementById('adminUploadOverlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'adminUploadOverlay';
+                overlay.className = 'admin-upload-overlay';
+                overlay.innerHTML =
+                    '<div class="admin-upload-overlay-card" role="status" aria-live="polite">' +
+                    '<div class="admin-upload-spinner" aria-hidden="true"></div>' +
+                    '<div class="admin-upload-title">Uploading image</div>' +
+                    '<div class="admin-upload-sub" data-upload-message></div>' +
+                    '</div>';
+                document.body.appendChild(overlay);
+            }
+            const sub = overlay.querySelector('[data-upload-message]');
+            if (sub) {
+                sub.textContent = message || 'Please wait while your image is uploading…';
+            }
+            overlay.classList.add('is-visible');
+            document.body.classList.add('admin-upload-busy');
+        },
+
+        hideUploadOverlay() {
+            const overlay = document.getElementById('adminUploadOverlay');
+            if (overlay) {
+                overlay.classList.remove('is-visible');
+            }
+            document.body.classList.remove('admin-upload-busy');
+        },
+
+        initImageUploadGuards() {
+            document.addEventListener(
+                'change',
+                (event) => {
+                    const input = event.target;
+                    if (input instanceof HTMLInputElement) {
+                        this.rejectOversizedImages(input);
+                    }
+                },
+                true
+            );
+
+            document.addEventListener(
+                'submit',
+                (event) => {
+                    const form = event.target;
+                    if (!(form instanceof HTMLFormElement)) {
+                        return;
+                    }
+
+                    const imageInputs = Array.from(form.querySelectorAll('input[type="file"]')).filter((input) =>
+                        this.isImageFileInput(input)
+                    );
+
+                    for (const input of imageInputs) {
+                        if (!this.rejectOversizedImages(input)) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            return;
+                        }
+                    }
+
+                    if (!this.formHasImageFiles(form)) {
+                        return;
+                    }
+
+                    this.showUploadOverlay('Uploading image… Please wait.');
+
+                    const submitter =
+                        event.submitter ||
+                        form.querySelector('button[type="submit"], input[type="submit"]');
+                    if (submitter) {
+                        this.setButtonLoading(submitter, true);
+                    }
+                },
+                true
+            );
         },
     };
 

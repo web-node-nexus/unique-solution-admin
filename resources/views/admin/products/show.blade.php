@@ -81,15 +81,6 @@
                         <dt class="col-sm-3">Featured</dt>
                         <dd class="col-sm-9">{{ $product->is_featured ? 'Yes' : 'No' }}</dd>
 
-                        <dt class="col-sm-3">Warranty</dt>
-                        <dd class="col-sm-9">
-                            @if ($product->warranty_info)
-                                <div class="product-description prose-specs">{!! html_fragment($product->warranty_info) !!}</div>
-                            @else
-                                —
-                            @endif
-                        </dd>
-
                         <dt class="col-sm-3">Created by</dt>
                         <dd class="col-sm-9">{{ $product->creator?->name ?? '—' }}</dd>
 

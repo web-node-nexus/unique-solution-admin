@@ -7,7 +7,6 @@ import {
   Package,
   Search,
   Share2,
-  ShieldCheck,
   Star,
 } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -333,8 +332,6 @@ export default function ProductDetailScreen() {
   const price = sellingPrice(mrp, sale);
   const off = discountPercent(mrp, sale);
   const liked = wish.has(data.id);
-  const brandWarranty = data.brand?.warranty?.trim() || null;
-  const productWarranty = data.warranty_info?.trim() || null;
   const ratingAvg = data.rating_average ?? 0;
   const ratingCount = data.rating_count ?? 0;
   const specs = data.specifications ?? [];
@@ -548,40 +545,6 @@ export default function ProductDetailScreen() {
                     <AppText style={styles.specValue}>{spec.value}</AppText>
                   </View>
                 ))}
-              </View>
-            </View>
-          ) : null}
-
-          {productWarranty ? (
-            <View style={styles.warranty}>
-              <ShieldCheck size={18} color={ACCENT} strokeWidth={2} />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <AppText variant="label">Warranty</AppText>
-                {/<[a-z][\s\S]*>/i.test(productWarranty) ? (
-                  <HtmlContent html={productWarranty} framed={false} />
-                ) : (
-                  <AppText variant="body" style={{ marginTop: 4, color: colors.inkMuted }}>
-                    {productWarranty}
-                  </AppText>
-                )}
-              </View>
-            </View>
-          ) : null}
-
-          {brandWarranty ? (
-            <View style={styles.warranty}>
-              <ShieldCheck size={18} color={BUY_GREEN} strokeWidth={2} />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <AppText variant="label">
-                  {data.brand?.name ? `${data.brand.name} warranty` : 'Brand warranty'}
-                </AppText>
-                {/<[a-z][\s\S]*>/i.test(brandWarranty) ? (
-                  <HtmlContent html={brandWarranty} framed={false} />
-                ) : (
-                  <AppText variant="body" style={{ marginTop: 4, color: colors.inkMuted }}>
-                    {brandWarranty}
-                  </AppText>
-                )}
               </View>
             </View>
           ) : null}
@@ -835,16 +798,6 @@ const styles = StyleSheet.create({
     fontFamily: typography.bodySemi,
     color: colors.ink,
     fontSize: 13,
-  },
-  warranty: {
-    marginTop: spacing.lg,
-    flexDirection: 'row',
-    gap: 12,
-    backgroundColor: colors.paper,
-    borderRadius: radii.lg,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
   reviewCard: {
     backgroundColor: colors.paper,

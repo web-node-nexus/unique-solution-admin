@@ -30,12 +30,12 @@
 
                     <div class="col-md-6">
                         <label for="image" class="form-label">Category Image Upload</label>
-                        <input type="file" name="image" id="image" accept="image/*"
+                        <input type="file" name="image" id="image" accept="{{ config('uploads.image_accept') }}"
                                class="form-control @error('image') is-invalid @enderror">
                         @error('image')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
-                        <div class="form-text">Category thumbnail for the app grid.</div>
+                        @include('admin.partials.image-upload-hint', ['extra' => 'Category thumbnail for the app grid.'])
                         <div class="mt-2">
                             <img id="imagePreview" src="" alt="Preview"
                                  class="rounded border d-none"
@@ -93,10 +93,10 @@
                                 </div>
                                 <div class="col-md-8">
                                     <label for="sale_banner" class="form-label">Sale banner image</label>
-                                    <input type="file" name="sale_banner" id="sale_banner" accept="image/jpeg,image/png,image/webp"
+                                    <input type="file" name="sale_banner" id="sale_banner" accept="{{ config('uploads.image_accept') }}"
                                            class="form-control @error('sale_banner') is-invalid @enderror">
                                     @error('sale_banner') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                    <div class="form-text">Recommended wide banner (e.g. 1200×400). Max 5MB.</div>
+                                    @include('admin.partials.image-upload-hint', ['extra' => 'Recommended wide banner (e.g. 1200×400).'])
                                     <div class="mt-2">
                                         <img id="saleBannerPreview" src="" alt="Sale banner preview"
                                              class="rounded border d-none w-100"

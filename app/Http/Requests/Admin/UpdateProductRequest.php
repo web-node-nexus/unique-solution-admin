@@ -59,7 +59,7 @@ class UpdateProductRequest extends FormRequest
             'meta_title' => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:500'],
             'images' => ['nullable', 'array', 'max:20'],
-            'images.*' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:5120'],
+            'images.*' => image_upload_rules(),
             'remove_image_ids' => ['nullable', 'array'],
             'remove_image_ids.*' => ['integer', 'exists:product_images,id'],
             'primary_image_id' => ['nullable', 'integer', 'exists:product_images,id'],
@@ -74,7 +74,7 @@ class UpdateProductRequest extends FormRequest
             'variants.*.status' => ['sometimes', 'boolean'],
             'variants.*.attribute_value_ids' => ['nullable', 'array'],
             'variants.*.attribute_value_ids.*' => ['integer', 'exists:attribute_values,id'],
-            'variants.*.image' => ['nullable'],
+            'variants.*.image' => image_upload_rules(),
         ];
     }
 

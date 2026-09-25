@@ -135,9 +135,9 @@
                 '      <div class="policy-icon-preview" data-policy-icon-wrap><i class="bi bi-shield-check" data-policy-icon-fallback></i></div>' +
                 '      <div>' +
                 '        <label class="btn btn-sm btn-outline-secondary mb-0"><i class="bi bi-upload me-1"></i>Upload photo' +
-                '          <input type="file" class="d-none" name="' + field + '[' + index + '][icon]" accept="image/png,image/jpeg,image/webp,image/svg+xml" data-policy-file-input>' +
+                '          <input type="file" class="d-none" name="' + field + '[' + index + '][icon]" accept="' + (document.body.dataset.imageAccept || 'image/jpeg,image/png,image/webp') + '" data-policy-file-input>' +
                 '        </label>' +
-                '        <div class="form-text mt-1">PNG / JPG / WebP. Square icon works best.</div>' +
+                '        <div class="form-text mt-1 image-upload-hint">Allowed: JPG, PNG, WebP. Maximum ' + (document.body.dataset.imageMaxMb || '5') + ' MB per image. Square icon works best.</div>' +
                 '      </div>' +
                 '    </div>' +
                 '  </div>' +

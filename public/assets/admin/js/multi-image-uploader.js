@@ -184,9 +184,25 @@
         }
 
         function addFiles(fileList) {
+            const maxBytes = Number(document.body?.dataset?.imageMaxBytes || 5 * 1024 * 1024);
+            const maxMb = Number(document.body?.dataset?.imageMaxMb || 5);
             const incoming = Array.from(fileList || []);
             incoming.forEach(function (file) {
                 if (!file.type || !file.type.startsWith('image/')) return;
+                if (file.size > maxBytes) {
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error(
+                            'Image too large. Maximum allowed is ' +
+                                maxMb +
+                                ' MB per image. (' +
+                                file.name +
+                                ')'
+                        );
+                    } else {
+                        window.alert('Image too large. Maximum allowed is ' + maxMb + ' MB per image.');
+                    }
+                    return;
+                }
                 const dup = files.some(function (f) {
                     return f.name === file.name && f.size === file.size && f.lastModified === file.lastModified;
                 });

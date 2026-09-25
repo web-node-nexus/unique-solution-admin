@@ -134,7 +134,7 @@ export default function CategoriesScreen() {
                   <Image
                     source={{ uri: saleForParent.banner_url }}
                     style={StyleSheet.absoluteFillObject}
-                    contentFit="cover"
+                    contentFit="contain"
                     transition={300}
                   />
                 ) : (
@@ -195,7 +195,7 @@ export default function CategoriesScreen() {
                     <Image
                       source={{ uri: item.image_url }}
                       style={{ width: '100%', height: '100%' }}
-                      contentFit="cover"
+                      contentFit="contain"
                       transition={280}
                       recyclingKey={`cat-${item.id}`}
                     />
@@ -252,6 +252,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     justifyContent: 'flex-end',
     gap: 4,
+    backgroundColor: colors.canvasDeep,
     ...elevation.soft,
   },
   saleScrim: {

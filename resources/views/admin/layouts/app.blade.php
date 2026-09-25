@@ -24,7 +24,10 @@
 
     @stack('styles')
 </head>
-<body class="admin-body">
+<body class="admin-body"
+      data-image-max-mb="{{ image_max_mb() }}"
+      data-image-max-bytes="{{ image_max_kb() * 1024 }}"
+      data-image-accept="{{ config('uploads.image_accept') }}">
     @include('admin.partials.sidebar')
 
     <div class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></div>

@@ -49,7 +49,7 @@ export default function NotificationsScreen() {
               }
             >
               {item.image_url ? (
-                <Image source={{ uri: item.image_url }} style={styles.thumb} contentFit="cover" transition={250} />
+                <Image source={{ uri: item.image_url }} style={styles.thumb} contentFit="contain" transition={250} />
               ) : (
                 <View style={styles.icon}>
                   <Megaphone size={18} color={colors.jade} strokeWidth={2.1} />

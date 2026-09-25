@@ -203,12 +203,12 @@
                                 <div class="col-md-5" data-color-image-wrap>
                                     <label for="swatch_image" class="form-label">Color product image</label>
                                     <input type="file" name="swatch_image" id="swatch_image"
-                                           accept="image/jpeg,image/png,image/webp"
+                                           accept="{{ config('uploads.image_accept') }}"
                                            class="form-control @error('swatch_image') is-invalid @enderror">
                                     @error('swatch_image')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
-                                    <div class="form-text">Photo of this color on a product. Shown when choosing colors later.</div>
+                                    @include('admin.partials.image-upload-hint', ['extra' => 'Photo of this color on a product. Shown when choosing colors later.'])
                                 </div>
                             @endif
 

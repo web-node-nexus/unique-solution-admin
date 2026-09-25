@@ -10,7 +10,7 @@
     $inputId = $inputId ?? 'images';
     $inputName = $inputName ?? 'images[]';
     $existingImages = $existingImages ?? collect();
-    $help = $help ?? 'JPG, PNG, WebP — drag cards to choose which photo shows 1st, 2nd, 3rd…';
+    $help = $help ?? image_upload_hint('Drag cards to choose which photo shows 1st, 2nd, 3rd…');
 @endphp
 
 <div class="multi-image-uploader" data-uploader="{{ $inputId }}">
@@ -23,7 +23,7 @@
                name="{{ $inputName }}"
                id="{{ $inputId }}"
                class="multi-image-input @error('images') is-invalid @enderror @error('images.*') is-invalid @enderror"
-               accept="image/jpeg,image/png,image/webp,image/jpg"
+               accept="{{ config('uploads.image_accept') }}"
                multiple>
         <div class="multi-image-dropzone-inner">
             <i class="bi bi-images"></i>

@@ -30,10 +30,10 @@
 
         <div class="mb-3">
             <label for="image" class="form-label">Banner image @if(!$banner)<span class="text-danger">*</span>@endif</label>
-            <input type="file" name="image" id="image" accept="image/jpeg,image/png,image/webp"
+            <input type="file" name="image" id="image" accept="{{ config('uploads.image_accept') }}"
                    class="form-control @error('image') is-invalid @enderror" {{ $banner ? '' : 'required' }}>
             @error('image') <div class="invalid-feedback">{{ $message }}</div> @enderror
-            <div class="form-text">Recommended <strong>1920×1080</strong> (full HD, 16:9). Displays edge-to-edge in the app.</div>
+            @include('admin.partials.image-upload-hint', ['extra' => 'Recommended 1920×1080 (full HD, 16:9). Displays edge-to-edge in the app.'])
             <div class="mt-2">
                 <img id="imagePreview" src="{{ $banner?->image_url }}" alt=""
                      class="rounded border {{ $banner?->image_url ? '' : 'd-none' }}"

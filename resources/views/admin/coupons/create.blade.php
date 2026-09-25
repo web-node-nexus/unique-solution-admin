@@ -66,9 +66,9 @@
                     </div>
                     <div class="col-md-8">
                         <label class="form-label" for="image">Coupon image / banner</label>
-                        <input type="file" name="image" id="image" accept="image/jpeg,image/png,image/webp" class="form-control @error('image') is-invalid @enderror">
+                        <input type="file" name="image" id="image" accept="{{ config('uploads.image_accept') }}" class="form-control @error('image') is-invalid @enderror">
                         @error('image')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        <div class="form-text">Shown in app coupons / offers section.</div>
+                        @include('admin.partials.image-upload-hint', ['extra' => 'Shown in app coupons / offers section.'])
                         <img id="couponImagePreview" src="" alt="" class="rounded border mt-2 d-none" style="max-height:140px;object-fit:cover;">
                     </div>
                     <div class="col-md-4">

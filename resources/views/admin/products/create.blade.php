@@ -128,20 +128,6 @@
                             ])
                         </div>
 
-                        <div class="col-12">
-                            <label for="warranty_info" class="form-label">Product warranty (optional notes)</label>
-                            <textarea name="warranty_info" id="warranty_info" rows="6"
-                                      class="form-control @error('warranty_info') is-invalid @enderror"
-                                      data-rich-editor="1"
-                                      data-editor-height="220">{{ old('warranty_info') }}</textarea>
-                            @error('warranty_info')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
-                            @enderror
-                            <div class="form-text">
-                                Choosing a brand auto-fills this from the brand warranty. Edits apply to this product only.
-                            </div>
-                        </div>
-
                         <div class="col-md-6">
                             @include('admin.partials.publish-toggle', [
                                 'name' => 'status',
@@ -216,7 +202,7 @@
                     @include('admin.partials.multi-image-uploader', [
                         'inputId' => 'images',
                         'inputName' => 'images[]',
-                        'help' => 'Optional product-level photos. Prefer per-variant images above. Max 5MB each.',
+                        'help' => image_upload_hint('Optional product-level photos. Prefer per-variant images above.'),
                     ])
                 </div>
             </div>
@@ -878,41 +864,6 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('brand_id')?.dispatchEvent(new Event('change', { bubbles: true }));
     });
 
-    function setWarrantyEditorContent(html) {
-        const editor = (typeof tinymce !== 'undefined') ? tinymce.get('warranty_info') : null;
-        if (editor) {
-            editor.setContent(html || '');
-            editor.save();
-            return;
-        }
-        const ta = document.getElementById('warranty_info');
-        if (ta) ta.value = html || '';
-    }
-
-    function fillWarrantyFromBrand(brandId) {
-        if (!brandId) {
-            return;
-        }
-        fetch(@json(url('/admin/brands')) + '/' + brandId + '/warranty', {
-            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-            credentials: 'same-origin',
-        })
-            .then(function (res) { return res.ok ? res.json() : null; })
-            .then(function (json) {
-                if (!json) return;
-                setWarrantyEditorContent(json.warranty || '');
-            })
-            .catch(function () {});
-    }
-
-    document.getElementById('brand_id')?.addEventListener('change', function () {
-        fillWarrantyFromBrand(this.value);
-    });
-
-    if (!@json(old('warranty_info')) && document.getElementById('brand_id')?.value) {
-        fillWarrantyFromBrand(document.getElementById('brand_id').value);
-    }
-
     function getSelectedAttributeGroups() {
         const groups = {};
         document.querySelectorAll('.attr-value-check:checked').forEach(function (el) {
@@ -994,7 +945,7 @@ document.addEventListener('DOMContentLoaded', function () {
             '<td class="col-pricing"><div class="wizard-discount-display" data-discount-display>—</div></td>' +
             '<td class="col-pricing"><input type="number" min="0" class="form-control form-control-sm v-stock" name="variants[' + i + '][stock_quantity]" value="' + escapeHtml(String(stockVal)) + '"></td>' +
             '<td class="col-pricing"><span class="wizard-status-badge">Active</span></td>' +
-            '<td class="col-image"><input type="file" accept="image/*" class="form-control form-control-sm" name="variants[' + i + '][image]"></td>' +
+            '<td class="col-image"><input type="file" accept="' + (document.body.dataset.imageAccept || 'image/jpeg,image/png,image/webp') + '" class="form-control form-control-sm" name="variants[' + i + '][image]"></td>' +
             '<td><button type="button" class="btn btn-sm btn-outline-danger btn-remove-variant" title="Remove"><i class="bi bi-trash"></i></button></td>';
 
         variantsBody.appendChild(tr);

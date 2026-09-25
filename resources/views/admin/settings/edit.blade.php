@@ -33,8 +33,9 @@
                     </div>
                     <div class="col-md-6">
                         <label class="form-label" for="shop_logo">Logo</label>
-                        <input type="file" name="shop_logo" id="shop_logo" class="form-control @error('shop_logo') is-invalid @enderror" accept="image/*">
+                        <input type="file" name="shop_logo" id="shop_logo" class="form-control @error('shop_logo') is-invalid @enderror" accept="{{ config('uploads.image_accept') }}">
                         @error('shop_logo')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        @include('admin.partials.image-upload-hint')
                         @if (!empty($settings['shop_logo']))
                             <div class="mt-2"><img src="{{ asset('storage/'.$settings['shop_logo']) }}" alt="Logo" height="48"></div>
                         @endif

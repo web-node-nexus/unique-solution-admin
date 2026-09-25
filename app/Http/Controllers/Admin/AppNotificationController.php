@@ -276,7 +276,7 @@ class AppNotificationController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'body' => ['required', 'string', 'max:5000'],
-            'image' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:5120'],
+            'image' => image_upload_rules(),
             'remove_image' => ['sometimes', 'boolean'],
             'link_type' => ['required', Rule::in(['none', 'category', 'brand', 'product', 'url', 'sale', 'coupon'])],
             'link_value' => ['nullable', 'string', 'max:500'],

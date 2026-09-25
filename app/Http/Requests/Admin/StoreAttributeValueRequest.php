@@ -24,7 +24,7 @@ class StoreAttributeValueRequest extends FormRequest
             'color_mode' => ['nullable', Rule::in(['picker', 'image'])],
             'extra_data' => ['nullable', 'array'],
             'extra_data.hex' => ['nullable', 'string', 'max:20'],
-            'swatch_image' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:4096'],
+            'swatch_image' => image_upload_rules(),
         ];
     }
 

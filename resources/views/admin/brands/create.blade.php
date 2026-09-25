@@ -77,27 +77,13 @@
                             <div>
                                 <label class="btn btn-outline-secondary mb-0">
                                     <i class="bi bi-upload me-1"></i>Upload logo
-                                    <input type="file" name="logo" id="logo" accept="image/*" class="d-none @error('logo') is-invalid @enderror">
+                                    <input type="file" name="logo" id="logo" accept="{{ config('uploads.image_accept') }}" class="d-none @error('logo') is-invalid @enderror">
                                 </label>
-                                <div class="form-text mt-2">PNG, JPG or SVG. Transparent PNG looks best.</div>
+                                @include('admin.partials.image-upload-hint', ['extra' => 'Transparent PNG looks best.'])
                                 @error('logo')
                                     <div class="invalid-feedback d-block">{{ $message }}</div>
                                 @enderror
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="col-12">
-                        <label for="warranty" class="form-label">Default brand warranty note <span class="text-muted">(optional)</span></label>
-                        <textarea name="warranty" id="warranty" rows="6"
-                                  class="form-control @error('warranty') is-invalid @enderror"
-                                  data-rich-editor="1"
-                                  data-editor-height="220">{{ old('warranty') }}</textarea>
-                        @error('warranty')
-                            <div class="invalid-feedback d-block">{{ $message }}</div>
-                        @enderror
-                        <div class="form-text">
-                            Short default note. Detailed cards belong in <strong>Policy details</strong> below.
                         </div>
                     </div>
                 </div>

@@ -89,10 +89,10 @@
                                     <input type="file"
                                            class="d-none"
                                            name="{{ $field }}[{{ $index }}][icon]"
-                                           accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                                           accept="{{ config('uploads.image_accept') }}"
                                            data-policy-file-input>
                                 </label>
-                                <div class="form-text mt-1">PNG / JPG / WebP. Square icon works best.</div>
+                                @include('admin.partials.image-upload-hint', ['extra' => 'Square icon works best.'])
                             </div>
                         </div>
                     </div>

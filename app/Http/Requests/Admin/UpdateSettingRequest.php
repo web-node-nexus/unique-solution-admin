@@ -20,7 +20,7 @@ class UpdateSettingRequest extends FormRequest
             'shop_name' => ['required', 'string', 'max:255'],
             'shop_tagline' => ['nullable', 'string', 'max:255'],
             'shop_address' => ['nullable', 'string', 'max:500'],
-            'shop_logo' => ['nullable', 'image', 'max:2048'],
+            'shop_logo' => image_upload_rules(),
             'contact_number' => ['nullable', 'string', 'max:50'],
             'contact_email' => ['nullable', 'email', 'max:255'],
             'tax_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],

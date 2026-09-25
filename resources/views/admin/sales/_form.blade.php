@@ -42,9 +42,10 @@
     </div>
     <div class="col-md-8">
         <label class="form-label" for="image">Sale banner image</label>
-        <input type="file" name="image" id="image" accept="image/jpeg,image/png,image/webp"
+        <input type="file" name="image" id="image" accept="{{ config('uploads.image_accept') }}"
                class="form-control @error('image') is-invalid @enderror">
         @error('image')<div class="invalid-feedback">{{ $message }}</div>@enderror
+        @include('admin.partials.image-upload-hint')
         @php $imgUrl = $sale?->image ? asset('storage/'.$sale->image) : ''; @endphp
         <img id="saleImagePreview" src="{{ $imgUrl }}" class="rounded border mt-2 {{ $imgUrl ? '' : 'd-none' }} w-100" style="max-height:160px;object-fit:cover;" alt="">
         @if ($sale?->image)

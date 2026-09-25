@@ -127,7 +127,7 @@ function BannerCarousel({
               <Image
                 source={{ uri: item.image_url }}
                 style={{ width, height: bannerH }}
-                contentFit="cover"
+                contentFit="contain"
                 transition={200}
                 recyclingKey={`banner-${item.id}`}
                 cachePolicy="memory-disk"
@@ -391,7 +391,7 @@ export function HomeScreen() {
                 >
                   <View style={[styles.catIcon, { backgroundColor: tint.bg, borderColor: tint.border }]}>
                     {c.image_url ? (
-                      <Image source={{ uri: c.image_url }} style={styles.catImg} contentFit="cover" />
+                      <Image source={{ uri: c.image_url }} style={styles.catImg} contentFit="contain" />
                     ) : (
                       <AppText style={[styles.catLetter, { color: tint.ink }]}>{c.name.slice(0, 1)}</AppText>
                     )}
@@ -453,7 +453,7 @@ export function HomeScreen() {
                     <Image
                       source={{ uri: sale.banner_url }}
                       style={StyleSheet.absoluteFillObject}
-                      contentFit="cover"
+                      contentFit="contain"
                     />
                   ) : (
                     <LinearGradient colors={[...gradients.hero]} style={StyleSheet.absoluteFillObject} />
@@ -474,7 +474,7 @@ export function HomeScreen() {
                     <Image
                       source={{ uri: item.image_url }}
                       style={StyleSheet.absoluteFillObject}
-                      contentFit="cover"
+                      contentFit="contain"
                     />
                   ) : (
                     <LinearGradient colors={[...gradients.hero]} style={StyleSheet.absoluteFillObject} />
@@ -765,6 +765,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     justifyContent: 'flex-end',
     padding: spacing.md,
+    backgroundColor: colors.canvasDeep,
   },
   offerScrim: {
     ...StyleSheet.absoluteFillObject,

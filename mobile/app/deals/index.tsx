@@ -87,7 +87,7 @@ export default function DealsScreen() {
                 <Image
                   source={{ uri: sale.banner_url }}
                   style={StyleSheet.absoluteFillObject}
-                  contentFit="cover"
+                  contentFit="contain"
                   transition={280}
                 />
               ) : (
@@ -161,7 +161,7 @@ export default function DealsScreen() {
                 <Image
                   source={{ uri: item.image_url }}
                   style={StyleSheet.absoluteFillObject}
-                  contentFit="cover"
+                  contentFit="contain"
                   transition={280}
                 />
               ) : (

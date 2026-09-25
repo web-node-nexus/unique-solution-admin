@@ -115,3 +115,49 @@ if (! function_exists('html_fragment')) {
     }
 }
 
+if (! function_exists('image_max_mb')) {
+    function image_max_mb(): int
+    {
+        return (int) config('uploads.image_max_mb', 5);
+    }
+}
+
+if (! function_exists('image_max_kb')) {
+    function image_max_kb(): int
+    {
+        return (int) config('uploads.image_max_kb', 5120);
+    }
+}
+
+if (! function_exists('image_upload_rules')) {
+    /**
+     * Shared image validation rules (max size from config/uploads.php).
+     *
+     * @return list<string>
+     */
+    function image_upload_rules(bool $required = false): array
+    {
+        $mimes = implode(',', config('uploads.image_mimes', ['jpeg', 'jpg', 'png', 'webp']));
+
+        return [
+            $required ? 'required' : 'nullable',
+            'image',
+            'mimes:'.$mimes,
+            'max:'.image_max_kb(),
+        ];
+    }
+}
+
+if (! function_exists('image_upload_hint')) {
+    function image_upload_hint(?string $extra = null): string
+    {
+        $base = 'Allowed: JPG, PNG, WebP. Maximum '.image_max_mb().' MB per image.';
+
+        if ($extra !== null && $extra !== '') {
+            return $base.' '.$extra;
+        }
+
+        return $base;
+    }
+}
+

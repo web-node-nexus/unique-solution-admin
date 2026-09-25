@@ -123,20 +123,6 @@
                             </div>
 
                             <div class="col-12">
-                                <label for="warranty_info" class="form-label">Product warranty</label>
-                                <textarea name="warranty_info" id="warranty_info" rows="10"
-                                          class="form-control @error('warranty_info') is-invalid @enderror"
-                                          data-rich-editor="1"
-                                          data-editor-height="360">{{ old('warranty_info', $product->warranty_info) }}</textarea>
-                                @error('warranty_info')
-                                    <div class="invalid-feedback d-block">{{ $message }}</div>
-                                @enderror
-                                <div class="form-text">
-                                    Auto-fills from the selected brand. Edit here to change this product only — the brand warranty stays unchanged.
-                                </div>
-                            </div>
-
-                            <div class="col-12">
                                 @include('admin.partials.product-policy-picker', [
                                     'initialBrandId' => old('brand_id', $product->brand_id),
                                     'selectedIds' => old('brand_policy_ids', $product->brandPolicies->pluck('id')->all()),
@@ -243,7 +229,7 @@
                                                          alt="" class="rounded border mb-1"
                                                          style="width: 40px; height: 40px; object-fit: cover;">
                                                 @endif
-                                                <input type="file" accept="image/*" class="form-control form-control-sm"
+                                                <input type="file" accept="{{ config('uploads.image_accept') }}" class="form-control form-control-sm"
                                                        name="variants[{{ $index }}][image]">
                                             </td>
                                             <td>
@@ -268,7 +254,7 @@
                             'inputId' => 'images',
                             'inputName' => 'images[]',
                             'existingImages' => $product->images,
-                            'help' => 'Drag cards or use arrows to set 1st / 2nd / 3rd display order. New photos can be mixed into the same sequence.',
+                            'help' => image_upload_hint('Drag cards or use arrows to set 1st / 2nd / 3rd display order.'),
                         ])
                     </div>
                 </div>
@@ -309,7 +295,7 @@ document.addEventListener('DOMContentLoaded', function () {
             '<td><input type="number" min="0" class="form-control form-control-sm" name="variants[' + i + '][stock_quantity]" value="0"></td>' +
             '<td><input type="number" min="0" class="form-control form-control-sm" name="variants[' + i + '][low_stock_threshold]" value="5"></td>' +
             '<td><select name="variants[' + i + '][status]" class="form-select form-select-sm"><option value="1" selected>On</option><option value="0">Off</option></select></td>' +
-            '<td><input type="file" accept="image/*" class="form-control form-control-sm" name="variants[' + i + '][image]"></td>' +
+            '<td><input type="file" accept="' + (document.body.dataset.imageAccept || 'image/jpeg,image/png,image/webp') + '" class="form-control form-control-sm" name="variants[' + i + '][image]"></td>' +
             '<td><button type="button" class="btn btn-sm btn-outline-danger btn-remove-edit-variant" title="Remove"><i class="bi bi-trash"></i></button></td>';
         body.appendChild(tr);
         document.getElementById('noVariantsHint')?.remove();
@@ -362,29 +348,6 @@ document.addEventListener('DOMContentLoaded', function () {
     filterBrandsByCategory(document.getElementById('category_id')?.value || '', {
         keepBrandId: @json(old('brand_id', $product->brand_id)),
         forceKeep: true,
-    });
-
-    document.getElementById('brand_id')?.addEventListener('change', function () {
-        const brandId = this.value;
-        if (!brandId) return;
-        fetch(@json(url('/admin/brands')) + '/' + brandId + '/warranty', {
-            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-            credentials: 'same-origin',
-        })
-            .then(function (res) { return res.ok ? res.json() : null; })
-            .then(function (json) {
-                if (!json) return;
-                const html = json.warranty || '';
-                const editor = (typeof tinymce !== 'undefined') ? tinymce.get('warranty_info') : null;
-                if (editor) {
-                    editor.setContent(html);
-                    editor.save();
-                } else {
-                    const ta = document.getElementById('warranty_info');
-                    if (ta) ta.value = html;
-                }
-            })
-            .catch(function () {});
     });
 
     document.getElementById('productEditForm')?.addEventListener('submit', function () {
