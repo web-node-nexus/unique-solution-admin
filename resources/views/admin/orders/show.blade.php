@@ -58,6 +58,7 @@
                                         <option value="{{ $status }}" @selected($order->order_status === $status)>{{ ucfirst($status) }}</option>
                                     @endforeach
                                 </select>
+                                <div class="form-text">Previous statuses are locked. You can only move this order forward.</div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label" for="remarks">Remarks</label>
@@ -204,7 +205,7 @@
                 <div class="modal-header">
                     <div>
                         <h5 class="modal-title" id="generateBillModalLabel">Generate Bill</h5>
-                        <div class="small text-muted">Enter IMEI &amp; serial for every device, then download invoice PDF.</div>
+                        <div class="small text-muted">Optional IMEI &amp; serial for each device, then download invoice PDF.</div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -235,25 +236,23 @@
                                     <input type="hidden" name="devices[{{ $deviceIndex }}][item_id]" value="{{ $item->id }}">
                                     <input type="hidden" name="devices[{{ $deviceIndex }}][unit]" value="{{ $u }}">
                                     <div class="col-md-6">
-                                        <label class="form-label">IMEI number <span class="text-danger">*</span></label>
+                                        <label class="form-label">IMEI number</label>
                                         <input type="text"
                                                name="devices[{{ $deviceIndex }}][imei]"
                                                class="form-control"
                                                value="{{ old('devices.'.$deviceIndex.'.imei', $slot['imei']) }}"
-                                               required
                                                maxlength="64"
-                                               placeholder="Enter IMEI"
+                                               placeholder="Enter IMEI (optional)"
                                                autocomplete="off">
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label">Serial number <span class="text-danger">*</span></label>
+                                        <label class="form-label">Serial number</label>
                                         <input type="text"
                                                name="devices[{{ $deviceIndex }}][serial_number]"
                                                class="form-control"
                                                value="{{ old('devices.'.$deviceIndex.'.serial_number', $slot['serial_number']) }}"
-                                               required
                                                maxlength="64"
-                                               placeholder="Enter serial number"
+                                               placeholder="Enter serial number (optional)"
                                                autocomplete="off">
                                     </div>
                                 </div>

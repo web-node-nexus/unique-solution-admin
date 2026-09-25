@@ -205,7 +205,7 @@ class OrderController extends Controller
 
         return view('admin.orders.show', [
             'order' => $order,
-            'statuses' => OrderService::STATUSES,
+            'statuses' => OrderService::allowedNextStatuses((string) $order->order_status),
         ]);
     }
 
@@ -271,8 +271,8 @@ class OrderController extends Controller
             'devices' => ['required', 'array'],
             'devices.*.item_id' => ['required', 'integer'],
             'devices.*.unit' => ['required', 'integer', 'min:0'],
-            'devices.*.imei' => ['required', 'string', 'max:64'],
-            'devices.*.serial_number' => ['required', 'string', 'max:64'],
+            'devices.*.imei' => ['nullable', 'string', 'max:64'],
+            'devices.*.serial_number' => ['nullable', 'string', 'max:64'],
         ]);
 
         $byItem = [];
@@ -280,20 +280,9 @@ class OrderController extends Controller
             $itemId = (int) $row['item_id'];
             $unit = (int) $row['unit'];
             $byItem[$itemId][$unit] = [
-                'imei' => trim((string) $row['imei']),
-                'serial_number' => trim((string) $row['serial_number']),
+                'imei' => trim((string) ($row['imei'] ?? '')),
+                'serial_number' => trim((string) ($row['serial_number'] ?? '')),
             ];
-        }
-
-        foreach ($order->items as $item) {
-            $qty = max(1, (int) $item->quantity);
-            for ($i = 0; $i < $qty; $i++) {
-                if (empty($byItem[$item->id][$i]['imei']) || empty($byItem[$item->id][$i]['serial_number'])) {
-                    return back()
-                        ->withInput()
-                        ->with('error', 'Enter IMEI and serial number for every device (including qty > 1).');
-                }
-            }
         }
 
         DB::transaction(function () use ($order, $byItem) {
@@ -301,7 +290,10 @@ class OrderController extends Controller
                 $qty = max(1, (int) $item->quantity);
                 $units = [];
                 for ($i = 0; $i < $qty; $i++) {
-                    $units[] = $byItem[$item->id][$i];
+                    $units[] = $byItem[$item->id][$i] ?? [
+                        'imei' => '',
+                        'serial_number' => '',
+                    ];
                 }
                 $item->update(['device_units' => $units]);
             }

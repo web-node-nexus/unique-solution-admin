@@ -18,9 +18,24 @@ class OrderStatusRequest extends FormRequest
      */
     public function rules(): array
     {
+        $order = $this->route('order');
+        $current = $order instanceof \App\Models\Order
+            ? (string) $order->order_status
+            : 'pending';
+
         return [
-            'order_status' => ['required', 'string', Rule::in(OrderService::STATUSES)],
+            'order_status' => ['required', 'string', Rule::in(OrderService::allowedNextStatuses($current))],
             'remarks' => ['nullable', 'string', 'max:1000'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'order_status.in' => 'You cannot move this order back to a previous status.',
         ];
     }
 }

@@ -121,6 +121,77 @@ class OrderService
         };
     }
 
+    /**
+     * Linear progress rank for forward-only status changes.
+     * cancelled / returned are special terminal-ish states.
+     */
+    public static function statusRank(string $status): ?int
+    {
+        return match (strtolower(trim($status))) {
+            'pending' => 0,
+            'confirmed' => 1,
+            'processing' => 2,
+            'shipped' => 3,
+            'delivered' => 4,
+            default => null,
+        };
+    }
+
+    /**
+     * Statuses the admin may choose from the current status (no going backwards).
+     *
+     * @return list<string>
+     */
+    public static function allowedNextStatuses(string $current): array
+    {
+        $current = strtolower(trim($current));
+        if (! in_array($current, self::STATUSES, true)) {
+            return self::STATUSES;
+        }
+
+        // Terminal-ish: stay put.
+        if (in_array($current, ['cancelled', 'returned'], true)) {
+            return [$current];
+        }
+
+        $allowed = [$current];
+        $rank = self::statusRank($current);
+
+        foreach (self::STATUSES as $status) {
+            if ($status === $current) {
+                continue;
+            }
+            $nextRank = self::statusRank($status);
+            if ($rank !== null && $nextRank !== null && $nextRank > $rank) {
+                $allowed[] = $status;
+            }
+        }
+
+        // Cancel only before delivered.
+        if ($rank !== null && $rank < 4) {
+            $allowed[] = 'cancelled';
+        }
+
+        // Return only after delivered.
+        if ($current === 'delivered') {
+            $allowed[] = 'returned';
+        }
+
+        return array_values(array_unique($allowed));
+    }
+
+    public static function canTransition(string $from, string $to): bool
+    {
+        $from = strtolower(trim($from));
+        $to = strtolower(trim($to));
+
+        if ($from === $to) {
+            return true;
+        }
+
+        return in_array($to, self::allowedNextStatuses($from), true);
+    }
+
     public function updateStatus(
         Order $order,
         string $status,
@@ -139,6 +210,12 @@ class OrderService
 
             if ($oldStatus === $status) {
                 return $order;
+            }
+
+            if (! self::canTransition($oldStatus, $status)) {
+                throw new InvalidArgumentException(
+                    "Cannot move order from [{$oldStatus}] back to [{$status}]. Only forward status changes are allowed."
+                );
             }
 
             $order->update(['order_status' => $status]);
