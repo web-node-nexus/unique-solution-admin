@@ -227,6 +227,7 @@
                                                 @if ($variant->images->first())
                                                     <img src="{{ asset('storage/'.$variant->images->first()->image_path) }}"
                                                          alt="" class="rounded border mb-1"
+                                                         data-existing-variant-image
                                                          style="width: 40px; height: 40px; object-fit: cover;">
                                                 @endif
                                                 <input type="file" accept="{{ config('uploads.image_accept') }}" class="form-control form-control-sm"

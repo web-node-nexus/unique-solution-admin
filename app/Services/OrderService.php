@@ -139,6 +139,7 @@ class OrderService
 
     /**
      * Statuses the admin may choose from the current status (no going backwards).
+     * "processing" is hidden from the picker — flow goes confirmed → shipped.
      *
      * @return list<string>
      */
@@ -146,7 +147,10 @@ class OrderService
     {
         $current = strtolower(trim($current));
         if (! in_array($current, self::STATUSES, true)) {
-            return self::STATUSES;
+            return array_values(array_filter(
+                self::STATUSES,
+                fn (string $status) => $status !== 'processing'
+            ));
         }
 
         // Terminal-ish: stay put.
@@ -158,7 +162,7 @@ class OrderService
         $rank = self::statusRank($current);
 
         foreach (self::STATUSES as $status) {
-            if ($status === $current) {
+            if ($status === $current || $status === 'processing') {
                 continue;
             }
             $nextRank = self::statusRank($status);

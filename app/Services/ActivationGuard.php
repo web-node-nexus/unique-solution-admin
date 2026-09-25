@@ -111,6 +111,16 @@ class ActivationGuard
                     || $remaining
                     || $source->hasFile('images')
                     || $product->variants()->whereHas('images')->exists();
+            } elseif (! $hasImage && $source instanceof Request) {
+                // Fallback: resolve product by route id when route model binding name differs.
+                $productId = $source->route('product') ?? $source->route('id');
+                if (is_numeric($productId)) {
+                    $product = Product::query()->find((int) $productId);
+                    if ($product) {
+                        $hasImage = $product->images()->exists()
+                            || $product->variants()->whereHas('images')->exists();
+                    }
+                }
             }
         }
 

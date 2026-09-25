@@ -42,8 +42,33 @@
         if (fileUrl) {
             return fileUrl;
         }
-        const card = document.querySelector('.miu-card img, .gallery-card img, [data-existing-image] img');
+        const card = document.querySelector(
+            '.multi-image-card:not(.is-removed) img, .miu-card:not(.is-removed) img, .gallery-card img, [data-existing-image] img'
+        );
         return card?.getAttribute('src') || null;
+    }
+
+    function hasExistingProductPhotos() {
+        if (firstGalleryImage() || existingImage('#imagePreview')) {
+            return true;
+        }
+
+        // Existing gallery cards still kept (edit product Images tab).
+        if (document.querySelector('.multi-image-card.existing:not(.is-removed) img')) {
+            return true;
+        }
+
+        // Existing variant thumbnails already saved on the product.
+        if (document.querySelector('[data-existing-variant-image], #variantsBody img[src], #editVariantsBody img[src]')) {
+            return true;
+        }
+
+        // Newly selected gallery / variant files (single or multiple).
+        const fileInputs = document.querySelectorAll(
+            'input[type="file"][name="images[]"], input[type="file"][name="images"], ' +
+            '#variantsBody input[type="file"][name*="[image]"], #editVariantsBody input[type="file"][name*="[image]"]'
+        );
+        return Array.from(fileInputs).some((input) => input.files && input.files.length > 0);
     }
 
     function setAlert(panel, messages) {
@@ -70,11 +95,7 @@
             if (!val('name')) issues.push('Add a product name before activating.');
             if (!val('category_id')) issues.push('Select a category before activating.');
             if (!val('base_price') || Number(val('base_price')) <= 0) issues.push('Enter a valid MRP / price before activating.');
-            const hasGallery = !!(firstGalleryImage() || existingImage('#imagePreview'));
-            const hasVariantPhoto = Array.from(
-                document.querySelectorAll('#variantsBody input[type="file"][name*="[image]"]')
-            ).some((input) => input.files && input.files.length > 0);
-            if (!hasGallery && !hasVariantPhoto) {
+            if (!hasExistingProductPhotos()) {
                 issues.push('Upload at least one product photo (gallery or variant) before activating.');
             }
         }

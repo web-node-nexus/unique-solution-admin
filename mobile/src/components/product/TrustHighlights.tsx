@@ -14,39 +14,35 @@ import type { PolicyItem } from './ProductPolicyGrid';
 
 const ACCENT = '#2C64E3';
 
-const DEFAULTS: { title: string; Icon: LucideIcon; match: RegExp }[] = [
-  { title: 'Warranty', Icon: ShieldCheck, match: /warrant/i },
-  { title: 'Free Delivery', Icon: Truck, match: /deliver|shipping|free/i },
-  { title: 'Easy EMI & Loan', Icon: CreditCard, match: /emi|loan|finance|card/i },
-  { title: 'Replacement', Icon: RefreshCcw, match: /replac|return|exchange/i },
+const ICON_MATCHES: { Icon: LucideIcon; match: RegExp }[] = [
+  { Icon: ShieldCheck, match: /warrant/i },
+  { Icon: Truck, match: /deliver|shipping|free/i },
+  { Icon: CreditCard, match: /emi|loan|finance|card/i },
+  { Icon: RefreshCcw, match: /replac|return|exchange/i },
 ];
 
 function pickIcon(title: string): LucideIcon {
-  const hit = DEFAULTS.find((d) => d.match.test(title));
+  const hit = ICON_MATCHES.find((d) => d.match.test(title));
   return hit?.Icon ?? ShieldCheck;
 }
 
 export function TrustHighlights({ policies }: { policies?: PolicyItem[] | null }) {
-  const items = useMemo(() => {
-    const fromApi = (policies ?? [])
-      .filter((p) => !!p?.title)
-      .slice(0, 4)
-      .map((p) => ({
-        key: String(p.id),
-        title: p.title,
-        iconUrl: p.icon_url ?? null,
-        Icon: pickIcon(p.title),
-      }));
+  const items = useMemo(
+    () =>
+      (policies ?? [])
+        .filter((p) => !!p?.title)
+        .map((p) => ({
+          key: String(p.id),
+          title: p.title,
+          iconUrl: p.icon_url ?? null,
+          Icon: pickIcon(p.title),
+        })),
+    [policies]
+  );
 
-    if (fromApi.length >= 2) return fromApi;
-
-    return DEFAULTS.map((d) => ({
-      key: d.title,
-      title: d.title,
-      iconUrl: null as string | null,
-      Icon: d.Icon,
-    }));
-  }, [policies]);
+  if (!items.length) {
+    return null;
+  }
 
   return (
     <View style={styles.row}>
@@ -76,6 +72,7 @@ const styles = StyleSheet.create({
   row: {
     marginTop: 18,
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'stretch',
     borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -83,7 +80,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   cell: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '22%',
+    minWidth: 72,
+    maxWidth: '50%',
     flexDirection: 'row',
     alignItems: 'center',
   },
