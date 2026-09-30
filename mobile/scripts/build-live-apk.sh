@@ -34,19 +34,19 @@ if [[ -f "$LOCAL_ZIP" ]]; then
 fi
 
 echo "==> API: $EXPO_PUBLIC_API_URL"
-echo "==> Cleaning previous release so new JS features are included…"
-./android/gradlew -p android clean --build-cache >/dev/null || true
-
-echo "==> Building release APK (Gradle --build-cache, force rebundle)…"
-./android/gradlew -p android assembleRelease --build-cache --rerun-tasks
+echo "==> Building release APK (Gradle build-cache ON, incremental)…"
+./android/gradlew -p android assembleRelease --build-cache
 
 OUT="$ROOT/android/app/build/outputs/apk/release/app-release.apk"
-DEST="$HOME/Desktop/UniqueSolution-live-$(date +%Y%m%d-%H%M).apk"
-cp -f "$OUT" "$DEST"
+STAMP="$(date +%Y%m%d-%H%M)"
+DEST_DESKTOP="$HOME/Desktop/UniqueSolution-live-${STAMP}.apk"
+DEST_PROJECT="/home/k-k-digital-solution/Desktop/2026/unique-solution/UniqueSolution-v1.0.2-LIVE-${STAMP}.apk"
+cp -f "$OUT" "$DEST_DESKTOP"
+cp -f "$OUT" "$DEST_PROJECT"
 
 echo
-echo "==> Done (live API + latest features)"
-ls -lh "$OUT" "$DEST"
+echo "==> Done (live API + Gradle cache)"
+ls -lh "$OUT" "$DEST_DESKTOP" "$DEST_PROJECT"
 stat -c 'Built: %y' "$OUT" || true
 echo
-echo "Install: adb install -r \"$DEST\""
+echo "Install: adb install -r \"$DEST_PROJECT\""

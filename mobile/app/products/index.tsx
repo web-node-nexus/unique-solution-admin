@@ -1,8 +1,10 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { Image } from 'expo-image';
+import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams } from 'expo-router';
-import { PackageSearch, SlidersHorizontal } from 'lucide-react-native';
+import { LayoutGrid, PackageSearch, SlidersHorizontal } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, ScrollView, StyleSheet, View } from 'react-native';
 import { catalogApi } from '@/api/catalog';
 import { FilterSheet } from '@/components/catalog/FilterSheet';
 import { ScreenHeader } from '@/components/layout/ScreenHeader';
@@ -72,6 +74,17 @@ export default function ProductsScreen() {
   const products = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data]);
   const title = String(params.title ?? (featuredOn ? 'Featured' : searchQ || 'All products'));
 
+  const routeCategoryId = params.category_id ? Number(params.category_id) : null;
+  const { data: facets } = useQuery({
+    queryKey: ['product-filters', routeCategoryId],
+    queryFn: async () => (await catalogApi.filters(routeCategoryId)).data,
+    enabled: routeCategoryId != null,
+  });
+  const categoryBrands = facets?.brands ?? [];
+  const selectedBrandId =
+    filters.applied.brand_ids.length === 1 ? filters.applied.brand_ids[0] : null;
+  const showBrandStrip = routeCategoryId != null && categoryBrands.length > 0;
+
   return (
     <ScreenShell>
       <ScreenHeader
@@ -94,6 +107,61 @@ export default function ProductsScreen() {
         }
       />
 
+      {showBrandStrip ? (
+        <View style={styles.brandSection}>
+          <AppText style={styles.brandHeading}>Shop by brand</AppText>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.brandRow}
+          >
+            <PressableScale
+              style={[styles.brandItem, filters.applied.brand_ids.length === 0 && styles.brandItemActive]}
+              onPress={() => {
+                void Haptics.selectionAsync();
+                filters.selectBrand(null);
+              }}
+            >
+              <View style={[styles.brandLogo, styles.brandLogoFallback]}>
+                <LayoutGrid size={20} color={colors.jade} strokeWidth={2} />
+              </View>
+              <AppText style={styles.brandName} numberOfLines={1}>
+                All
+              </AppText>
+            </PressableScale>
+            {categoryBrands.map((brand) => {
+              const active = selectedBrandId === brand.id;
+              return (
+                <PressableScale
+                  key={brand.id}
+                  style={[styles.brandItem, active && styles.brandItemActive]}
+                  onPress={() => {
+                    void Haptics.selectionAsync();
+                    filters.selectBrand(active ? null : brand.id);
+                  }}
+                >
+                  {brand.logo_url ? (
+                    <Image
+                      source={{ uri: brand.logo_url }}
+                      style={styles.brandLogo}
+                      contentFit="contain"
+                      transition={200}
+                    />
+                  ) : (
+                    <View style={[styles.brandLogo, styles.brandLogoFallback]}>
+                      <AppText style={styles.brandLetter}>{brand.name.slice(0, 1)}</AppText>
+                    </View>
+                  )}
+                  <AppText style={styles.brandName} numberOfLines={1}>
+                    {brand.name}
+                  </AppText>
+                </PressableScale>
+              );
+            })}
+          </ScrollView>
+        </View>
+      ) : null}
+
       <View style={styles.metaRow}>
         <AppText style={styles.results}>
           {isLoading ? 'Loading…' : `${products.length}${hasNextPage ? '+' : ''} results`}
@@ -108,7 +176,7 @@ export default function ProductsScreen() {
         {filters.applied.sort !== 'newest' ? (
           <Chip label={`Sort: ${filters.applied.sort}`} selected />
         ) : null}
-        {filters.applied.brand_ids.length ? (
+        {filters.applied.brand_ids.length && !(showBrandStrip && selectedBrandId != null) ? (
           <Chip label={`${filters.applied.brand_ids.length} brands`} selected />
         ) : null}
         {filters.applied.attribute_value_ids.length ? (
@@ -186,6 +254,57 @@ const styles = StyleSheet.create({
     color: colors.paper,
     fontFamily: typography.bodySemi,
     fontSize: 12,
+  },
+  brandSection: {
+    marginBottom: 10,
+  },
+  brandHeading: {
+    fontFamily: typography.bodySemi,
+    fontSize: 13,
+    color: colors.inkMuted,
+    paddingHorizontal: spacing.lg,
+    marginBottom: 8,
+  },
+  brandRow: {
+    gap: 10,
+    paddingHorizontal: spacing.lg,
+  },
+  brandItem: {
+    width: 76,
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.paper,
+  },
+  brandItemActive: {
+    borderColor: colors.jade,
+    backgroundColor: colors.jadeSoft,
+  },
+  brandLogo: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+  },
+  brandLogoFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.jadeSoft,
+  },
+  brandLetter: {
+    fontFamily: typography.bodyBold,
+    fontSize: 18,
+    color: colors.jade,
+  },
+  brandName: {
+    fontFamily: typography.bodyMedium,
+    fontSize: 11,
+    color: colors.ink,
+    maxWidth: 68,
   },
   chipRow: {
     flexDirection: 'row',

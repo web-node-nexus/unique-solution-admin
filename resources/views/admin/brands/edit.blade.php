@@ -32,12 +32,6 @@
                         @enderror
                     </div>
 
-                    <div class="col-md-6">
-                        @include('admin.partials.publish-toggle', [
-                            'checked' => filter_var(old('status', $brand->status), FILTER_VALIDATE_BOOLEAN),
-                        ])
-                    </div>
-
                     <div class="col-12">
                         <label class="form-label">Categories <span class="text-danger">*</span></label>
                         <div class="form-text mb-2">
@@ -110,16 +104,28 @@
             </div>
         </div>
 
-        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center brand-form-footer">
-            <a href="{{ route('admin.brands.index') }}" class="btn btn-outline-secondary">
-                Cancel / Reset
-            </a>
-            <div class="d-flex gap-2">
-                @include('admin.partials.preview-button', ['type' => 'brand'])
-                <button type="submit" class="btn btn-primary btn-lg">
-                    <i class="bi bi-check-lg me-1"></i>Save brand & policies
-                </button>
+        <div class="card brand-form-card mb-3" id="brandReview">
+            <div class="card-body">
+                <div class="brand-form-section-title">Review</div>
+                <p class="small text-muted mb-3" id="brandReviewSummary">Check the brand, then set app visibility.</p>
+                @include('admin.partials.publish-toggle', [
+                    'checked' => filter_var(old('status', $brand->status), FILTER_VALIDATE_BOOLEAN),
+                ])
             </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center brand-form-footer">
+            @include('admin.partials.preview-button', ['type' => 'brand'])
+            <button type="button" class="btn btn-outline-primary" id="btnBrandReview">
+                <i class="bi bi-card-checklist me-1"></i>Review
+            </button>
+            <a href="{{ route('admin.brands.index') }}" class="btn btn-outline-secondary">Cancel</a>
+            <button type="button" class="btn btn-outline-secondary" id="btnBrandReset">
+                <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
+            </button>
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="bi bi-check-lg me-1"></i>Save brand & policies
+            </button>
         </div>
     </form>
 @endsection
@@ -140,6 +146,7 @@
     backdrop-filter: blur(8px); border: 1px solid rgba(15,23,42,.06); border-radius: 1rem;
     padding: .85rem 1rem; margin-top: .25rem;
 }
+.brand-form-footer [data-preview-wrap] { align-items: center; }
 </style>
 @endpush
 
@@ -160,6 +167,23 @@ document.addEventListener('DOMContentLoaded', function () {
             placeholder?.classList.add('d-none');
         };
         reader.readAsDataURL(file);
+    });
+
+    document.getElementById('btnBrandReview')?.addEventListener('click', function () {
+        const name = document.getElementById('name')?.value.trim() || 'Untitled brand';
+        const cats = document.querySelectorAll('input[name="category_ids[]"]:checked').length;
+        const policies = document.querySelectorAll('[data-policy-card]:not([data-removed="1"])').length;
+        const summary = document.getElementById('brandReviewSummary');
+        if (summary) {
+            summary.textContent = name + ' · ' + cats + ' categor' + (cats === 1 ? 'y' : 'ies')
+                + (policies ? ' · ' + policies + ' polic' + (policies === 1 ? 'y' : 'ies') : '');
+        }
+        document.getElementById('brandReview')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+
+    document.getElementById('btnBrandReset')?.addEventListener('click', function () {
+        if (!window.confirm('Reset this form? Unsaved changes will be lost.')) return;
+        window.location.reload();
     });
 });
 </script>

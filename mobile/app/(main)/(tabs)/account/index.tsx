@@ -25,7 +25,7 @@ import { AppRefreshControl } from '@/components/ui/AppRefreshControl';
 import { AppButton, AppText, PressableScale } from '@/components/ui/primitives';
 import { useAuthStore } from '@/store/auth';
 // import { useCompareStore } from '@/store/compare';
-import { useRecentStore } from '@/store/recent';
+import { useLiveRecent } from '@/hooks/useLiveRecent';
 import { useShopStore } from '@/store/shop';
 import { colors, elevation, radii, spacing, typography } from '@/theme/tokens';
 import { formatInr } from '@/utils/price';
@@ -77,7 +77,7 @@ function MenuRow({
 export default function AccountScreen() {
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuthStore();
-  const recent = useRecentStore((s) => s.items);
+  const recent = useLiveRecent();
   // const compareCount = useCompareStore((s) => s.items.length);
   const shop = useShopStore((s) => s.shop);
 
@@ -222,7 +222,7 @@ export default function AccountScreen() {
             <MenuRow
               icon={Package}
               label="My orders"
-              hint="Track & reorder"
+              hint="Track your orders"
               onPress={() => router.push('/orders')}
             />
             <MenuRow

@@ -3,9 +3,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   InteractionManager,
   Platform,
+  ScrollView,
   StyleSheet,
   UIManager,
   View,
+  Dimensions,
 } from 'react-native';
 import Animated, {
   Easing,
@@ -128,6 +130,8 @@ export function HtmlContent({
   collapsible = false,
   collapsedInches = DEFAULT_COLLAPSED_INCHES,
   onCollapse,
+  scrollable = false,
+  maxHeight,
 }: {
   html: string;
   framed?: boolean;
@@ -137,11 +141,21 @@ export function HtmlContent({
   collapsedInches?: number;
   /** Called after Show less finishes animating closed. */
   onCollapse?: () => void;
+  /** Fixed-height WebView that scrolls internally (use inside modals). */
+  scrollable?: boolean;
+  /** Height when scrollable=true (default ~55% of screen, capped). */
+  maxHeight?: number;
 }) {
   const collapsedCap = useMemo(
     () => Math.round(collapsedInches * 160),
     [collapsedInches]
   );
+  const scrollBoxHeight = useMemo(() => {
+    if (!scrollable) return 0;
+    if (typeof maxHeight === 'number' && maxHeight > 0) return maxHeight;
+    const h = Dimensions.get('window').height;
+    return Math.min(Math.round(h * 0.55), 480);
+  }, [scrollable, maxHeight]);
   const [fullHeight, setFullHeight] = useState(0);
   const [measured, setMeasured] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -152,8 +166,9 @@ export function HtmlContent({
   const onCollapseRef = useRef(onCollapse);
   onCollapseRef.current = onCollapse;
 
-  const needsToggle = collapsible && measured && fullHeight > collapsedCap + 36;
+  const needsToggle = !scrollable && collapsible && measured && fullHeight > collapsedCap + 36;
   const animH = useSharedValue(collapsedCap);
+  const wasExpandedRef = useRef(false);
   const animStyle = useAnimatedStyle(() => ({
     height: animH.value,
     overflow: 'hidden' as const,
@@ -165,6 +180,7 @@ export function HtmlContent({
 
   useEffect(() => {
     setExpanded(false);
+    wasExpandedRef.current = false;
     setFullHeight(0);
     setMeasured(false);
     setFailed(false);
@@ -175,33 +191,36 @@ export function HtmlContent({
     });
     return () => task.cancel();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when html/cap changes
-  }, [html, collapsedCap]);
+  }, [html, collapsedCap, scrollable]);
 
   useEffect(() => {
-    if (!measured) return;
+    if (scrollable || !measured) return;
 
     const target =
       !collapsible || !needsToggle || expanded
         ? Math.max(fullHeight, 48)
         : collapsedCap;
 
-    const collapsing = !expanded && needsToggle;
+    // Only notify parent when the user taps "Show less" — never on first measure/load.
+    const userCollapsed = wasExpandedRef.current && !expanded && needsToggle;
+    wasExpandedRef.current = expanded;
+
     animH.value = withTiming(
       target,
       {
-        duration: collapsing ? 520 : 360,
-        easing: collapsing
+        duration: userCollapsed ? 520 : 360,
+        easing: userCollapsed
           ? Easing.bezier(0.22, 1, 0.36, 1)
           : Easing.out(Easing.cubic),
       },
       (finished) => {
-        if (finished && collapsing) {
+        if (finished && userCollapsed) {
           runOnJS(notifyCollapsed)();
         }
       }
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expanded, measured, fullHeight, needsToggle, collapsible, collapsedCap]);
+  }, [expanded, measured, fullHeight, needsToggle, collapsible, collapsedCap, scrollable]);
 
   if (!html?.trim()) {
     return null;
@@ -210,12 +229,47 @@ export function HtmlContent({
   if (failed) {
     return (
       <View style={framed ? styles.wrap : styles.bare}>
-        <AppText style={styles.fallbackText}>{plainText || 'Description unavailable.'}</AppText>
+        <ScrollView
+          style={scrollable ? { maxHeight: scrollBoxHeight } : undefined}
+          nestedScrollEnabled
+          showsVerticalScrollIndicator
+        >
+          <AppText style={styles.fallbackText}>{plainText || 'Description unavailable.'}</AppText>
+        </ScrollView>
       </View>
     );
   }
 
   const webHeight = measured ? Math.max(fullHeight, 48) : Math.max(collapsedCap, 160);
+
+  if (scrollable) {
+    return (
+      <View style={[framed ? styles.wrap : styles.bare, { height: scrollBoxHeight }]} collapsable={false}>
+        {ready ? (
+          <WebView
+            originWhitelist={['*']}
+            source={source}
+            scrollEnabled
+            nestedScrollEnabled
+            showsVerticalScrollIndicator
+            showsHorizontalScrollIndicator={false}
+            javaScriptEnabled
+            mixedContentMode="always"
+            automaticallyAdjustContentInsets={false}
+            setSupportMultipleWindows={false}
+            style={[styles.web, { flex: 1, height: scrollBoxHeight }]}
+            onError={() => setFailed(true)}
+            onHttpError={() => setFailed(true)}
+            renderError={() => (
+              <AppText style={styles.fallbackText}>{plainText || 'Description unavailable.'}</AppText>
+            )}
+          />
+        ) : (
+          <View style={{ height: scrollBoxHeight }} />
+        )}
+      </View>
+    );
+  }
 
   return (
     <View style={framed ? styles.wrap : styles.bare} collapsable={false}>

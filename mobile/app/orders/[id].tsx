@@ -14,9 +14,9 @@ import {
 import { accountApi } from '@/api/account';
 import { ScreenHeader } from '@/components/layout/ScreenHeader';
 import { ScreenShell, themeCard } from '@/components/layout/ScreenShell';
+import { OrderTracker } from '@/components/orders/OrderTracker';
 import { AppRefreshControl } from '@/components/ui/AppRefreshControl';
 import { AppButton, AppText, PressableScale } from '@/components/ui/primitives';
-import { useCartStore } from '@/store/cart';
 import { colors, elevation, radii, spacing, typography } from '@/theme/tokens';
 import { formatInr } from '@/utils/price';
 
@@ -35,9 +35,10 @@ export default function OrderDetailScreen() {
     razorpay_signature?: string;
   }>();
   const qc = useQueryClient();
-  const hydrateCart = useCartStore((s) => s.hydrateFromServer);
   const [returnOpen, setReturnOpen] = useState(false);
   const [returnReason, setReturnReason] = useState('');
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['order', id],
@@ -78,25 +79,15 @@ export default function OrderDetailScreen() {
   }, [id, paid, razorpay_order_id, razorpay_payment_id, razorpay_signature, refetch]);
 
   const cancel = useMutation({
-    mutationFn: () => accountApi.cancelOrder(id!, 'Cancelled by customer'),
+    mutationFn: (reason: string) => accountApi.cancelOrder(id!, reason),
     onSuccess: () => {
+      setCancelOpen(false);
+      setCancelReason('');
       qc.invalidateQueries({ queryKey: ['orders'] });
       qc.invalidateQueries({ queryKey: ['order', id] });
       Alert.alert('Cancelled', 'Your order was cancelled.');
     },
     onError: (e: Error) => Alert.alert('Could not cancel', e.message),
-  });
-
-  const reorder = useMutation({
-    mutationFn: () => accountApi.reorder(id!),
-    onSuccess: async () => {
-      await hydrateCart();
-      Alert.alert('Added to bag', 'Items from this order were added to your cart.', [
-        { text: 'View cart', onPress: () => router.push('/(main)/(tabs)/cart') },
-        { text: 'OK' },
-      ]);
-    },
-    onError: (e: Error) => Alert.alert('Reorder failed', e.message),
   });
 
   const requestReturn = useMutation({
@@ -207,17 +198,10 @@ export default function OrderDetailScreen() {
             </View>
           ) : null}
 
-          {(data.timeline ?? []).length ? (
-            <View style={[themeCard.panel, styles.cardPad]}>
-              <AppText style={styles.heading}>Tracking</AppText>
-              {data.timeline!.map((t, i) => (
-                <View key={`${t.status}-${i}`} style={{ marginTop: 10 }}>
-                  <AppText style={styles.itemName}>{t.status}</AppText>
-                  <AppText variant="caption">{t.remarks || t.at}</AppText>
-                </View>
-              ))}
-            </View>
-          ) : null}
+          <View style={[themeCard.panel, styles.cardPad]}>
+            <AppText style={styles.heading}>Tracking</AppText>
+            <OrderTracker status={data.order_status} timeline={data.timeline} />
+          </View>
 
           <View style={{ gap: 10 }}>
             {data.payment?.needs_payment && data.payment.payment_url ? (
@@ -246,23 +230,43 @@ export default function OrderDetailScreen() {
               />
             ) : null}
             {data.can_cancel ? (
-              <AppButton
-                label="Cancel order"
-                variant="ghost"
-                onPress={() =>
-                  Alert.alert('Cancel order?', 'This cannot be undone.', [
-                    { text: 'Keep', style: 'cancel' },
-                    { text: 'Cancel order', style: 'destructive', onPress: () => cancel.mutate() },
-                  ])
-                }
-              />
-            ) : null}
-            {data.can_reorder ? (
-              <AppButton label="Reorder" variant="brass" onPress={() => reorder.mutate()} />
+              <AppButton label="Cancel order" variant="ghost" onPress={() => setCancelOpen(true)} />
             ) : null}
           </View>
         </ScrollView>
       )}
+
+      <Modal visible={cancelOpen} transparent animationType="fade" onRequestClose={() => setCancelOpen(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <AppText style={styles.heading}>Cancel order</AppText>
+            <AppText variant="caption" style={{ marginBottom: 10 }}>
+              Tell us why you want to cancel. This cannot be undone.
+            </AppText>
+            <TextInput
+              value={cancelReason}
+              onChangeText={setCancelReason}
+              placeholder="Cancel reason"
+              placeholderTextColor={colors.inkSoft}
+              multiline
+              style={styles.returnInput}
+            />
+            <View style={{ gap: 8, marginTop: 12 }}>
+              <AppButton
+                label={cancel.isPending ? 'Cancelling…' : 'Cancel order'}
+                onPress={() => {
+                  if (cancelReason.trim().length < 3) {
+                    Alert.alert('Reason needed', 'Please enter a short reason.');
+                    return;
+                  }
+                  cancel.mutate(cancelReason.trim());
+                }}
+              />
+              <AppButton label="Keep order" variant="ghost" onPress={() => setCancelOpen(false)} />
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={returnOpen} transparent animationType="fade" onRequestClose={() => setReturnOpen(false)}>
         <View style={styles.modalBackdrop}>

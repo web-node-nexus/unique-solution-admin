@@ -12,8 +12,10 @@ use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
 use App\Services\ActivationGuard;
+use App\Services\ImageService;
 use App\Services\PolicyService;
 use App\Services\ProductService;
+use App\Support\StagedUpload;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -171,9 +173,31 @@ class ProductController extends Controller
         return view('admin.products.create', $this->productFormCatalog());
     }
 
+    /**
+     * Upload one product/variant photo ahead of saving so bulk uploads stay under
+     * PHP's per-request file and size limits. Returns a signed token for the form.
+     */
+    public function uploadImage(Request $request, ImageService $imageService): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user?->can('products.create') || $user?->can('products.update'), 403);
+
+        $request->validate([
+            'image' => image_upload_rules(true),
+            'folder' => ['nullable', 'in:products,variants'],
+        ]);
+
+        $path = $imageService->upload($request->file('image'), $request->input('folder', 'products'));
+
+        return response()->json([
+            'token' => StagedUpload::issue($path, (int) $user->id),
+            'url' => asset('storage/'.$path),
+        ]);
+    }
+
     public function store(StoreProductRequest $request): RedirectResponse
     {
-        $data = $request->validated();
+        $data = $this->resolveStagedUploads($request->validated(), (int) $request->user()->id);
         unset($data['policies'], $data['brand_policy_ids'], $data['use_brand_policies']);
         if (($data['status'] ?? 'inactive') === 'active') {
             $this->activationGuard->assertCanActivate('product', $request);
@@ -209,14 +233,30 @@ class ProductController extends Controller
 
         $product->load(['images', 'variants.attributeValues', 'variants.images', 'brandPolicies']);
 
+        $wizardVariants = $product->variants->sortBy('id')->values()->map(fn ($variant) => [
+            'id' => $variant->id,
+            'sku' => $variant->sku,
+            'price' => $variant->price,
+            'discount_price' => $variant->discount_price,
+            'stock_quantity' => $variant->stock_quantity,
+            'low_stock_threshold' => $variant->low_stock_threshold,
+            'status' => (bool) $variant->status,
+            'attribute_value_ids' => $variant->attributeValues->pluck('id')->map(fn ($id) => (int) $id)->values(),
+            'images' => $variant->images->map(fn ($image) => [
+                'id' => $image->id,
+                'url' => asset('storage/'.$image->image_path),
+            ])->values(),
+        ]);
+
         return view('admin.products.edit', array_merge($this->productFormCatalog(), [
             'product' => $product,
+            'wizardVariants' => $wizardVariants,
         ]));
     }
 
     public function update(UpdateProductRequest $request, Product $product): RedirectResponse
     {
-        $data = $request->validated();
+        $data = $this->resolveStagedUploads($request->validated(), (int) $request->user()->id);
         unset($data['policies'], $data['brand_policy_ids'], $data['use_brand_policies']);
         if (($data['status'] ?? $product->status) === 'active') {
             $this->activationGuard->assertCanActivate('product', $request);
@@ -450,6 +490,39 @@ class ProductController extends Controller
             'brands' => $brands,
             'categoryBrandMap' => $categoryBrandMap,
         ];
+    }
+
+    /**
+     * Swap signed upload tokens for stored paths. Keys are preserved (invalid tokens
+     * become null) so `new:{index}` order tokens still line up.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function resolveStagedUploads(array $data, int $userId): array
+    {
+        if (array_key_exists('gallery_uploads', $data)) {
+            $data['images'] = array_map(
+                fn ($token) => StagedUpload::resolve($token, $userId),
+                array_values((array) $data['gallery_uploads'])
+            );
+            unset($data['gallery_uploads']);
+        }
+
+        if (isset($data['variants']) && is_array($data['variants'])) {
+            foreach ($data['variants'] as $key => $variant) {
+                if (! is_array($variant) || ! array_key_exists('uploaded_images', $variant)) {
+                    continue;
+                }
+                $data['variants'][$key]['images'] = array_map(
+                    fn ($token) => StagedUpload::resolve($token, $userId),
+                    array_values((array) $variant['uploaded_images'])
+                );
+                unset($data['variants'][$key]['uploaded_images'], $data['variants'][$key]['image']);
+            }
+        }
+
+        return $data;
     }
 
     protected function syncPoliciesFromRequest(Request $request, Product $product): void

@@ -384,7 +384,7 @@ class CustomerOrderController extends Controller
         abort_unless($order->user_id === $request->user()->id, 404);
 
         $data = $request->validate([
-            'reason' => ['nullable', 'string', 'max:500'],
+            'reason' => ['required', 'string', 'min:3', 'max:500'],
         ]);
 
         if (! in_array($order->order_status, ['pending', 'confirmed'], true)) {
@@ -515,9 +515,9 @@ class CustomerOrderController extends Controller
             'created_at' => optional($order->created_at)?->toIso8601String(),
             'items_count' => $order->items_count ?? $order->items?->count(),
             'can_cancel' => in_array($order->order_status, ['pending', 'confirmed'], true),
-            'can_reorder' => true,
+            'can_reorder' => false,
             'can_return' => $order->order_status === 'delivered',
-            'can_invoice' => true,
+            'can_invoice' => $order->order_status === 'delivered',
             'can_review' => $order->order_status === 'delivered',
         ];
 
@@ -630,6 +630,12 @@ class CustomerOrderController extends Controller
     {
         abort_unless($order->user_id === $request->user()->id, 404);
 
+        if ($order->order_status !== 'delivered') {
+            throw ValidationException::withMessages([
+                'order' => ['Invoice is available after the order is delivered.'],
+            ]);
+        }
+
         $url = \Illuminate\Support\Facades\URL::temporarySignedRoute(
             'api.v1.orders.invoice.download',
             now()->addMinutes(30),
@@ -647,6 +653,8 @@ class CustomerOrderController extends Controller
 
     public function downloadInvoice(Request $request, Order $order): \Illuminate\Http\Response
     {
+        abort_unless($order->order_status === 'delivered', 403, 'Invoice is available after the order is delivered.');
+
         $order->load([
             'user',
             'items.variant.product',

@@ -50,7 +50,7 @@ class ProductVariant extends Model
 
     public function images(): HasMany
     {
-        return $this->hasMany(VariantImage::class, 'variant_id');
+        return $this->hasMany(VariantImage::class, 'variant_id')->orderBy('id');
     }
 
     public function inventoryLogs(): HasMany

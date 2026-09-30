@@ -1185,6 +1185,34 @@ body.sidebar-open-mobile .sidebar-backdrop {
 }
 .multi-image-card.is-first {
     border-color: var(--accent, #0d9488);
+    box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.25);
+}
+.multi-image-card.is-first .multi-image-pos {
+    background: var(--accent, #0d9488);
+}
+.multi-image-progress {
+    display: none;
+    height: 4px;
+    background: #e2e8f0;
+}
+.multi-image-progress span {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: var(--accent, #0d9488);
+    transition: width 0.2s ease;
+}
+.multi-image-card.is-uploading .multi-image-progress {
+    display: block;
+}
+.multi-image-card.is-uploading img {
+    opacity: 0.55;
+}
+.multi-image-card.is-upload-failed {
+    border-color: #dc2626;
+}
+.multi-image-card.is-upload-failed img {
+    opacity: 0.4;
 }
 .multi-image-pos {
     position: absolute;

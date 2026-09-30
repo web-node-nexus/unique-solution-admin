@@ -89,7 +89,8 @@ class ProductService
                         'sku' => null,
                         'price' => $data['base_price'] ?? 0,
                         'discount_price' => $data['sale_price'] ?? null,
-                        'stock_quantity' => 0,
+                        'stock_quantity' => 5,
+                        'low_stock_threshold' => 2,
                         'status' => true,
                     ];
                 }
@@ -331,7 +332,7 @@ class ProductService
 
         foreach ($product->images as $existing) {
             if (in_array((int) $existing->id, $removeIds, true)) {
-                $this->imageService->delete($existing->image_path);
+                $this->deleteImageFileIfUnused($existing->image_path, $existing);
                 $existing->delete();
             }
         }
@@ -513,7 +514,7 @@ class ProductService
 
         foreach ($toDelete as $variant) {
             foreach ($variant->images as $image) {
-                $this->imageService->delete($image->image_path);
+                $this->deleteImageFileIfUnused($image->image_path, $image);
                 $image->delete();
             }
 
@@ -535,7 +536,7 @@ class ProductService
             'price' => $variantData['price'] ?? $product->base_price,
             'discount_price' => $variantData['discount_price'] ?? null,
             'stock_quantity' => (int) ($variantData['stock_quantity'] ?? 0),
-            'low_stock_threshold' => (int) ($variantData['low_stock_threshold'] ?? 5),
+            'low_stock_threshold' => (int) ($variantData['low_stock_threshold'] ?? 2),
             'weight' => $variantData['weight'] ?? null,
             'status' => array_key_exists('status', $variantData)
                 ? (bool) $variantData['status']
@@ -551,7 +552,7 @@ class ProductService
             $variant->attributeValues()->sync($attributeValueIds);
         }
 
-        $this->attachVariantImages($variant, $this->extractVariantImages($variantData));
+        $this->syncVariantImageSet($variant, $variantData);
 
         return $variant;
     }
@@ -591,14 +592,100 @@ class ProductService
             $variant->attributeValues()->sync($attributeValueIds);
         }
 
-        $newImages = $this->extractVariantImages($variantData);
+        if (! empty($variantData['images_managed'])) {
+            $this->syncVariantImageSet($variant, $variantData);
+
+            return;
+        }
+
+        $newImages = array_values(array_filter($this->extractVariantImages($variantData)));
         if ($newImages !== []) {
             foreach ($variant->images as $image) {
-                $this->imageService->delete($image->image_path);
+                $this->deleteImageFileIfUnused($image->image_path, $image);
                 $image->delete();
             }
 
             $this->attachVariantImages($variant, $newImages);
+        }
+    }
+
+    /**
+     * Keep the listed existing photos, drop the rest, add new uploads, and store them in
+     * the posted order (`existing:{id}` / `new:{index}`). The first photo is the variant thumbnail.
+     *
+     * @param  array<string, mixed>  $variantData
+     */
+    protected function syncVariantImageSet(ProductVariant $variant, array $variantData): void
+    {
+        $variant->unsetRelation('images');
+        $existing = $variant->images()->get();
+        $keepIds = array_map('intval', (array) ($variantData['keep_image_ids'] ?? []));
+
+        $kept = [];
+        foreach ($existing as $image) {
+            if (in_array((int) $image->id, $keepIds, true)) {
+                $kept[(int) $image->id] = $image->image_path;
+            } else {
+                $this->deleteImageFileIfUnused($image->image_path, $image);
+            }
+        }
+
+        $newPaths = [];
+        foreach (array_values($this->extractVariantImages($variantData)) as $index => $image) {
+            $path = $image === null ? null : $this->resolveImagePath($image, 'variants');
+            if ($path) {
+                $newPaths[$index] = $path;
+            }
+        }
+
+        $ordered = [];
+        foreach ((array) ($variantData['image_order'] ?? []) as $token) {
+            $token = trim((string) $token);
+            if (str_starts_with($token, 'existing:')) {
+                $id = (int) substr($token, 9);
+                if (isset($kept[$id])) {
+                    $ordered[] = $kept[$id];
+                    unset($kept[$id]);
+                }
+            } elseif (str_starts_with($token, 'new:')) {
+                $index = (int) substr($token, 4);
+                if (isset($newPaths[$index])) {
+                    $ordered[] = $newPaths[$index];
+                    unset($newPaths[$index]);
+                }
+            }
+        }
+        $ordered = array_merge($ordered, array_values($kept), array_values($newPaths));
+
+        // Rows are recreated so id order matches display order; files are reused.
+        $variant->images()->delete();
+        foreach ($ordered as $path) {
+            VariantImage::query()->create([
+                'variant_id' => $variant->id,
+                'image_path' => $path,
+            ]);
+        }
+        $variant->unsetRelation('images');
+    }
+
+    /**
+     * Duplicated products share image files, so only delete a file nobody else uses.
+     */
+    protected function deleteImageFileIfUnused(?string $path, ?object $except = null): void
+    {
+        if (! $path) {
+            return;
+        }
+
+        $productRefs = ProductImage::query()->where('image_path', $path)
+            ->when($except instanceof ProductImage, fn ($q) => $q->whereKeyNot($except->id))
+            ->exists();
+        $variantRefs = VariantImage::query()->where('image_path', $path)
+            ->when($except instanceof VariantImage, fn ($q) => $q->whereKeyNot($except->id))
+            ->exists();
+
+        if (! $productRefs && ! $variantRefs) {
+            $this->imageService->delete($path);
         }
     }
 
@@ -614,9 +701,8 @@ class ProductService
 
         if (array_key_exists('images', $variantData)) {
             foreach ((array) $variantData['images'] as $image) {
-                if ($image instanceof UploadedFile || is_array($image) || is_string($image)) {
-                    $images[] = $image;
-                }
+                // Nulls keep their slot so `new:{index}` order tokens still line up.
+                $images[] = ($image instanceof UploadedFile || is_array($image) || is_string($image)) ? $image : null;
             }
         }
 

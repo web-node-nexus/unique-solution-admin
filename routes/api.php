@@ -33,7 +33,8 @@ Route::prefix('v1')->group(function () {
     Route::get('/brands', [AppCatalogController::class, 'brands']);
     Route::get('/products', [AppCatalogController::class, 'products']);
     Route::get('/products/filters', [AppCatalogController::class, 'productFilters']);
-    Route::get('/products/suggest', [AppCatalogController::class, 'searchSuggest']);
+        Route::get('/products/suggest', [AppCatalogController::class, 'searchSuggest']);
+        Route::get('/products/visible', [AppCatalogController::class, 'visibleIds']);
     Route::get('/products/{product}', [AppCatalogController::class, 'productShow']);
     Route::get('/products/{product}/reviews', [ReviewController::class, 'index']);
     Route::post('/delivery/check', [AppCatalogController::class, 'checkPincode']);

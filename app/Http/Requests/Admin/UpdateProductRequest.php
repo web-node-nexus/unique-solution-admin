@@ -8,6 +8,8 @@ use Illuminate\Validation\Rule;
 
 class UpdateProductRequest extends FormRequest
 {
+    use \App\Http\Requests\Admin\Concerns\DerivesProductPricing;
+
     public function authorize(): bool
     {
         return $this->user()?->can('products.update') ?? false;
@@ -58,7 +60,7 @@ class UpdateProductRequest extends FormRequest
             'is_featured' => ['sometimes', 'boolean'],
             'meta_title' => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:500'],
-            'images' => ['nullable', 'array', 'max:20'],
+            'images' => ['nullable', 'array', 'max:40'],
             'images.*' => image_upload_rules(),
             'remove_image_ids' => ['nullable', 'array'],
             'remove_image_ids.*' => ['integer', 'exists:product_images,id'],
@@ -75,8 +77,9 @@ class UpdateProductRequest extends FormRequest
             'variants.*.attribute_value_ids' => ['nullable', 'array'],
             'variants.*.attribute_value_ids.*' => ['integer', 'exists:attribute_values,id'],
             'variants.*.image' => image_upload_rules(),
-            'variants.*.images' => ['nullable', 'array', 'max:10'],
+            'variants.*.images' => ['nullable', 'array', 'max:20'],
             'variants.*.images.*' => image_upload_rules(),
+            ...$this->stagedUploadRules(),
         ];
     }
 
@@ -89,5 +92,11 @@ class UpdateProductRequest extends FormRequest
         if ($this->input('sale_price') === '' || $this->input('sale_price') === null) {
             $this->merge(['sale_price' => null]);
         }
+
+        if (! $this->filled('status')) {
+            $this->merge(['status' => 'inactive']);
+        }
+
+        $this->derivePricingFromVariants();
     }
 }

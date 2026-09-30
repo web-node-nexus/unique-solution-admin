@@ -22,6 +22,8 @@ type FilterState = {
   /** Change category and clear brand/attribute picks that belong to the old scope. */
   setCategory: (categoryId: number | null) => void;
   toggleBrand: (id: number) => void;
+  /** Quick brand pick from the brand strip: applies immediately (null = all brands). */
+  selectBrand: (id: number | null) => void;
   toggleAttributeValue: (id: number) => void;
   apply: () => void;
   resetDraft: () => void;
@@ -56,6 +58,13 @@ export const useFilterStore = create<FilterState>((set, get) => ({
         ...get().draft,
         brand_ids: ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id],
       },
+    });
+  },
+  selectBrand: (id) => {
+    const brand_ids = id == null ? [] : [id];
+    set({
+      draft: { ...get().draft, brand_ids },
+      applied: { ...get().applied, brand_ids },
     });
   },
   toggleAttributeValue: (id) => {

@@ -99,6 +99,7 @@ export default function ProductDetailScreen() {
   const wish = useWishlistStore();
   const user = useAuthStore((s) => s.user);
   const pushRecent = useRecentStore((s) => s.push);
+  const dropRecent = useRecentStore((s) => s.remove);
   const scrollRef = useRef<ScrollView>(null);
   const aboutRef = useRef<View>(null);
   const scrollYRef = useRef(0);
@@ -129,6 +130,10 @@ export default function ProductDetailScreen() {
     });
     void track('product_view', { product_id: data.id, name: data.name }, `/products/${data.id}`);
   }, [data, pushRecent]);
+
+  useEffect(() => {
+    if (isError && id) dropRecent(Number(id));
+  }, [isError, id, dropRecent]);
 
   const selected = useMemo(() => {
     if (!data?.variants?.length) return null;
@@ -422,35 +427,38 @@ export default function ProductDetailScreen() {
             </PressableScale>
           </View>
 
-          <View style={styles.titlePriceRow}>
-            <View style={styles.titleCol}>
-              {data.brand?.name ? (
-                <View style={styles.brandBadge}>
-                  <AppText style={styles.brandBadgeText} numberOfLines={1}>
-                    {data.brand.name}
-                  </AppText>
-                </View>
-              ) : null}
-              <AppText style={[styles.productName, { fontFamily: displayFont }]} numberOfLines={3}>
-                {data.name}
-              </AppText>
-              {ratingCount > 0 ? (
-                <View style={styles.ratingNearTitle}>
-                  <Star size={14} color={BUY_GREEN} fill={BUY_GREEN} strokeWidth={0} />
-                  <AppText style={styles.ratingMeta}>
-                    {ratingAvg.toFixed(1)} ({ratingCount.toLocaleString('en-IN')} Reviews)
-                  </AppText>
-                </View>
-              ) : null}
-            </View>
+          <View style={styles.titleBlock}>
+            {data.brand?.name ? (
+              <View style={styles.brandBadge}>
+                <AppText style={styles.brandBadgeText} numberOfLines={1}>
+                  {data.brand.name}
+                </AppText>
+              </View>
+            ) : null}
+            <AppText style={[styles.productName, { fontFamily: displayFont }]} numberOfLines={3}>
+              {data.name}
+            </AppText>
+            {ratingCount > 0 ? (
+              <View style={styles.ratingNearTitle}>
+                <Star size={14} color={BUY_GREEN} fill={BUY_GREEN} strokeWidth={0} />
+                <AppText style={styles.ratingMeta}>
+                  {ratingAvg.toFixed(1)} ({ratingCount.toLocaleString('en-IN')} Reviews)
+                </AppText>
+              </View>
+            ) : null}
+          </View>
 
-            <View style={styles.priceCol}>
+          <View style={styles.priceCard}>
+            <View style={styles.priceMain}>
+              <AppText style={styles.priceLabel}>Price</AppText>
               <AppText style={[styles.price, { fontFamily: displayFont }]} numberOfLines={1}>
                 {formatInr(price)}
               </AppText>
+            </View>
+            <View style={styles.priceMetaCol}>
               {sale ? (
                 <AppText style={styles.mrp} numberOfLines={1}>
-                  {formatInr(mrp)}
+                  MRP {formatInr(mrp)}
                 </AppText>
               ) : null}
               {off ? (
@@ -700,6 +708,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 12,
   },
+  titleBlock: {
+    marginTop: 14,
+  },
   titleCol: { flex: 1, minWidth: 0 },
   brandBadge: {
     alignSelf: 'flex-start',
@@ -731,25 +742,53 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: BUY_GREEN,
   },
+  priceCard: {
+    marginTop: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    backgroundColor: '#EEF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  priceMain: {
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  priceLabel: {
+    fontFamily: typography.bodyMedium,
+    fontSize: 11,
+    color: ACCENT,
+    marginBottom: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  priceMetaCol: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
   priceCol: {
     alignItems: 'flex-end',
     paddingTop: 2,
     minWidth: 96,
   },
   price: {
-    fontSize: 22,
-    color: colors.ink,
+    fontSize: 28,
+    lineHeight: 32,
+    color: '#0B3A82',
   },
   mrp: {
-    marginTop: 2,
     fontFamily: typography.body,
     fontSize: 13,
-    color: colors.inkSoft,
+    color: '#64748B',
     textDecorationLine: 'line-through',
   },
   off: {
-    marginTop: 6,
-    backgroundColor: '#E8F8EF',
+    backgroundColor: '#DCFCE7',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,

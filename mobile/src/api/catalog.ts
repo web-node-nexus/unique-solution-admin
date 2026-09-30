@@ -126,6 +126,8 @@ export const catalogApi = {
       per_page: filters.per_page ?? 20,
     }),
   product: (id: number | string) => apiGet<ProductDetail>(`/products/${id}`),
+  visibleIds: (ids: number[]) =>
+    apiGet<number[]>('/products/visible', { ids: ids.join(',') }),
   suggest: (q: string) => apiGet<SuggestPayload>('/products/suggest', { q }),
   productReviews: (id: number | string, page = 1) =>
     apiGet<ReviewsPayload>(`/products/${id}/reviews`, { page }),

@@ -76,7 +76,21 @@ class ActivationGuard
         } elseif ($source instanceof Request) {
             $hasImage = $source->hasFile('images')
                 || filled($source->input('primary_image_id'))
-                || filled($source->input('gallery_order'));
+                || filled($source->input('gallery_order'))
+                || \App\Support\StagedUpload::resolveMany($source->input('gallery_uploads', []), $source->user()?->id) !== [];
+
+            if (! $hasImage) {
+                foreach ((array) $source->input('variants', []) as $variantInput) {
+                    if (! is_array($variantInput)) {
+                        continue;
+                    }
+                    if (filled($variantInput['keep_image_ids'] ?? null)
+                        || \App\Support\StagedUpload::resolveMany($variantInput['uploaded_images'] ?? [], $source->user()?->id) !== []) {
+                        $hasImage = true;
+                        break;
+                    }
+                }
+            }
 
             // Wizard uploads photos per variant — count those too.
             if (! $hasImage) {

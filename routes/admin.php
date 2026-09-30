@@ -164,6 +164,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->middleware('permission:products.view')->name('products.datatable');
         Route::get('products/create', [ProductController::class, 'create'])
             ->middleware('permission:products.create')->name('products.create');
+        Route::post('products/upload-image', [ProductController::class, 'uploadImage'])
+            ->middleware('throttle:120,1')->name('products.upload-image');
         Route::get('products/category/{category}/attributes', [ProductController::class, 'getCategoryAttributes'])
             ->middleware('permission:products.view')->name('products.category-attributes');
         Route::get('products-export', [ProductController::class, 'export'])

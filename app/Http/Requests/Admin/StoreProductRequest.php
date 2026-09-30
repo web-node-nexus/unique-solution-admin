@@ -8,6 +8,8 @@ use Illuminate\Validation\Rule;
 
 class StoreProductRequest extends FormRequest
 {
+    use \App\Http\Requests\Admin\Concerns\DerivesProductPricing;
+
     public function authorize(): bool
     {
         return $this->user()?->can('products.create') ?? false;
@@ -51,7 +53,7 @@ class StoreProductRequest extends FormRequest
             'is_featured' => ['sometimes', 'boolean'],
             'meta_title' => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:500'],
-            'images' => ['nullable', 'array', 'max:20'],
+            'images' => ['nullable', 'array', 'max:40'],
             'images.*' => image_upload_rules(),
             'variants' => ['nullable', 'array'],
             'variants.*.sku' => ['nullable', 'string', 'max:100'],
@@ -64,8 +66,9 @@ class StoreProductRequest extends FormRequest
             'variants.*.attribute_value_ids' => ['nullable', 'array'],
             'variants.*.attribute_value_ids.*' => ['integer', 'exists:attribute_values,id'],
             'variants.*.image' => image_upload_rules(),
-            'variants.*.images' => ['nullable', 'array', 'max:10'],
+            'variants.*.images' => ['nullable', 'array', 'max:20'],
             'variants.*.images.*' => image_upload_rules(),
+            ...$this->stagedUploadRules(),
         ];
     }
 
@@ -83,39 +86,6 @@ class StoreProductRequest extends FormRequest
             $this->merge(['status' => 'inactive']);
         }
 
-        // Derive product-level MRP / sale from the cheapest-MRP variant.
-        $variants = $this->input('variants', []);
-        if (is_array($variants) && $variants !== []) {
-            $bestMrp = null;
-            $bestSale = null;
-            foreach ($variants as $variant) {
-                if (! is_array($variant)) {
-                    continue;
-                }
-                if (! isset($variant['price']) || $variant['price'] === '' || ! is_numeric($variant['price'])) {
-                    continue;
-                }
-                $mrp = (float) $variant['price'];
-                if ($bestMrp !== null && $mrp >= $bestMrp) {
-                    continue;
-                }
-                $bestMrp = $mrp;
-                $saleRaw = $variant['discount_price'] ?? null;
-                if ($saleRaw !== null && $saleRaw !== '' && is_numeric($saleRaw)) {
-                    $sale = (float) $saleRaw;
-                    $bestSale = ($sale >= 0 && $sale <= $mrp) ? $sale : null;
-                } else {
-                    $bestSale = null;
-                }
-            }
-            if ($bestMrp !== null) {
-                $this->merge(['base_price' => $bestMrp]);
-            }
-            if ($bestSale !== null) {
-                $this->merge(['sale_price' => $bestSale]);
-            } elseif ($this->input('sale_price') === '' || $this->input('sale_price') === null) {
-                $this->merge(['sale_price' => null]);
-            }
-        }
+        $this->derivePricingFromVariants();
     }
 }

@@ -29,7 +29,7 @@ import { ScreenAtmosphere } from '@/components/layout/ScreenAtmosphere';
 import { ProductCard } from '@/components/product/ProductCard';
 import { AppRefreshControl, usePullRefresh } from '@/components/ui/AppRefreshControl';
 import { AppText, PressableScale } from '@/components/ui/primitives';
-import { useRecentStore } from '@/store/recent';
+import { useLiveRecent } from '@/hooks/useLiveRecent';
 import { useShopStore } from '@/store/shop';
 import { accentPalette, colors, elevation, gradients, radii, spacing, typography } from '@/theme/tokens';
 import type { Banner, ProductCard as ProductCardType } from '@/types/catalog';
@@ -256,7 +256,7 @@ function ArrivalHero({
 export function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const recent = useRecentStore((s) => s.items);
+  const recent = useLiveRecent();
   const loadShop = useShopStore((s) => s.load);
   const shop = useShopStore((s) => s.shop);
 

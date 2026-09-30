@@ -395,6 +395,32 @@ class AppCatalogController extends Controller
         ]);
     }
 
+    /**
+     * Which of these product ids are still active (not deleted or deactive).
+     * The app uses this to drop cached cards after an admin delete.
+     */
+    public function visibleIds(Request $request): JsonResponse
+    {
+        $ids = collect(explode(',', (string) $request->query('ids', '')))
+            ->map(fn ($id) => (int) trim($id))
+            ->filter()
+            ->unique()
+            ->take(40)
+            ->values();
+
+        $alive = $ids->isEmpty()
+            ? []
+            : Product::query()
+                ->where('status', 'active')
+                ->whereIn('id', $ids)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all();
+
+        return response()->json(['success' => true, 'data' => $alive]);
+    }
+
     public function productShow(Product $product): JsonResponse
     {
         if ($product->status !== 'active') {
