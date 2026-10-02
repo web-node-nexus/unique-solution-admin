@@ -20,6 +20,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
 use Maatwebsite\Excel\Concerns\FromArray;
@@ -245,6 +246,7 @@ class ProductController extends Controller
             'images' => $variant->images->map(fn ($image) => [
                 'id' => $image->id,
                 'url' => asset('storage/'.$image->image_path),
+                'path' => $image->image_path,
             ])->values(),
         ]);
 
@@ -515,7 +517,7 @@ class ProductController extends Controller
                     continue;
                 }
                 $data['variants'][$key]['images'] = array_map(
-                    fn ($token) => StagedUpload::resolve($token, $userId),
+                    fn ($token) => $this->resolveVariantUpload($token, $userId),
                     array_values((array) $variant['uploaded_images'])
                 );
                 unset($data['variants'][$key]['uploaded_images'], $data['variants'][$key]['image']);
@@ -523,6 +525,29 @@ class ProductController extends Controller
         }
 
         return $data;
+    }
+
+    /**
+     * A staged upload token, or `path:` plus an existing product/variant file
+     * so one color's photos can be copied onto every storage variant of that color.
+     */
+    protected function resolveVariantUpload(mixed $token, int $userId): ?string
+    {
+        if (is_string($token) && str_starts_with($token, 'path:')) {
+            $path = substr($token, 5);
+            if ($path === '' || str_contains($path, '..') || str_contains($path, '\\')) {
+                return null;
+            }
+
+            $folder = strtok($path, '/');
+            if (! in_array($folder, StagedUpload::FOLDERS, true)) {
+                return null;
+            }
+
+            return Storage::disk('public')->exists($path) ? $path : null;
+        }
+
+        return StagedUpload::resolve(is_string($token) ? $token : null, $userId);
     }
 
     protected function syncPoliciesFromRequest(Request $request, Product $product): void

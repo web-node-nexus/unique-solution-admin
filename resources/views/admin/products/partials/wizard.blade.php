@@ -24,6 +24,7 @@
                 'images' => collect($keep)->map(fn ($id) => $savedImages->get($id))->filter()->map(fn ($img) => [
                     'id' => $img->id,
                     'url' => asset('storage/'.$img->image_path),
+                    'path' => $img->image_path,
                 ])->values(),
             ];
         });
@@ -210,7 +211,7 @@
                     <span class="badge text-bg-primary-subtle text-primary-emphasis border border-primary-subtle mb-2">Step 2 / 4</span>
                     <h2 class="h5 mb-1">2. Variants &amp; Multiple Images</h2>
                     <p class="text-muted small mb-0">
-                        Upload product photos in bulk (1st photo = main thumbnail). Select RAM, storage, color (and other attributes) and click Generate to add variants — you can also change any variant's color/RAM/storage directly in its row.
+                        Upload product photos in bulk (1st photo = main thumbnail). Tick colors and other options, then add a separate photo set for each color. The app shows that color's photos when the customer picks it.
                     </p>
                 </div>
                 <span class="badge text-bg-success-subtle text-success-emphasis border border-success-subtle align-self-center" id="activeVariantBadge">0 active variants</span>
@@ -240,6 +241,17 @@
                     <div class="text-muted" id="attributesPlaceholder">
                         Choose a category in step 1 to load attributes.
                     </div>
+                </div>
+            </div>
+
+            <div class="card mb-3" id="colorGalleryCard" hidden>
+                <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <span><i class="bi bi-palette me-1"></i>Photos for each color</span>
+                    <span class="small text-muted">Same photos for every storage of that color</span>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small">Tick the colors above, then add photos here. The app swaps to these photos when the customer chooses that color.</p>
+                    <div id="colorGalleryBody"></div>
                 </div>
             </div>
 
@@ -547,6 +559,47 @@
         font-weight: 600;
         margin-bottom: 0.65rem;
     }
+    #attributesStepBody.has-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 0.75rem;
+        align-items: start;
+    }
+    #attributesStepBody.has-grid .attr-block { margin-bottom: 0; height: 100%; }
+    .color-photo-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.85rem 1rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.9rem;
+        background: #fff;
+        margin-bottom: 0.75rem;
+    }
+    .color-photo-meta { display: flex; align-items: center; gap: 0.65rem; min-width: 160px; }
+    .color-photo-swatch {
+        width: 16px;
+        height: 16px;
+        border-radius: 999px;
+        border: 1px solid rgba(15, 23, 42, 0.15);
+        flex: none;
+    }
+    .color-photo-name { font-weight: 600; font-size: 0.92rem; color: #0f172a; }
+    .color-photo-count { font-size: 0.75rem; color: #64748b; }
+    .color-photo-picker {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-end;
+        min-width: 0;
+        flex: 1;
+    }
+    .wizard-variants-table.mode-color-photos .col-image,
+    .wizard-variants-table.mode-color-photos td.col-image {
+        display: none;
+    }
     .wizard-variants-table.mode-images .col-pricing,
     .wizard-variants-table.mode-images td.col-pricing {
         display: none;
@@ -693,6 +746,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let currentStep = 1;
     let categoryAttributes = [];
     let variantIndex = 0;
+    let colorGalleries = {};
 
     const form = document.getElementById('productWizardForm');
     const isEdit = form.getAttribute('data-wizard-mode') === 'edit';
@@ -730,12 +784,17 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!card || !table) return;
 
         card.classList.remove('d-none');
-        table.classList.remove('mode-images', 'mode-pricing');
+        table.classList.remove('mode-images', 'mode-pricing', 'mode-color-photos');
 
         if (step === 2) {
             document.getElementById('variantsMountStep2')?.appendChild(card);
             table.classList.add('mode-images');
-            if (title) title.textContent = 'Variant & multiple image list (first image = thumbnail)';
+            syncImageColumn();
+            if (title) {
+                title.textContent = colorAttribute()
+                    ? 'Variant list — photos are set on each color above'
+                    : 'Variant & multiple image list (first image = thumbnail)';
+            }
         } else if (step === 3) {
             document.getElementById('variantsMountStep3')?.appendChild(card);
             table.classList.add('mode-pricing');
@@ -861,6 +920,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (step === 2) {
+            ensureColorVariants();
             if (!variantRows().length) {
                 toastr.error('Generate or add at least one variant');
                 return false;
@@ -876,6 +936,24 @@ document.addEventListener('DOMContentLoaded', function () {
             });
             if (dup) {
                 toastr.error('Two variants have the same color / RAM / storage. Change or remove one.');
+                showStep(2);
+                return false;
+            }
+            let colorPending = false;
+            let colorFailed = false;
+            Object.keys(colorGalleries).forEach(function (id) {
+                (colorGalleries[id].items || []).forEach(function (item) {
+                    if (item.state === 'uploading') colorPending = true;
+                    if (item.state === 'failed') colorFailed = true;
+                });
+            });
+            if (colorPending) {
+                toastr.error('Wait until color photos finish uploading');
+                showStep(2);
+                return false;
+            }
+            if (colorFailed) {
+                toastr.error('Remove the color photo that failed to upload, then try again');
                 showStep(2);
                 return false;
             }
@@ -933,10 +1011,14 @@ document.addEventListener('DOMContentLoaded', function () {
         attributesBody.innerHTML = '';
 
         if (!categoryAttributes.length) {
+            attributesBody.classList.remove('has-grid');
             attributesBody.innerHTML =
                 '<div class="text-muted">This category has no attributes. Use <strong>Add one variant</strong> for each SKU.</div>';
+            renderColorGallery();
             return;
         }
+
+        attributesBody.classList.add('has-grid');
 
         const used = {};
         variantRows().forEach(function (row) {
@@ -949,10 +1031,12 @@ document.addEventListener('DOMContentLoaded', function () {
             block.setAttribute('data-attr-id', attr.id);
 
             const checkAttrs = function (val) {
+                const hex = (val.extra_data && (val.extra_data.hex || val.extra_data.color)) || '';
                 return ' data-attr-id="' + attr.id + '"' +
                     ' data-attr-name="' + escapeHtml(attr.name) + '"' +
                     ' data-value-id="' + val.id + '"' +
                     ' data-value-label="' + escapeHtml(val.value) + '"' +
+                    ' data-hex="' + escapeHtml(hex) + '"' +
                     ' id="av_' + attr.id + '_' + val.id + '" value="' + val.id + '"' +
                     (used[val.id] ? ' checked' : '');
             };
@@ -1008,6 +1092,9 @@ document.addEventListener('DOMContentLoaded', function () {
             input?.addEventListener('change', sync);
             sync();
         });
+
+        seedColorGalleriesFromRows();
+        renderColorGallery();
     }
 
     function loadCategoryAttributes(categoryId) {
@@ -1016,6 +1103,7 @@ document.addEventListener('DOMContentLoaded', function () {
             attributesBody.innerHTML =
                 '<div class="text-muted" id="attributesPlaceholder">Choose a category in step 1 to load attributes.</div>';
             variantRows().forEach(renderRowAttrCell);
+            renderColorGallery();
             return Promise.resolve();
         }
 
@@ -1049,6 +1137,7 @@ document.addEventListener('DOMContentLoaded', function () {
             row._valueIds = [];
             row._extraValueIds = [];
         });
+        colorGalleries = {};
         loadCategoryAttributes(this.value);
         filterBrandsByCategory(this.value);
         document.getElementById('brand_id')?.dispatchEvent(new Event('change', { bubbles: true }));
@@ -1178,8 +1267,10 @@ document.addEventListener('DOMContentLoaded', function () {
         renderRowAttrCell(tr);
 
         const picker = tr.querySelector('[data-variant-image-picker]');
+        picker._ownIds = {};
         picker._items = (opts.images || []).map(function (img) {
-            return { kind: 'existing', id: img.id, url: img.url };
+            if (img.id) picker._ownIds[img.id] = true;
+            return { kind: 'existing', id: img.id, url: img.url, path: img.path || '' };
         });
         renderVariantImages(picker);
 
@@ -1201,6 +1292,10 @@ document.addEventListener('DOMContentLoaded', function () {
             if (item.kind === 'existing') {
                 html += '<input type="hidden" name="variants[' + i + '][keep_image_ids][]" value="' + Number(item.id) + '">';
                 html += '<input type="hidden" name="variants[' + i + '][image_order][]" value="existing:' + Number(item.id) + '">';
+            } else if (item.kind === 'copy' && item.path) {
+                html += '<input type="hidden" name="variants[' + i + '][uploaded_images][]" value="path:' + escapeHtml(item.path) + '">';
+                html += '<input type="hidden" name="variants[' + i + '][image_order][]" value="new:' + newIndex + '">';
+                newIndex += 1;
             } else if (item.token) {
                 html += '<input type="hidden" name="variants[' + i + '][uploaded_images][]" value="' + escapeHtml(item.token) + '">';
                 html += '<input type="hidden" name="variants[' + i + '][image_order][]" value="new:' + newIndex + '">';
@@ -1247,6 +1342,11 @@ document.addEventListener('DOMContentLoaded', function () {
             grid.appendChild(wrap);
         });
         syncVariantImageHidden(picker);
+        const countEl = picker.closest('.color-photo-row')?.querySelector('.color-photo-count');
+        if (countEl) {
+            const n = (picker._items || []).filter(function (item) { return item.state !== 'failed'; }).length;
+            countEl.textContent = n + ' photo' + (n === 1 ? '' : 's');
+        }
     }
 
     function addVariantImagesFromInput(input) {
@@ -1283,6 +1383,169 @@ document.addEventListener('DOMContentLoaded', function () {
         if (skipped) toastr.warning('Max ' + MAX_VARIANT_IMAGES + ' photos per variant — ' + skipped + ' skipped');
         input.value = '';
         renderVariantImages(picker);
+    }
+
+    /* ---------- One photo set per color ---------- */
+
+    function colorAttribute() {
+        return categoryAttributes.find(function (attr) {
+            const name = String(attr.name || '').toLowerCase();
+            return attr.type === 'color-swatch' || name.indexOf('color') !== -1 || name.indexOf('colour') !== -1;
+        }) || null;
+    }
+
+    function syncImageColumn() {
+        const table = document.getElementById('variantsTable');
+        if (!table) return;
+        const hasColor = !!colorAttribute();
+        table.classList.toggle('mode-color-photos', hasColor && table.classList.contains('mode-images'));
+        const title = document.getElementById('variantsCardTitle');
+        if (title && currentStep === 2) {
+            title.textContent = hasColor
+                ? 'Variant list — photos are set on each color above'
+                : 'Variant & multiple image list (first image = thumbnail)';
+        }
+    }
+
+    function rowColorValueId(row) {
+        const attr = colorAttribute();
+        if (!attr) return null;
+        const lookup = valueLookup();
+        const found = rowValueIds(row).find(function (id) {
+            return lookup[id] && Number(lookup[id].attrId) === Number(attr.id);
+        });
+        return found ? Number(found) : null;
+    }
+
+    function seedColorGalleriesFromRows() {
+        const attr = colorAttribute();
+        if (!attr) return;
+        variantRows().forEach(function (row) {
+            const colorId = rowColorValueId(row);
+            if (!colorId || colorGalleries[colorId]) return;
+            const picker = row.querySelector('[data-variant-image-picker]');
+            const items = (picker?._items || []).filter(function (item) { return item.kind === 'existing' && item.url; })
+                .map(function (item) {
+                    return { kind: 'existing', id: item.id, url: item.url, path: item.path || '' };
+                });
+            if (items.length) colorGalleries[colorId] = { items: items };
+        });
+    }
+
+    function selectedColors() {
+        const attr = colorAttribute();
+        if (!attr) return [];
+        const map = {};
+        document.querySelectorAll('.attr-value-check:checked').forEach(function (el) {
+            if (String(el.getAttribute('data-attr-id')) !== String(attr.id)) return;
+            const id = parseInt(el.getAttribute('data-value-id'), 10);
+            if (!id) return;
+            map[id] = {
+                id: id,
+                label: el.getAttribute('data-value-label') || '',
+                hex: el.getAttribute('data-hex') || '',
+            };
+        });
+        const lookup = valueLookup();
+        variantRows().forEach(function (row) {
+            const id = rowColorValueId(row);
+            if (!id || map[id]) return;
+            map[id] = { id: id, label: lookup[id]?.label || 'Color', hex: '' };
+        });
+        return Object.keys(map).map(function (id) { return map[id]; });
+    }
+
+    function renderColorGallery() {
+        const card = document.getElementById('colorGalleryCard');
+        const body = document.getElementById('colorGalleryBody');
+        syncImageColumn();
+        if (!card || !body) return;
+
+        body.querySelectorAll('[data-color-image-picker]').forEach(function (picker) {
+            const id = picker.getAttribute('data-color-id');
+            if (id) colorGalleries[id] = { items: picker._items || [] };
+        });
+
+        const colors = selectedColors();
+        if (!colorAttribute() || !colors.length) {
+            card.hidden = true;
+            body.innerHTML = '';
+            return;
+        }
+
+        card.hidden = false;
+        body.innerHTML = '';
+        const accept = document.body.dataset.imageAccept || 'image/jpeg,image/png,image/webp';
+        colors.forEach(function (color) {
+            if (!colorGalleries[color.id]) colorGalleries[color.id] = { items: [] };
+            const row = document.createElement('div');
+            row.className = 'color-photo-row';
+            const count = (colorGalleries[color.id].items || []).filter(function (item) {
+                return item.state !== 'failed';
+            }).length;
+            row.innerHTML =
+                '<div class="color-photo-meta">' +
+                    '<span class="color-photo-swatch" style="background:' + escapeHtml(color.hex || '#cbd5e1') + '"></span>' +
+                    '<div><div class="color-photo-name">' + escapeHtml(color.label) + '</div>' +
+                    '<div class="color-photo-count">' + count + ' photo' + (count === 1 ? '' : 's') + '</div></div>' +
+                '</div>' +
+                '<div class="variant-image-picker color-photo-picker" data-variant-image-picker data-color-image-picker data-color-id="' + color.id + '">' +
+                    '<div class="variant-image-grid" data-variant-image-grid></div>' +
+                    '<label class="btn btn-sm btn-outline-primary color-photo-add mb-0">' +
+                        '<i class="bi bi-plus-lg me-1"></i>Add photos' +
+                        '<input type="file" accept="' + accept + '" multiple class="d-none" data-variant-image-input>' +
+                    '</label>' +
+                '</div>';
+            body.appendChild(row);
+            const picker = row.querySelector('[data-color-image-picker]');
+            picker._items = colorGalleries[color.id].items;
+            renderVariantImages(picker);
+        });
+    }
+
+    function ensureColorVariants() {
+        const colors = selectedColors();
+        if (!colors.length) return;
+        const present = {};
+        variantRows().forEach(function (row) {
+            const id = rowColorValueId(row);
+            if (id) present[id] = true;
+        });
+        if (colors.some(function (color) { return !present[color.id]; })) {
+            generateVariants();
+        }
+    }
+
+    function applyColorPhotos() {
+        if (!colorAttribute()) return;
+        const shown = {};
+        selectedColors().forEach(function (color) { shown[color.id] = true; });
+        document.querySelectorAll('[data-color-image-picker]').forEach(function (picker) {
+            const id = picker.getAttribute('data-color-id');
+            if (id) colorGalleries[id] = { items: picker._items || [] };
+        });
+
+        variantRows().forEach(function (row) {
+            const colorId = rowColorValueId(row);
+            if (!colorId || !shown[colorId] || !colorGalleries[colorId]) return;
+            const picker = row.querySelector('[data-variant-image-picker]');
+            if (!picker) return;
+            const own = picker._ownIds || {};
+            picker._items = (colorGalleries[colorId].items || []).map(function (item) {
+                if (item.state === 'uploading' || item.state === 'failed') return null;
+                if (item.kind === 'existing' && item.id && own[item.id]) {
+                    return { kind: 'existing', id: item.id, url: item.url, path: item.path || '' };
+                }
+                if (item.path) {
+                    return { kind: 'copy', path: item.path, url: item.url };
+                }
+                if (item.token) {
+                    return { kind: 'new', token: item.token, url: item.url, state: 'done' };
+                }
+                return null;
+            }).filter(Boolean);
+            renderVariantImages(picker);
+        });
     }
 
     /* ---------- Generate / add ---------- */
@@ -1340,6 +1603,37 @@ document.addEventListener('DOMContentLoaded', function () {
             addVariantRow({ sku: suggestSku([]) + (n > 1 ? '-' + (i + 1) : '') });
         }
     }
+
+    attributesBody.addEventListener('change', function (e) {
+        if (e.target.matches('.attr-value-check')) renderColorGallery();
+    });
+
+    document.getElementById('colorGalleryBody')?.addEventListener('click', function (e) {
+        const clearBtn = e.target.closest('[data-variant-image-clear]');
+        if (clearBtn) {
+            e.preventDefault();
+            const picker = clearBtn.closest('[data-variant-image-picker]');
+            const index = parseInt(clearBtn.getAttribute('data-index') || '-1', 10);
+            if (picker && index >= 0) {
+                picker._items.splice(index, 1);
+                renderVariantImages(picker);
+            }
+            return;
+        }
+        const makeFirst = e.target.closest('[data-make-first]');
+        if (!makeFirst) return;
+        const picker = makeFirst.closest('[data-variant-image-picker]');
+        const index = parseInt(makeFirst.getAttribute('data-make-first'), 10);
+        if (picker && index > 0) {
+            const item = picker._items.splice(index, 1)[0];
+            picker._items.unshift(item);
+            renderVariantImages(picker);
+        }
+    });
+
+    document.getElementById('colorGalleryBody')?.addEventListener('change', function (e) {
+        if (e.target.matches('[data-variant-image-input]')) addVariantImagesFromInput(e.target);
+    });
 
     document.getElementById('btnGenerateVariants').addEventListener('click', generateVariants);
     document.getElementById('btnAddBlankVariant').addEventListener('click', function () {
@@ -1537,6 +1831,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         syncProductPricesFromVariants();
+        applyColorPhotos();
         // Unpicked attribute dropdowns must not post empty ids.
         variantsBody.querySelectorAll('.v-attr').forEach(function (select) {
             select.disabled = !select.value;

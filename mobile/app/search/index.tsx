@@ -124,7 +124,10 @@ export default function SearchScreen() {
               key={`brand-${b.id}`}
               style={styles.suggestRow}
               onPress={() =>
-                router.push({ pathname: '/products', params: { brand_id: String(b.id) } })
+                router.push({
+                  pathname: '/products',
+                  params: { brand_id: String(b.id), title: b.name },
+                })
               }
             >
               <Building2 size={16} color={colors.brassDeep} strokeWidth={2} />

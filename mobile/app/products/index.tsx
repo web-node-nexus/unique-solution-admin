@@ -75,15 +75,13 @@ export default function ProductsScreen() {
   const title = String(params.title ?? (featuredOn ? 'Featured' : searchQ || 'All products'));
 
   const routeCategoryId = params.category_id ? Number(params.category_id) : null;
-  const { data: facets } = useQuery({
-    queryKey: ['product-filters', routeCategoryId],
-    queryFn: async () => (await catalogApi.filters(routeCategoryId)).data,
-    enabled: routeCategoryId != null,
+  const { data: categoryBrands = [] } = useQuery({
+    queryKey: ['catalog-brands', routeCategoryId ?? 'all'],
+    queryFn: async () => (await catalogApi.brands(routeCategoryId)).data ?? [],
   });
-  const categoryBrands = facets?.brands ?? [];
   const selectedBrandId =
     filters.applied.brand_ids.length === 1 ? filters.applied.brand_ids[0] : null;
-  const showBrandStrip = routeCategoryId != null && categoryBrands.length > 0;
+  const showBrandStrip = categoryBrands.length > 0;
 
   return (
     <ScreenShell>
@@ -212,7 +210,9 @@ export default function ProductsScreen() {
                 <PackageSearch size={28} color={colors.inkSoft} />
               </View>
               <AppText variant="caption" style={{ textAlign: 'center' }}>
-                No products match these filters.
+                {filters.applied.brand_ids.length
+                  ? 'No products for this brand yet.'
+                  : 'No products match these filters.'}
               </AppText>
             </View>
           }

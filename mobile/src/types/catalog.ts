@@ -178,6 +178,7 @@ export type ProductDetail = Omit<ProductCard, 'brand' | 'category'> & {
       hex?: string | null;
       image_url?: string | null;
     }[];
+    images?: { id: number; url: string }[];
     image_url: string | null;
   }[];
   rating_average?: number;

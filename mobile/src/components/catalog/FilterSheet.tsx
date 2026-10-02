@@ -81,6 +81,12 @@ export function FilterSheet({
     enabled: visible,
   });
 
+  const { data: brandList = [], isLoading: brandsLoading } = useQuery({
+    queryKey: ['catalog-brands', facetCategoryId ?? 'all'],
+    queryFn: async () => (await catalogApi.brands(facetCategoryId)).data ?? [],
+    enabled: visible,
+  });
+
   // Subcategories always relative to the locked route category (not the narrowed draft).
   const { data: lockedFacets } = useQuery({
     queryKey: ['filters', 'locked', lockedId ?? 'none'],
@@ -233,7 +239,7 @@ export function FilterSheet({
               }
             >
               <View style={styles.wrap}>
-                {(data?.brands ?? []).map((b) => (
+                {brandList.map((b) => (
                   <OptionChip
                     key={b.id}
                     label={b.name}
@@ -241,7 +247,7 @@ export function FilterSheet({
                     onPress={() => filters.toggleBrand(b.id)}
                   />
                 ))}
-                {!isLoading && !data?.brands?.length ? (
+                {!brandsLoading && !brandList.length ? (
                   <AppText variant="caption">No brands for this category</AppText>
                 ) : null}
               </View>

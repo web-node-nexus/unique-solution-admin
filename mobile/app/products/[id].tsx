@@ -229,11 +229,29 @@ export default function ProductDetailScreen() {
         ? [{ id: 0, url: data.image_url }]
         : [];
 
-    const variantUrl = selected?.image_url;
-    if (variantUrl) {
-      const rest = base.filter((img) => img.url !== variantUrl);
-      return [{ id: `variant-${selected!.id}`, url: variantUrl }, ...rest];
+    const colorId = colorOf(selected)?.value_id ?? null;
+    const pool =
+      colorId == null
+        ? selected
+          ? [selected]
+          : []
+        : [
+            ...(selected ? [selected] : []),
+            ...data.variants.filter(
+              (v) => v.id !== selected?.id && colorOf(v)?.value_id === colorId,
+            ),
+          ];
+
+    for (const variant of pool) {
+      const shots = (variant.images ?? []).filter((img) => !!img.url);
+      if (shots.length) {
+        return shots.map((img) => ({ id: img.id, url: img.url }));
+      }
+      if (variant.image_url) {
+        return [{ id: `variant-${variant.id}`, url: variant.image_url }];
+      }
     }
+
     return base;
   }, [data, selected]);
 
@@ -361,7 +379,7 @@ export default function ProductDetailScreen() {
       >
         <View>
           <ProductImageGallery
-            key={selected?.id ?? 'base'}
+            key={`${colorOf(selected)?.value_id ?? 'base'}-${gallery[0]?.url ?? 'none'}-${gallery.length}`}
             images={gallery}
             width={width}
             height={galleryH}

@@ -483,6 +483,12 @@ class AppCatalogController extends Controller
                     'hex' => $av->extra_data['hex'] ?? null,
                     'image_url' => $av->image_url,
                 ])->values(),
+                'images' => $variant->images->map(fn ($image) => [
+                    'id' => $image->id,
+                    'url' => $image->image_path
+                        ? Storage::disk('public')->url($image->image_path)
+                        : null,
+                ])->filter(fn ($image) => filled($image['url']))->values(),
                 'image_url' => optional($variant->images->first())->image_path
                     ? Storage::disk('public')->url($variant->images->first()->image_path)
                     : null,
@@ -614,9 +620,12 @@ class AppCatalogController extends Controller
 
         $productIds = (clone $base)->pluck('id');
 
-        $brands = Brand::query()
-            ->where('status', true)
-            ->whereIn('id', (clone $base)->whereNotNull('brand_id')->distinct()->pluck('brand_id'))
+        $brandQuery = Brand::query()->where('status', true);
+        if ($request->filled('category_id')) {
+            $brandQuery->forCategory((int) $request->input('category_id'));
+        }
+
+        $brands = $brandQuery
             ->orderBy('name')
             ->get(['id', 'name', 'category_id', 'logo'])
             ->map(fn (Brand $brand) => [
