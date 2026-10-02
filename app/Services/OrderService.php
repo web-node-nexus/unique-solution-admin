@@ -162,7 +162,12 @@ class OrderService
         $rank = self::statusRank($current);
 
         foreach (self::STATUSES as $status) {
-            if ($status === $current || $status === 'processing') {
+            if ($status === $current) {
+                continue;
+            }
+            // Processing stays hidden until the order is confirmed.
+            // Confirming a pending order is stored as processing for the app.
+            if ($status === 'processing' && $current !== 'confirmed') {
                 continue;
             }
             $nextRank = self::statusRank($status);

@@ -59,7 +59,7 @@
                                         <option value="{{ $status }}" @selected($order->order_status === $status)>{{ ucfirst($status) }}</option>
                                     @endforeach
                                 </select>
-                                <div class="form-text">Previous statuses are locked. You can only move this order forward.</div>
+                                <div class="form-text">Confirming a pending order shows Processing in green in the app. You can only move this order forward.</div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label" for="assigned_to">Assign for delivery</label>
@@ -75,7 +75,9 @@
                             </div>
                             <div class="mb-3">
                                 <label class="form-label" for="remarks">Remarks</label>
-                                <textarea name="remarks" id="remarks" rows="2" class="form-control" placeholder="Optional notes">{{ old('remarks') }}</textarea>
+                                <textarea name="remarks" id="remarks" rows="2" class="form-control @error('remarks') is-invalid @enderror" placeholder="Optional notes">{{ old('remarks') }}</textarea>
+                                @error('remarks')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                <div class="form-text" id="remarksHelp">Required when you cancel this order.</div>
                             </div>
                             <button type="submit" class="btn btn-primary">Update status</button>
                         </form>
@@ -303,6 +305,28 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    const statusSelect = document.getElementById('order_status');
+    const remarks = document.getElementById('remarks');
+    const remarksLabel = document.querySelector('label[for="remarks"]');
+    const remarksHelp = document.getElementById('remarksHelp');
+
+    function syncCancelReason() {
+        if (!statusSelect || !remarks || !remarksLabel) return;
+        const cancelling = statusSelect.value === 'cancelled';
+        remarks.required = cancelling;
+        remarks.minLength = cancelling ? 3 : 0;
+        remarks.placeholder = cancelling ? 'Why is this order being cancelled?' : 'Optional notes';
+        remarksLabel.innerHTML = cancelling ? 'Cancel reason <span class="text-danger">*</span>' : 'Remarks';
+        if (remarksHelp) {
+            remarksHelp.textContent = cancelling
+                ? 'The customer will see this reason on the order.'
+                : 'Required when you cancel this order.';
+        }
+    }
+
+    statusSelect?.addEventListener('change', syncCancelReason);
+    syncCancelReason();
+
     const form = document.getElementById('generateBillForm');
     const modalEl = document.getElementById('generateBillModal');
     const submitBtn = document.getElementById('btnGenerateBillSubmit');

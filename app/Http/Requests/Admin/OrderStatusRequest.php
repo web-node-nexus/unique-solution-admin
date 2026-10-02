@@ -23,9 +23,13 @@ class OrderStatusRequest extends FormRequest
             ? (string) $order->order_status
             : 'pending';
 
+        $cancelling = $this->input('order_status') === 'cancelled';
+
         return [
             'order_status' => ['required', 'string', Rule::in(OrderService::allowedNextStatuses($current))],
-            'remarks' => ['nullable', 'string', 'max:1000'],
+            'remarks' => $cancelling
+                ? ['required', 'string', 'min:3', 'max:1000']
+                : ['nullable', 'string', 'max:1000'],
             'assigned_to' => ['sometimes', 'nullable', 'integer', 'exists:users,id'],
         ];
     }
@@ -44,6 +48,8 @@ class OrderStatusRequest extends FormRequest
     {
         return [
             'order_status.in' => 'You cannot move this order back to a previous status.',
+            'remarks.required' => 'Enter a reason when cancelling an order.',
+            'remarks.min' => 'Cancel reason must be at least 3 characters.',
         ];
     }
 }

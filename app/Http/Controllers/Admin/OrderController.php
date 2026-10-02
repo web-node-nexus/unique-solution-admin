@@ -240,6 +240,7 @@ class OrderController extends Controller
         $status = (string) $request->validated('order_status');
         $remarks = $request->validated('remarks');
         $movedByAssign = false;
+        $confirmedForApp = false;
 
         if (
             $touchAssignee
@@ -252,6 +253,14 @@ class OrderController extends Controller
             if (! filled($remarks)) {
                 $name = User::query()->whereKey($assignedTo)->value('name');
                 $remarks = 'Assigned to '.$name.' for delivery';
+            }
+        }
+
+        if ($status === 'confirmed' && $order->order_status === 'pending') {
+            $status = 'processing';
+            $confirmedForApp = true;
+            if (! filled($remarks)) {
+                $remarks = 'Order confirmed';
             }
         }
 
@@ -272,17 +281,22 @@ class OrderController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
+        $message = match (true) {
+            $movedByAssign => 'Staff assigned. The order is now Processing in the app.',
+            $confirmedForApp => 'Order confirmed. The customer now sees Processing in green.',
+            $updated->order_status === 'cancelled' => 'Order cancelled.',
+            default => 'Order status updated.',
+        };
+
         if ($request->expectsJson()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Order status updated.',
+                'message' => $message,
                 'order_status' => $updated->order_status,
             ]);
         }
 
-        return back()->with('success', $movedByAssign
-            ? 'Staff assigned. The order is now Processing in the app.'
-            : 'Order status updated.');
+        return back()->with('success', $message);
     }
 
     public function invoice(Order $order): Response

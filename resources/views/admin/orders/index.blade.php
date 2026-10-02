@@ -155,13 +155,24 @@ document.addEventListener('DOMContentLoaded', function () {
         const isCancel = status === 'cancelled';
         const title = isCancel ? 'Cancel this order?' : 'Confirm this order?';
         const text = isCancel
-            ? 'This order will be marked as cancelled.'
-            : 'This order will be marked as confirmed.';
+            ? 'Tell the customer why this order is being cancelled.'
+            : 'The customer will see Processing in green.';
         const confirmText = isCancel ? 'Yes, cancel' : 'Yes, confirm';
 
         Swal.fire({
             title,
             text,
+            input: isCancel ? 'textarea' : undefined,
+            inputLabel: isCancel ? 'Cancel reason' : undefined,
+            inputPlaceholder: isCancel ? 'Why is this order being cancelled?' : undefined,
+            inputAttributes: isCancel ? { maxlength: 1000, 'aria-label': 'Cancel reason' } : undefined,
+            inputValidator: isCancel
+                ? function (value) {
+                    if (!value || value.trim().length < 3) {
+                        return 'Enter a reason (at least 3 characters).';
+                    }
+                }
+                : undefined,
             icon: isCancel ? 'warning' : 'question',
             showCancelButton: true,
             confirmButtonText: confirmText,
@@ -181,7 +192,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
                 body: JSON.stringify({
                     order_status: status,
-                    remarks: null,
+                    remarks: isCancel ? String(result.value || '').trim() : null,
                 }),
             })
                 .then(async (res) => {

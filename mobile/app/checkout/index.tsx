@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Image } from 'expo-image';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -7,6 +8,7 @@ import {
   Check,
   CreditCard,
   MapPin,
+  Package,
   Plus,
   Smartphone,
   Ticket,
@@ -455,10 +457,38 @@ export default function CheckoutScreen() {
             <AppText style={styles.cardTitle}>Order summary</AppText>
           </View>
           {lines.map((l) => (
-            <View key={l.key} style={styles.line}>
-              <AppText style={{ flex: 1, minWidth: 0, fontSize: 13 }} numberOfLines={2}>
-                {l.name} × {l.qty}
-              </AppText>
+            <View key={l.key} style={styles.summaryRow}>
+              <PressableScale
+                onPress={() => router.push(`/products/${l.productId}`)}
+                style={styles.summaryThumbHit}
+              >
+                {l.image_url ? (
+                  <Image
+                    source={{ uri: l.image_url }}
+                    style={styles.summaryThumb}
+                    contentFit="cover"
+                    transition={250}
+                  />
+                ) : (
+                  <View style={[styles.summaryThumb, styles.summaryThumbFallback]}>
+                    <Package size={18} color={colors.jade} strokeWidth={1.8} />
+                  </View>
+                )}
+              </PressableScale>
+              <PressableScale
+                onPress={() => router.push(`/products/${l.productId}`)}
+                style={styles.summaryCopy}
+              >
+                <AppText style={styles.summaryName} numberOfLines={2}>
+                  {l.name}
+                </AppText>
+                {l.attributeLabel ? (
+                  <AppText variant="caption" numberOfLines={1}>
+                    {l.attributeLabel}
+                  </AppText>
+                ) : null}
+                <AppText variant="caption">Qty {l.qty}</AppText>
+              </PressableScale>
               <AppText style={styles.price}>
                 {formatInr(sellingPrice(l.mrp, l.sale_price) * l.qty)}
               </AppText>
@@ -703,6 +733,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   line: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 },
+  summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
+  summaryThumbHit: { borderRadius: radii.md },
+  summaryThumb: {
+    width: 56,
+    height: 56,
+    borderRadius: radii.md,
+    backgroundColor: colors.paper,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  summaryThumbFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.jadeSoft,
+  },
+  summaryCopy: { flex: 1, minWidth: 0, gap: 2 },
+  summaryName: { fontFamily: typography.bodySemi, color: colors.ink, fontSize: 14 },
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.border,
