@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\OrderStatusRequest;
 use App\Models\Order;
+use App\Models\User;
 use App\Services\OrderService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
@@ -196,6 +197,7 @@ class OrderController extends Controller
 
         $order->load([
             'user',
+            'assignee',
             'items.variant.product.brandPolicies',
             'items.variant.attributeValues',
             'statusHistory.changedBy',
@@ -203,9 +205,20 @@ class OrderController extends Controller
             'refunds',
         ]);
 
+        $staff = User::query()
+            ->role('Staff')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'phone']);
+
+        if ($order->assigned_to && ! $staff->contains('id', $order->assigned_to) && $order->assignee) {
+            $staff->prepend($order->assignee);
+        }
+
         return view('admin.orders.show', [
             'order' => $order,
             'statuses' => OrderService::allowedNextStatuses((string) $order->order_status),
+            'staff' => $staff,
         ]);
     }
 
@@ -213,12 +226,43 @@ class OrderController extends Controller
     {
         $this->authorize('update', $order);
 
+        $touchAssignee = $request->exists('assigned_to');
+        $assignedTo = $touchAssignee ? ($request->validated('assigned_to') ? (int) $request->validated('assigned_to') : null) : null;
+
+        if ($assignedTo) {
+            $isStaff = User::query()->role('Staff')->whereKey($assignedTo)->where('is_active', true)->exists()
+                || (int) $order->assigned_to === $assignedTo;
+            if (! $isStaff) {
+                return back()->with('error', 'Choose an active staff member for delivery.');
+            }
+        }
+
+        $status = (string) $request->validated('order_status');
+        $remarks = $request->validated('remarks');
+        $movedByAssign = false;
+
+        if (
+            $touchAssignee
+            && $assignedTo
+            && in_array($order->order_status, ['pending', 'confirmed'], true)
+            && in_array($status, ['pending', 'confirmed'], true)
+        ) {
+            $status = 'processing';
+            $movedByAssign = true;
+            if (! filled($remarks)) {
+                $name = User::query()->whereKey($assignedTo)->value('name');
+                $remarks = 'Assigned to '.$name.' for delivery';
+            }
+        }
+
         try {
             $updated = $this->orderService->updateStatus(
                 $order,
-                $request->validated('order_status'),
-                $request->validated('remarks'),
-                $request->user()
+                $status,
+                $remarks,
+                $request->user(),
+                $touchAssignee,
+                $assignedTo,
             );
         } catch (\Throwable $e) {
             if ($request->expectsJson()) {
@@ -236,7 +280,9 @@ class OrderController extends Controller
             ]);
         }
 
-        return back()->with('success', 'Order status updated.');
+        return back()->with('success', $movedByAssign
+            ? 'Staff assigned. The order is now Processing in the app.'
+            : 'Order status updated.');
     }
 
     public function invoice(Order $order): Response

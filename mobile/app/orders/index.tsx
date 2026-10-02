@@ -5,6 +5,7 @@ import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 import { accountApi } from '@/api/account';
 import { ScreenHeader } from '@/components/layout/ScreenHeader';
 import { ScreenShell, themeCard } from '@/components/layout/ScreenShell';
+import { OrderProductRow } from '@/components/orders/OrderProductRow';
 import { AppRefreshControl } from '@/components/ui/AppRefreshControl';
 import { AppButton, AppText, FadeInItem, PressableScale } from '@/components/ui/primitives';
 import { useAuthStore } from '@/store/auth';
@@ -63,25 +64,37 @@ export default function OrdersScreen() {
         }
         renderItem={({ item, index }) => (
           <FadeInItem index={index}>
-            <PressableScale style={styles.card} onPress={() => router.push(`/orders/${item.id}`)}>
-              <View style={styles.icon}>
-                <Package size={18} color={colors.jade} strokeWidth={2.1} />
-              </View>
-              <View style={styles.copy}>
-                <AppText style={styles.number} numberOfLines={1}>
-                  {item.order_number}
-                </AppText>
-                <AppText variant="caption" numberOfLines={1}>
-                  {item.order_status} · {item.payment_status} · {item.items_count ?? 0} items
-                </AppText>
-              </View>
-              <View style={styles.amountWrap}>
-                <AppText style={styles.amount} numberOfLines={1}>
-                  {formatInr(item.total_amount)}
-                </AppText>
-                <ChevronRight size={16} color={colors.inkSoft} />
-              </View>
-            </PressableScale>
+            <View style={styles.card}>
+              <PressableScale style={styles.top} onPress={() => router.push(`/orders/${item.id}`)}>
+                <View style={styles.icon}>
+                  <Package size={18} color={colors.jade} strokeWidth={2.1} />
+                </View>
+                <View style={styles.copy}>
+                  <AppText style={styles.number} numberOfLines={1}>
+                    {item.order_number}
+                  </AppText>
+                  <AppText variant="caption" numberOfLines={1}>
+                    {item.order_status} · {item.payment_status} · {item.items_count ?? item.items?.length ?? 0} items
+                  </AppText>
+                  <AppText variant="caption" numberOfLines={1}>
+                    Delivery: {item.delivery_person?.trim() || 'Not assigned yet'}
+                  </AppText>
+                </View>
+                <View style={styles.amountWrap}>
+                  <AppText style={styles.amount} numberOfLines={1}>
+                    {formatInr(item.total_amount)}
+                  </AppText>
+                  <ChevronRight size={16} color={colors.inkSoft} />
+                </View>
+              </PressableScale>
+              {(item.items ?? []).length ? (
+                <View style={styles.products}>
+                  {(item.items ?? []).map((line) => (
+                    <OrderProductRow key={line.id} item={line} />
+                  ))}
+                </View>
+              ) : null}
+            </View>
           </FadeInItem>
         )}
       />
@@ -92,16 +105,16 @@ export default function OrdersScreen() {
 const styles = StyleSheet.create({
   guest: { alignItems: 'center', gap: 12, marginTop: 48, paddingHorizontal: spacing.lg },
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
     backgroundColor: colors.paper,
     borderRadius: radii.lg,
     padding: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
+    gap: 12,
     ...elevation.soft,
   },
+  top: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  products: { gap: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border },
   icon: {
     width: 40,
     height: 40,

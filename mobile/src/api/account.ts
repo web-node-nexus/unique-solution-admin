@@ -40,6 +40,7 @@ export type OrderSummary = {
   payment_status: string;
   created_at?: string;
   items_count?: number;
+  delivery_person?: string | null;
   subtotal?: number;
   discount?: number;
   tax?: number;
@@ -57,8 +58,10 @@ export type OrderSummary = {
     quantity: number;
     price: number;
     subtotal: number;
-    product_id?: number;
+    product_id?: number | null;
     product_variant_id?: number;
+    image_url?: string | null;
+    variant_label?: string | null;
     variant?: { sku?: string; attributes?: { name?: string; value?: string }[] };
   }[];
   timeline?: { status: string; remarks?: string; at?: string }[];

@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   StyleSheet,
   TextInput,
   View,
@@ -26,6 +27,7 @@ import { KeyboardForm } from '@/components/layout/KeyboardForm';
 import { ScreenHeader } from '@/components/layout/ScreenHeader';
 import { ScreenShell, themeCard } from '@/components/layout/ScreenShell';
 import { AppRefreshControl } from '@/components/ui/AppRefreshControl';
+import { OrderPlacedModal } from '@/components/orders/OrderPlacedModal';
 import { AppButton, AppText, PressableScale } from '@/components/ui/primitives';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
@@ -67,6 +69,8 @@ export default function CheckoutScreen() {
   const [couponBusy, setCouponBusy] = useState(false);
   const [couponPreview, setCouponPreview] = useState<CouponPreview | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [placed, setPlaced] = useState<{ id: number; number: string; paid?: string } | null>(null);
 
   useEffect(() => {
     void loadShop();
@@ -159,24 +163,61 @@ export default function CheckoutScreen() {
     );
   }
 
+  const openPlacedOrder = () => {
+    if (!placed) return;
+    if (placed.paid != null) {
+      router.replace({
+        pathname: '/orders/[id]',
+        params: { id: String(placed.id), paid: placed.paid },
+      });
+      return;
+    }
+    router.replace(`/orders/${placed.id}`);
+  };
+
+  const keepShopping = () => {
+    router.replace('/');
+  };
+
   if (!lines.length) {
     return (
       <ScreenShell>
-        <ScreenHeader showBack eyebrow="Checkout" title="Empty bag" />
-        <View style={styles.gate}>
-          <AppText style={styles.gateTitle}>Nothing to checkout</AppText>
-          <AppButton label="Browse products" onPress={() => router.replace('/products')} />
-        </View>
+        <ScreenHeader showBack eyebrow="Checkout" title={placed ? 'Order placed' : 'Empty bag'} />
+        {!placed ? (
+          <View style={styles.gate}>
+            <AppText style={styles.gateTitle}>Nothing to checkout</AppText>
+            <AppButton label="Browse products" onPress={() => router.replace('/products')} />
+          </View>
+        ) : null}
+        <OrderPlacedModal
+          visible={!!placed}
+          name={user?.name?.trim() || 'there'}
+          orderNumber={placed?.number ?? ''}
+          shopName={shop?.shop_name?.trim() || 'Unique Solution'}
+          onViewOrder={openPlacedOrder}
+          onContinue={keepShopping}
+        />
       </ScreenShell>
     );
   }
 
-  const placeOrder = async () => {
+  const askToPlace = () => {
     if (!selected) {
       Alert.alert('Address needed', 'Add a delivery address first.');
       router.push('/addresses');
       return;
     }
+    setConfirmOpen(true);
+  };
+
+  const placeOrder = async () => {
+    if (!selected) {
+      setConfirmOpen(false);
+      Alert.alert('Address needed', 'Add a delivery address first.');
+      router.push('/addresses');
+      return;
+    }
+    setConfirmOpen(false);
     setBusy(true);
     try {
       const res = await accountApi.checkout({
@@ -197,38 +238,36 @@ export default function CheckoutScreen() {
         total: res.data.total_amount,
       });
 
+      const created = {
+        id: res.data.id,
+        number: res.data.order_number || `ORD-${res.data.id}`,
+        paid: undefined as string | undefined,
+      };
       const session = res.data.payment_session;
       const payUrl = session?.payment_url ?? res.data.payment?.payment_url;
       if (method !== 'cod' && payUrl) {
         const result = await WebBrowser.openAuthSessionAsync(payUrl, 'uniquesolution://');
         if (result.type === 'success' && result.url) {
           const q = parseQuery(result.url);
-          const orderId = res.data.id;
           const rzOrder = q.razorpay_order_id || session?.razorpay_order_id;
           const rzPay = q.razorpay_payment_id;
           const rzSig = q.razorpay_signature;
           if (rzOrder && rzPay && rzSig && accountApi.verifyPayment) {
             try {
-              await accountApi.verifyPayment(orderId, {
+              await accountApi.verifyPayment(created.id, {
                 razorpay_order_id: rzOrder,
                 razorpay_payment_id: rzPay,
                 razorpay_signature: rzSig,
               });
             } catch {
-              // continue
+              // Order is already placed. Payment can be finished from the order page.
             }
           }
-          router.replace({
-            pathname: '/orders/[id]',
-            params: {
-              id: String(orderId),
-              paid: q.paid ?? (rzPay ? '1' : '0'),
-            },
-          });
-          return;
+          created.paid = q.paid ?? (rzPay ? '1' : '0');
         }
       }
-      router.replace(`/orders/${res.data.id}`);
+      setPlaced(created);
+      return;
     } catch (e) {
       Alert.alert('Checkout failed', e instanceof Error ? e.message : 'Try again');
     } finally {
@@ -236,8 +275,9 @@ export default function CheckoutScreen() {
     }
   };
 
-  const payLabel =
-    method === 'cod' ? 'Place COD order' : method === 'upi' ? 'Pay with UPI' : 'Pay online';
+  const payLabel = 'Place order';
+  const methodLabel =
+    method === 'cod' ? 'Cash on delivery' : method === 'upi' ? 'UPI' : 'Card / Netbanking';
 
   return (
     <ScreenShell>
@@ -470,10 +510,28 @@ export default function CheckoutScreen() {
           {busy ? (
             <ActivityIndicator color={colors.jade} />
           ) : (
-            <AppButton label={payLabel} onPress={placeOrder} disabled={!selected} />
+            <AppButton label={payLabel} onPress={askToPlace} disabled={!selected} />
           )}
         </View>
       </View>
+
+      <Modal visible={confirmOpen} transparent animationType="fade" onRequestClose={() => setConfirmOpen(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <AppText style={styles.modalEyebrow}>Confirm order</AppText>
+            <AppText style={styles.modalTitle}>Place this order?</AppText>
+            <AppText variant="caption">
+              {methodLabel}
+              {selected ? ` · ${selected.label || 'Home'}${selected.city ? `, ${selected.city}` : ''}` : ''}
+            </AppText>
+            <AppText style={styles.modalTotal}>{formatInr(totalPreview)}</AppText>
+            <View style={{ gap: 8, marginTop: 16 }}>
+              <AppButton label="Yes, place order" onPress={() => void placeOrder()} />
+              <AppButton label="Not now" variant="ghost" onPress={() => setConfirmOpen(false)} />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScreenShell>
   );
 }
@@ -683,6 +741,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     ...elevation.soft,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: colors.overlay,
+    justifyContent: 'center',
+    padding: spacing.lg,
+  },
+  modalCard: {
+    backgroundColor: colors.paper,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    ...elevation.lift,
+  },
+  modalEyebrow: {
+    fontFamily: typography.bodySemi,
+    fontSize: 12,
+    letterSpacing: 0.6,
+    color: colors.jade,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  modalTitle: {
+    fontFamily: typography.display,
+    fontSize: 26,
+    color: colors.ink,
+    marginBottom: 6,
+  },
+  modalTotal: {
+    fontFamily: typography.displayBold,
+    fontSize: 28,
+    color: colors.jade,
+    marginTop: 10,
   },
   footerLeft: { minWidth: 88 },
   footerTotal: {

@@ -4,7 +4,7 @@ import { colors, typography } from '@/theme/tokens';
 
 const FLOW = [
   { key: 'pending', label: 'Order placed' },
-  { key: 'confirmed', label: 'Confirmed' },
+  { key: 'processing', label: 'Processing' },
   { key: 'shipped', label: 'Shipped' },
   { key: 'delivered', label: 'Delivered' },
 ] as const;
@@ -22,9 +22,9 @@ function reachedIndex(status: string, timeline: TimelineEvent[]): number {
     return ranks.length ? Math.max(...ranks) : 0;
   }
   if (status === 'returned' || status === 'delivered') return FLOW.length - 1;
+  if (status === 'shipped') return 2;
   if (status === 'processing') return 1;
-  const index = FLOW.findIndex((step) => step.key === status);
-  return index >= 0 ? index : 0;
+  return 0;
 }
 
 function formatWhen(iso?: string | null): string | null {
@@ -55,7 +55,15 @@ export function OrderTracker({
       {FLOW.map((step, index) => {
         const filled = index <= active;
         const lineOn = index < active;
-        const when = filled ? formatWhen(events.find((event) => event.status === step.key)?.at) : null;
+        const when = filled
+          ? formatWhen(
+              events.find((event) =>
+                step.key === 'pending'
+                  ? event.status === 'pending' || event.status === 'confirmed'
+                  : event.status === step.key,
+              )?.at,
+            )
+          : null;
         const connect = index < FLOW.length - 1 || status === 'cancelled';
 
         return (

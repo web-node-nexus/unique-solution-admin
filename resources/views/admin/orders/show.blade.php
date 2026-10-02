@@ -34,6 +34,7 @@
                     <div class="d-flex justify-content-between"><span>Status</span><span class="badge-status {{ $order->order_status }}">{{ $order->order_status }}</span></div>
                     <div class="d-flex justify-content-between mt-2"><span>Payment</span><span class="badge bg-secondary">{{ $order->payment_status }}</span></div>
                     <div class="d-flex justify-content-between mt-2"><span>Placed</span><span class="small text-muted">{{ $order->created_at?->format('d M Y, h:i A') }}</span></div>
+                    <div class="d-flex justify-content-between mt-2"><span>Delivery person</span><span class="fw-semibold">{{ $order->assignee?->name ?? 'Not assigned' }}</span></div>
                     <hr>
                     <div class="d-flex justify-content-between"><span>Subtotal</span><span>{{ format_money($order->subtotal) }}</span></div>
                     <div class="d-flex justify-content-between"><span>Discount</span><span>{{ format_money($order->discount) }}</span></div>
@@ -59,6 +60,18 @@
                                     @endforeach
                                 </select>
                                 <div class="form-text">Previous statuses are locked. You can only move this order forward.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="assigned_to">Assign for delivery</label>
+                                <select name="assigned_to" id="assigned_to" class="form-select">
+                                    <option value="">Not assigned</option>
+                                    @foreach ($staff as $member)
+                                        <option value="{{ $member->id }}" @selected((string) old('assigned_to', $order->assigned_to) === (string) $member->id)>
+                                            {{ $member->name }}@if ($member->phone) · {{ $member->phone }}@endif
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <div class="form-text">Choosing a staff member on a new order sets the app status to Processing.</div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label" for="remarks">Remarks</label>

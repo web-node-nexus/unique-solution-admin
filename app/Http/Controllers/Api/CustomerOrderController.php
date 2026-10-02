@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Coupon;
 use App\Models\Order;
 use App\Models\Payment;
+use App\Models\OrderItem;
 use App\Models\ProductVariant;
 use App\Models\Setting;
 use App\Services\OrderService;
@@ -13,6 +14,7 @@ use App\Services\RazorpayService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -27,6 +29,11 @@ class CustomerOrderController extends Controller
     {
         $orders = $request->user()
             ->orders()
+            ->with([
+                'assignee:id,name',
+                'items.variant.images',
+                'items.variant.product.images',
+            ])
             ->withCount('items')
             ->latest('id')
             ->paginate(20);
@@ -46,7 +53,14 @@ class CustomerOrderController extends Controller
     {
         abort_unless($order->user_id === $request->user()->id, 404);
 
-        $order->load(['items.variant.product', 'payments', 'statusHistory', 'refunds']);
+        $order->load([
+            'assignee:id,name',
+            'items.variant.images',
+            'items.variant.product.images',
+            'payments',
+            'statusHistory',
+            'refunds',
+        ]);
 
         return response()->json([
             'success' => true,
@@ -519,22 +533,17 @@ class CustomerOrderController extends Controller
             'can_return' => $order->order_status === 'delivered',
             'can_invoice' => $order->order_status === 'delivered',
             'can_review' => $order->order_status === 'delivered',
+            'delivery_person' => $order->relationLoaded('assignee') ? $order->assignee?->name : null,
         ];
+
+        if ($order->relationLoaded('items')) {
+            $payload['items'] = $order->items->map(fn (OrderItem $item) => $this->transformOrderItem($item))->values();
+        }
 
         if ($detailed) {
             $payload['shipping_address'] = $order->shipping_address;
             $payload['billing_address'] = $order->billing_address;
             $payload['notes'] = $order->notes;
-            $payload['items'] = $order->items->map(fn ($item) => [
-                'id' => $item->id,
-                'product_name' => $item->product_name_snapshot,
-                'variant' => $item->variant_details_snapshot,
-                'quantity' => (int) $item->quantity,
-                'price' => (float) $item->price,
-                'subtotal' => (float) $item->subtotal,
-                'product_variant_id' => $item->product_variant_id,
-                'product_id' => $item->variant?->product_id,
-            ])->values();
             $payload['timeline'] = $order->statusHistory
                 ? $order->statusHistory->sortBy('id')->values()->map(fn ($h) => [
                     'status' => $h->status,
@@ -566,6 +575,49 @@ class CustomerOrderController extends Controller
         }
 
         return $payload;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function transformOrderItem(OrderItem $item): array
+    {
+        $snapshot = is_array($item->variant_details_snapshot) ? $item->variant_details_snapshot : [];
+        $variantLabel = collect($snapshot['attributes'] ?? [])
+            ->map(fn ($attribute) => is_array($attribute) ? trim((string) ($attribute['value'] ?? '')) : '')
+            ->filter()
+            ->implode(' · ');
+
+        $product = $item->variant?->product;
+
+        return [
+            'id' => $item->id,
+            'product_name' => $item->product_name_snapshot,
+            'variant' => $snapshot,
+            'variant_label' => $variantLabel !== '' ? $variantLabel : null,
+            'quantity' => (int) $item->quantity,
+            'price' => (float) $item->price,
+            'subtotal' => (float) $item->subtotal,
+            'product_variant_id' => $item->product_variant_id,
+            'product_id' => $product?->id,
+            'image_url' => $this->orderItemImageUrl($item),
+        ];
+    }
+
+    private function orderItemImageUrl(OrderItem $item): ?string
+    {
+        $variantImage = $item->variant?->images?->first()?->image_path;
+        if (is_string($variantImage) && $variantImage !== '') {
+            return Storage::disk('public')->url($variantImage);
+        }
+
+        $images = $item->variant?->product?->images;
+        $primary = $images?->sortByDesc(fn ($image) => (int) $image->is_primary)->first();
+        $path = $primary?->image_path;
+
+        return is_string($path) && $path !== ''
+            ? Storage::disk('public')->url($path)
+            : null;
     }
 
     public function requestReturn(Request $request, Order $order): JsonResponse

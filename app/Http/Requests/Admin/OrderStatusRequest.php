@@ -26,7 +26,15 @@ class OrderStatusRequest extends FormRequest
         return [
             'order_status' => ['required', 'string', Rule::in(OrderService::allowedNextStatuses($current))],
             'remarks' => ['nullable', 'string', 'max:1000'],
+            'assigned_to' => ['sometimes', 'nullable', 'integer', 'exists:users,id'],
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->exists('assigned_to') && $this->input('assigned_to') === '') {
+            $this->merge(['assigned_to' => null]);
+        }
     }
 
     /**

@@ -22,6 +22,7 @@ class Order extends Model
         'total_amount',
         'payment_status',
         'order_status',
+        'assigned_to',
         'shipping_address',
         'billing_address',
         'notes',
@@ -60,6 +61,11 @@ class Order extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function assignee(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
     }
 
     public function items(): HasMany

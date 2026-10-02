@@ -200,7 +200,9 @@ class OrderService
         Order $order,
         string $status,
         ?string $remarks,
-        User $user
+        User $user,
+        bool $touchAssignee = false,
+        ?int $assignedTo = null,
     ): Order {
         $status = strtolower(trim($status));
 
@@ -208,15 +210,22 @@ class OrderService
             throw new InvalidArgumentException("Invalid order status [{$status}].");
         }
 
-        return DB::transaction(function () use ($order, $status, $remarks, $user) {
+        return DB::transaction(function () use ($order, $status, $remarks, $user, $touchAssignee, $assignedTo) {
             $order = Order::query()->lockForUpdate()->findOrFail($order->id);
             $oldStatus = (string) $order->order_status;
 
-            if ($oldStatus === $status) {
-                return $order;
+            if ($touchAssignee) {
+                $order->update(['assigned_to' => $assignedTo]);
             }
 
-            if (! self::canTransition($oldStatus, $status)) {
+            if ($oldStatus === $status) {
+                return $order->fresh(['statusHistory', 'items', 'assignee']);
+            }
+
+            $assignedToProcessing = $status === 'processing'
+                && in_array($oldStatus, ['pending', 'confirmed'], true);
+
+            if (! $assignedToProcessing && ! self::canTransition($oldStatus, $status)) {
                 throw new InvalidArgumentException(
                     "Cannot move order from [{$oldStatus}] back to [{$status}]. Only forward status changes are allowed."
                 );

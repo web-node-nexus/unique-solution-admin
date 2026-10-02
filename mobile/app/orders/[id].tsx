@@ -14,6 +14,7 @@ import {
 import { accountApi } from '@/api/account';
 import { ScreenHeader } from '@/components/layout/ScreenHeader';
 import { ScreenShell, themeCard } from '@/components/layout/ScreenShell';
+import { OrderProductRow } from '@/components/orders/OrderProductRow';
 import { OrderTracker } from '@/components/orders/OrderTracker';
 import { AppRefreshControl } from '@/components/ui/AppRefreshControl';
 import { AppButton, AppText, PressableScale } from '@/components/ui/primitives';
@@ -136,33 +137,29 @@ export default function OrderDetailScreen() {
           <View style={[themeCard.panel, styles.cardPad]}>
             <AppText style={styles.heading}>Items</AppText>
             {(data.items ?? []).map((item) => (
-              <View key={item.id} style={styles.line}>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <AppText style={styles.itemName} numberOfLines={2}>
-                    {item.product_name}
-                  </AppText>
-                  <AppText variant="caption">Qty {item.quantity}</AppText>
-                  {data.can_review && item.product_id ? (
-                    <PressableScale
-                      onPress={() => router.push(`/products/${item.product_id}`)}
-                      style={{ marginTop: 4 }}
-                    >
-                      <AppText style={{ color: colors.jade, fontFamily: typography.bodySemi, fontSize: 13 }}>
-                        Write a review
-                      </AppText>
-                    </PressableScale>
-                  ) : null}
-                </View>
-                <AppText style={styles.price} numberOfLines={1}>
-                  {formatInr(item.subtotal)}
-                </AppText>
+              <View key={item.id} style={styles.itemBlock}>
+                <OrderProductRow item={item} showPrice />
+                {data.can_review && item.product_id ? (
+                  <PressableScale
+                    onPress={() => router.push(`/products/${item.product_id}`)}
+                    style={styles.reviewLink}
+                  >
+                    <AppText style={styles.reviewText}>Write a review</AppText>
+                  </PressableScale>
+                ) : null}
               </View>
             ))}
           </View>
 
           <View style={[themeCard.panel, styles.cardPad]}>
             <AppText style={styles.heading}>Delivery</AppText>
-            <AppText variant="body">{data.shipping_address}</AppText>
+            <AppText variant="caption">Delivery person</AppText>
+            <AppText style={styles.itemName}>
+              {data.delivery_person?.trim() || 'Not assigned yet'}
+            </AppText>
+            <AppText variant="body" style={{ marginTop: 8 }}>
+              {data.shipping_address}
+            </AppText>
           </View>
 
           <View style={[themeCard.panel, styles.cardPad]}>
@@ -314,6 +311,9 @@ const styles = StyleSheet.create({
   total: { fontFamily: typography.display, fontSize: 28, marginTop: 8, color: colors.jade },
   heading: { fontFamily: typography.bodySemi, marginBottom: 6, color: colors.ink },
   line: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 },
+  itemBlock: { marginTop: 12, gap: 6 },
+  reviewLink: { marginLeft: 66 },
+  reviewText: { color: colors.jade, fontFamily: typography.bodySemi, fontSize: 13 },
   itemName: { fontFamily: typography.bodySemi, color: colors.ink },
   price: { fontFamily: typography.bodyBold, color: colors.ink },
   modalBackdrop: {
