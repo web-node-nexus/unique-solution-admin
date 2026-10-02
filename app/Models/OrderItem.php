@@ -34,7 +34,7 @@ class OrderItem extends Model
     /**
      * Flatten device slots for this line (one per quantity unit).
      *
-     * @return list<array{imei: string, serial_number: string}>
+     * @return list<array{imei: string, serial_number: string, note: string}>
      */
     public function deviceSlots(): array
     {
@@ -47,6 +47,7 @@ class OrderItem extends Model
             $slots[] = [
                 'imei' => trim((string) ($row['imei'] ?? '')),
                 'serial_number' => trim((string) ($row['serial_number'] ?? $row['serial'] ?? '')),
+                'note' => trim((string) ($row['note'] ?? '')),
             ];
         }
 

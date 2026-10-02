@@ -333,6 +333,7 @@ class OrderController extends Controller
             'devices.*.unit' => ['required', 'integer', 'min:0'],
             'devices.*.imei' => ['nullable', 'string', 'max:64'],
             'devices.*.serial_number' => ['nullable', 'string', 'max:64'],
+            'devices.*.note' => ['nullable', 'string', 'max:1000000'],
         ]);
 
         $byItem = [];
@@ -342,6 +343,7 @@ class OrderController extends Controller
             $byItem[$itemId][$unit] = [
                 'imei' => trim((string) ($row['imei'] ?? '')),
                 'serial_number' => trim((string) ($row['serial_number'] ?? '')),
+                'note' => trim((string) ($row['note'] ?? '')),
             ];
         }
 
@@ -353,6 +355,7 @@ class OrderController extends Controller
                     $units[] = $byItem[$item->id][$i] ?? [
                         'imei' => '',
                         'serial_number' => '',
+                        'note' => '',
                     ];
                 }
 
@@ -369,14 +372,69 @@ class OrderController extends Controller
         activity_log(
             'generate_bill',
             'orders',
-            "Saved device IMEI/serial for order #{$order->id} ({$order->order_number})"
+            "Saved device IMEI/serial/note for order #{$order->id} ({$order->order_number})"
         );
 
-        return $this->invoice($order->fresh([
+        return $this->downloadProductBills($order->fresh([
             'user',
             'items.variant.product.brandPolicies',
             'items.variant.attributeValues',
         ]));
+    }
+
+    /**
+     * One invoice PDF per product. A single product downloads as a PDF.
+     * Several products download together as a zip of those bills.
+     */
+    private function downloadProductBills(Order $order): Response|RedirectResponse
+    {
+        $items = $order->items->values();
+        $count = $items->count();
+
+        if ($count === 0) {
+            return back()->with('error', 'This order has no products to bill.');
+        }
+
+        $shopName = shop_name();
+        $shopAddress = shop_address();
+
+        if ($count === 1) {
+            $pdf = Pdf::loadView('admin.orders.invoice', [
+                'order' => $order,
+                'shopName' => $shopName,
+                'shopAddress' => $shopAddress,
+                'billItem' => $items[0],
+                'billIndex' => 1,
+                'billCount' => 1,
+            ]);
+
+            return $pdf->download('invoice-'.$order->order_number.'.pdf');
+        }
+
+        $zipPath = tempnam(sys_get_temp_dir(), 'bills');
+        $zip = new \ZipArchive();
+        if ($zip->open($zipPath, \ZipArchive::OVERWRITE) !== true) {
+            return back()->with('error', 'Could not prepare the bill download.');
+        }
+
+        foreach ($items as $index => $item) {
+            $number = $index + 1;
+            $pdf = Pdf::loadView('admin.orders.invoice', [
+                'order' => $order,
+                'shopName' => $shopName,
+                'shopAddress' => $shopAddress,
+                'billItem' => $item,
+                'billIndex' => $number,
+                'billCount' => $count,
+            ]);
+            $zip->addFromString($order->order_number.'-'.$number.'.pdf', $pdf->output());
+        }
+
+        $zip->close();
+
+        return response()
+            ->download($zipPath, 'bills-'.$order->order_number.'.zip')
+            ->deleteFileAfterSend(true);
     }
 
     public function packingSlip(Order $order): View|Response

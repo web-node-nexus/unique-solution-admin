@@ -139,13 +139,20 @@
                                     <td>{{ format_money($item->subtotal) }}</td>
                                 </tr>
                                 @foreach ($item->deviceSlots() as $di => $device)
-                                    @if (($device['imei'] ?? '') !== '' || ($device['serial_number'] ?? '') !== '')
+                                    @php
+                                        $deviceNote = (string) ($device['note'] ?? '');
+                                        $notePreview = mb_strlen($deviceNote) > 180 ? mb_substr($deviceNote, 0, 180).'…' : $deviceNote;
+                                    @endphp
+                                    @if (($device['imei'] ?? '') !== '' || ($device['serial_number'] ?? '') !== '' || $deviceNote !== '')
                                         <tr class="table-light">
                                             <td colspan="5" class="small py-1 ps-4 text-muted">
                                                 @if ($item->quantity > 1)<strong>Unit {{ $di + 1 }}:</strong> @endif
                                                 @if (($device['imei'] ?? '') !== '')IMEI {{ $device['imei'] }}@endif
                                                 @if (($device['imei'] ?? '') !== '' && ($device['serial_number'] ?? '') !== '') · @endif
                                                 @if (($device['serial_number'] ?? '') !== '')S/N {{ $device['serial_number'] }}@endif
+                                                @if ($deviceNote !== '')
+                                                    <div class="mt-1" style="white-space:pre-wrap;">Note: {{ $notePreview }}</div>
+                                                @endif
                                             </td>
                                         </tr>
                                     @endif
@@ -220,7 +227,7 @@
                 <div class="modal-header">
                     <div>
                         <h5 class="modal-title" id="generateBillModalLabel">Generate Bill</h5>
-                        <div class="small text-muted">Optional IMEI &amp; serial for each device, then download invoice PDF.</div>
+                        <div class="small text-muted">IMEI, serial and note are optional. One bill downloads for each product.</div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -256,8 +263,8 @@
                                 <div class="small text-muted mb-3">No policies linked to this product.</div>
                             @endif
                             @for ($u = 0; $u < $qty; $u++)
-                                @php $slot = $slots[$u] ?? ['imei' => '', 'serial_number' => '']; @endphp
-                                <div class="row g-2 align-items-end mb-2">
+                                @php $slot = $slots[$u] ?? ['imei' => '', 'serial_number' => '', 'note' => '']; @endphp
+                                <div class="row g-2 mb-2">
                                     <div class="col-12">
                                         <div class="small fw-semibold text-uppercase text-muted">Device {{ $u + 1 }}@if($qty > 1) of {{ $qty }}@endif</div>
                                     </div>
@@ -283,6 +290,14 @@
                                                placeholder="Enter serial number (optional)"
                                                autocomplete="off">
                                     </div>
+                                    <div class="col-12">
+                                        <label class="form-label">Note</label>
+                                        <textarea name="devices[{{ $deviceIndex }}][note]"
+                                                  class="form-control"
+                                                  rows="3"
+                                                  maxlength="1000000"
+                                                  placeholder="Optional note">{{ old('devices.'.$deviceIndex.'.note', $slot['note'] ?? '') }}</textarea>
+                                    </div>
                                 </div>
                                 @php $deviceIndex++; @endphp
                             @endfor
@@ -294,7 +309,7 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary" id="btnGenerateBillSubmit">
-                        <i class="bi bi-file-earmark-pdf me-1"></i>Save &amp; download invoice
+                        <i class="bi bi-file-earmark-pdf me-1"></i>{{ $order->items->count() > 1 ? 'Save & download bills' : 'Save & download invoice' }}
                     </button>
                 </div>
             </form>

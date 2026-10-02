@@ -18,6 +18,7 @@
         .totals td { border: none; padding: 4px 0; }
         .totals .grand { font-weight: bold; font-size: 14px; border-top: 1px solid #ccc; padding-top: 8px; }
         .text-right { text-align: right; }
+        .note { margin-top: 4px; white-space: pre-wrap; word-wrap: break-word; }
     </style>
 </head>
 <body>
@@ -30,7 +31,18 @@
     <h2>Tax Invoice</h2>
     <div class="row">
         <div class="col">
-            <strong>Invoice #:</strong> {{ $order->order_number }}<br>
+            @php
+                $billCount = (int) ($billCount ?? $order->items->count());
+                $billIndex = (int) ($billIndex ?? 0);
+                $invoiceNo = ($billCount > 1 && $billIndex > 0)
+                    ? $order->order_number.'-'.$billIndex
+                    : $order->order_number;
+                $lines = isset($billItem) ? collect([$billItem]) : $order->items;
+            @endphp
+            <strong>Invoice #:</strong> {{ $invoiceNo }}<br>
+            @if ($billCount > 1 && $billIndex > 0)
+                <strong>Bill:</strong> {{ $billIndex }} of {{ $billCount }} · Order {{ $order->order_number }}<br>
+            @endif
             <strong>Date:</strong> {{ $order->created_at?->format('d M Y') }}<br>
             <strong>Payment:</strong> {{ ucfirst($order->payment_status) }}
         </div>
@@ -54,7 +66,7 @@
             </tr>
         </thead>
         <tbody>
-            @foreach ($order->items as $i => $item)
+            @foreach ($lines as $i => $item)
                 <tr>
                     <td>{{ $i + 1 }}</td>
                     <td>{{ $item->product_name_snapshot }}</td>
@@ -65,15 +77,18 @@
                             @endforeach
                         @endif
                         @php $deviceSlots = $item->deviceSlots(); @endphp
-                        @if (collect($deviceSlots)->contains(fn ($d) => ($d['imei'] ?? '') !== '' || ($d['serial_number'] ?? '') !== ''))
+                        @if (collect($deviceSlots)->contains(fn ($d) => ($d['imei'] ?? '') !== '' || ($d['serial_number'] ?? '') !== '' || ($d['note'] ?? '') !== ''))
                             <div style="margin-top:6px;font-size:11px;line-height:1.45;">
                                 @foreach ($deviceSlots as $di => $device)
-                                    @if (($device['imei'] ?? '') !== '' || ($device['serial_number'] ?? '') !== '')
+                                    @if (($device['imei'] ?? '') !== '' || ($device['serial_number'] ?? '') !== '' || ($device['note'] ?? '') !== '')
                                         <div>
                                             @if (count($deviceSlots) > 1)<strong>Unit {{ $di + 1 }}:</strong> @endif
                                             @if (($device['imei'] ?? '') !== '')IMEI: {{ $device['imei'] }}@endif
                                             @if (($device['imei'] ?? '') !== '' && ($device['serial_number'] ?? '') !== '') · @endif
                                             @if (($device['serial_number'] ?? '') !== '')S/N: {{ $device['serial_number'] }}@endif
+                                            @if (($device['note'] ?? '') !== '')
+                                                <div class="note">Note: {{ $device['note'] }}</div>
+                                            @endif
                                         </div>
                                     @endif
                                 @endforeach
@@ -96,11 +111,15 @@
     </table>
 
     <table class="totals">
-        <tr><td>Subtotal</td><td class="text-right">{{ format_money($order->subtotal) }}</td></tr>
-        <tr><td>Discount</td><td class="text-right">{{ format_money($order->discount) }}</td></tr>
-        <tr><td>Tax</td><td class="text-right">{{ format_money($order->tax) }}</td></tr>
-        <tr><td>Shipping</td><td class="text-right">{{ format_money($order->shipping_charge) }}</td></tr>
-        <tr class="grand"><td>Total</td><td class="text-right">{{ format_money($order->total_amount) }}</td></tr>
+        @if (! isset($billItem) || $order->items->count() <= 1)
+            <tr><td>Subtotal</td><td class="text-right">{{ format_money($order->subtotal) }}</td></tr>
+            <tr><td>Discount</td><td class="text-right">{{ format_money($order->discount) }}</td></tr>
+            <tr><td>Tax</td><td class="text-right">{{ format_money($order->tax) }}</td></tr>
+            <tr><td>Shipping</td><td class="text-right">{{ format_money($order->shipping_charge) }}</td></tr>
+            <tr class="grand"><td>Total</td><td class="text-right">{{ format_money($order->total_amount) }}</td></tr>
+        @else
+            <tr class="grand"><td>Total</td><td class="text-right">{{ format_money($billItem->subtotal) }}</td></tr>
+        @endif
     </table>
 
     <p class="muted" style="margin-top:30px;">Thank you for shopping with Unique Solution.</p>
