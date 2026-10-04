@@ -13,6 +13,7 @@ use App\Models\Product;
 use App\Models\Sale;
 use App\Models\Setting;
 use App\Services\PolicyService;
+use App\Services\SplashScreenService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -20,6 +21,25 @@ use Illuminate\Support\Facades\Storage;
 
 class AppCatalogController extends Controller
 {
+    /**
+     * Splash the app should show right now. A scheduled poster wins during its dates.
+     */
+    public function splash(SplashScreenService $splashes): JsonResponse
+    {
+        $current = $splashes->current();
+        $fallback = asset('assets/splash/default.jpg');
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'image_url' => $current?->imageUrl() ?: $fallback,
+                'kind' => $current ? ($current->is_default ? 'default' : 'scheduled') : 'default',
+                'starts_on' => $current && ! $current->is_default ? $current->starts_on?->toDateString() : null,
+                'ends_on' => $current && ! $current->is_default ? $current->ends_on?->toDateString() : null,
+            ],
+        ]);
+    }
+
     /**
      * Shop info for app bootstrap.
      */

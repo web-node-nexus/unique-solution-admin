@@ -211,12 +211,14 @@
                     <span class="badge text-bg-primary-subtle text-primary-emphasis border border-primary-subtle mb-2">Step 2 / 4</span>
                     <h2 class="h5 mb-1">2. Variants &amp; Multiple Images</h2>
                     <p class="text-muted small mb-0">
-                        Upload product photos in bulk (1st photo = main thumbnail). Tick colors and other options, then add a separate photo set for each color. The app shows that color's photos when the customer picks it.
+                        Tick colors and other options, then add photos on each variant or color. Drag photos to change their order. The first photo is the thumbnail.
                     </p>
                 </div>
                 <span class="badge text-bg-success-subtle text-success-emphasis border border-success-subtle align-self-center" id="activeVariantBadge">0 active variants</span>
             </div>
 
+            {{-- Product photos bulk upload is hidden. Photos are set on each variant or color. --}}
+            {{--
             <div class="card mb-3">
                 <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
                     <span><i class="bi bi-images me-1"></i>Product photos — bulk upload</span>
@@ -231,6 +233,7 @@
                     ])
                 </div>
             </div>
+            --}}
 
             <div class="card mb-3">
                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -250,7 +253,7 @@
                     <span class="small text-muted">Same photos for every storage of that color</span>
                 </div>
                 <div class="card-body">
-                    <p class="text-muted small">Tick the colors above, then add photos here. The app swaps to these photos when the customer chooses that color.</p>
+                    <p class="text-muted small">Tick the colors above, then add photos here. Drag a photo to move it. The first photo is the thumbnail, and the app shows that set when the customer chooses the color.</p>
                     <div id="colorGalleryBody"></div>
                 </div>
             </div>
@@ -705,7 +708,10 @@
     }
     .featured-toggle-box .form-check-input { width: 2.6em; height: 1.35em; cursor: pointer; }
     .v-attr { min-width: 150px; }
-    .variant-image-preview-wrap img { cursor: pointer; }
+    .variant-image-preview-wrap { cursor: grab; }
+    .variant-image-preview-wrap img { cursor: grab; pointer-events: none; }
+    .variant-image-preview-wrap.is-dragging { opacity: 0.4; }
+    .variant-image-preview-wrap.is-drag-over { outline: 2px solid #0d9488; outline-offset: 1px; }
     .variant-image-preview-wrap.is-uploading img { opacity: 0.5; }
     .variant-image-preview-wrap.is-failed { border-color: #dc2626; }
     .variant-image-preview-wrap.is-failed img { opacity: 0.35; }
@@ -1258,7 +1264,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     '<div class="variant-image-grid" data-variant-image-grid></div>' +
                     '<div data-variant-image-hidden></div>' +
                     '<input type="file" accept="' + accept + '" class="form-control form-control-sm" multiple data-variant-image-input>' +
-                    '<div class="variant-image-hint">Many photos OK · 1st = thumbnail · click a photo to make it 1st</div>' +
+                    '<div class="variant-image-hint">Drag to reorder · 1st = thumbnail</div>' +
                 '</div>' +
             '</td>' +
             '<td><button type="button" class="btn btn-sm btn-outline-danger btn-remove-variant" title="Remove variant"><i class="bi bi-trash"></i></button></td>';
@@ -1315,12 +1321,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 (index === 0 ? ' is-primary' : '') +
                 (item.state === 'uploading' ? ' is-uploading' : '') +
                 (item.state === 'failed' ? ' is-failed is-upload-failed' : '');
-            wrap.title = index === 0 ? 'Thumbnail' : 'Click to make this the thumbnail';
+            wrap.draggable = item.state !== 'uploading';
+            wrap.setAttribute('data-drag-index', String(index));
+            wrap.setAttribute('data-make-first', String(index));
+            wrap.title = index === 0 ? 'Thumbnail · drag to reorder' : 'Drag to reorder';
 
             const img = document.createElement('img');
             img.src = item.url;
             img.alt = 'Variant image ' + (index + 1);
-            img.setAttribute('data-make-first', String(index));
+            img.draggable = false;
             if (item.kind === 'existing') img.setAttribute('data-existing-variant-image', '');
 
             const clearBtn = document.createElement('button');
@@ -1383,6 +1392,66 @@ document.addEventListener('DOMContentLoaded', function () {
         if (skipped) toastr.warning('Max ' + MAX_VARIANT_IMAGES + ' photos per variant — ' + skipped + ' skipped');
         input.value = '';
         renderVariantImages(picker);
+    }
+
+    let variantDrag = null;
+
+    function moveVariantImage(picker, from, to) {
+        if (!picker || from < 0 || to < 0 || from === to) return;
+        const items = picker._items || [];
+        if (from >= items.length || to >= items.length) return;
+        const item = items.splice(from, 1)[0];
+        items.splice(to, 0, item);
+        renderVariantImages(picker);
+    }
+
+    function bindVariantImageDrag(root) {
+        if (!root || root.dataset.dragBound === '1') return;
+        root.dataset.dragBound = '1';
+
+        root.addEventListener('dragstart', function (e) {
+            const wrap = e.target.closest('.variant-image-preview-wrap');
+            if (!wrap) return;
+            if (e.target.closest('[data-variant-image-clear]')) {
+                e.preventDefault();
+                return;
+            }
+            const picker = wrap.closest('[data-variant-image-picker]');
+            const index = parseInt(wrap.getAttribute('data-drag-index') || '-1', 10);
+            if (!picker || index < 0 || !wrap.draggable) return;
+            variantDrag = { picker: picker, index: index };
+            wrap.classList.add('is-dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            try { e.dataTransfer.setData('text/plain', String(index)); } catch (err) { /* ignore */ }
+        });
+
+        root.addEventListener('dragover', function (e) {
+            const wrap = e.target.closest('.variant-image-preview-wrap');
+            if (!wrap || !variantDrag) return;
+            const picker = wrap.closest('[data-variant-image-picker]');
+            if (picker !== variantDrag.picker) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            root.querySelectorAll('.is-drag-over').forEach(function (el) { el.classList.remove('is-drag-over'); });
+            wrap.classList.add('is-drag-over');
+        });
+
+        root.addEventListener('drop', function (e) {
+            const wrap = e.target.closest('.variant-image-preview-wrap');
+            if (!wrap || !variantDrag) return;
+            e.preventDefault();
+            const picker = wrap.closest('[data-variant-image-picker]');
+            const to = parseInt(wrap.getAttribute('data-drag-index') || '-1', 10);
+            if (picker === variantDrag.picker) moveVariantImage(picker, variantDrag.index, to);
+            variantDrag = null;
+        });
+
+        root.addEventListener('dragend', function () {
+            variantDrag = null;
+            root.querySelectorAll('.is-dragging, .is-drag-over').forEach(function (el) {
+                el.classList.remove('is-dragging', 'is-drag-over');
+            });
+        });
     }
 
     /* ---------- One photo set per color ---------- */
@@ -1607,6 +1676,9 @@ document.addEventListener('DOMContentLoaded', function () {
     attributesBody.addEventListener('change', function (e) {
         if (e.target.matches('.attr-value-check')) renderColorGallery();
     });
+
+    bindVariantImageDrag(variantsBody);
+    bindVariantImageDrag(document.getElementById('colorGalleryBody'));
 
     document.getElementById('colorGalleryBody')?.addEventListener('click', function (e) {
         const clearBtn = e.target.closest('[data-variant-image-clear]');

@@ -1,12 +1,11 @@
 @php
     $shopName = setting('shop_name', 'Unique Solution');
     $shopAddress = setting('shop_address', 'Kargil Chowk, Megha Road, Kurud - 493663');
-    $initials = collect(explode(' ', $shopName))->map(fn ($w) => mb_substr($w, 0, 1))->take(2)->implode('');
 @endphp
 
 <aside class="admin-sidebar" id="adminSidebar" aria-label="Admin navigation">
     <div class="sidebar-brand">
-        <span class="brand-mark" aria-hidden="true">{{ strtoupper($initials) ?: 'US' }}</span>
+        <img src="{{ asset('assets/admin/img/logo.png') }}" alt="" class="brand-mark" width="40" height="40">
         <div class="brand-text">
             <span class="brand-name">{{ $shopName }}</span>
             <span class="brand-address" title="{{ $shopAddress }}">{{ \Illuminate\Support\Str::limit($shopAddress, 36) }}</span>
@@ -30,7 +29,7 @@
             || auth()->user()?->can('attributes.view')
             || auth()->user()?->can('banners.view'))
             <button type="button"
-                    class="nav-link {{ request()->routeIs('admin.categories*', 'admin.brands*', 'admin.attributes*', 'admin.banners*') ? 'active' : '' }}"
+                    class="nav-link {{ request()->routeIs('admin.categories*', 'admin.brands*', 'admin.attributes*', 'admin.banners*', 'admin.splashes*') ? 'active' : '' }}"
                     data-menu-toggle="menu-catalog"
                     aria-expanded="false">
                 <i class="bi bi-grid-1x2"></i>
@@ -51,6 +50,12 @@
                         <a href="{{ route('admin.banners.index') }}"
                            class="nav-link {{ request()->routeIs('admin.banners*') ? 'active' : '' }}">
                             <span class="nav-label">App Banners</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('admin.splashes.index') }}"
+                           class="nav-link {{ request()->routeIs('admin.splashes*') ? 'active' : '' }}">
+                            <span class="nav-label">Splash screens</span>
                         </a>
                     </li>
                 @endcan

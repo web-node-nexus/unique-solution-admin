@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
     Route::get('/shop', [AppCatalogController::class, 'shop']);
+    Route::get('/splash', [AppCatalogController::class, 'splash']);
     Route::get('/home', [AppCatalogController::class, 'home']);
     Route::get('/banners', [AppCatalogController::class, 'banners']);
     Route::get('/categories', [AppCatalogController::class, 'categories']);

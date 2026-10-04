@@ -92,16 +92,11 @@ a:hover {
 .admin-sidebar .brand-mark {
     width: 40px;
     height: 40px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, var(--accent) 0%, #14b8a6 100%);
-    color: #fff;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 800;
-    font-size: 0.95rem;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #fff;
     flex-shrink: 0;
-    letter-spacing: -0.02em;
+    display: block;
 }
 
 .admin-sidebar .brand-text {
@@ -938,18 +933,14 @@ body.admin-upload-busy {
 }
 
 .auth-card .auth-brand .brand-mark {
-    width: 56px;
-    height: 56px;
-    border-radius: 14px;
-    background: linear-gradient(135deg, var(--accent), #14b8a6);
-    color: #fff;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 800;
-    font-size: 1.25rem;
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #fff;
+    display: inline-block;
     margin-bottom: 1rem;
-    box-shadow: 0 8px 20px rgba(13, 148, 136, 0.35);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
 }
 
 .auth-card .auth-brand h1 {

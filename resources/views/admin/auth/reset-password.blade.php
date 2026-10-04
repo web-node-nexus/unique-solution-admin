@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Reset password — {{ setting('shop_name', 'Unique Solution') }}</title>
+    <link rel="icon" href="{{ asset('assets/admin/img/favicon.png') }}" type="image/png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -16,7 +17,7 @@
 <body class="auth-page">
     <div class="auth-card">
         <div class="auth-brand">
-            <div class="brand-mark">US</div>
+            <img src="{{ asset('assets/admin/img/logo.png') }}" alt="Unique Solution" class="brand-mark" width="88" height="88">
             <h1>Reset password</h1>
             <p class="tagline">Choose a new password for your account</p>
         </div>

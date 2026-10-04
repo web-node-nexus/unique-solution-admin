@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Dashboard') — {{ setting('shop_name', 'Unique Solution') }}</title>
+    <link rel="icon" href="{{ asset('assets/admin/img/favicon.png') }}" type="image/png">
 
     {{-- Google Font --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">

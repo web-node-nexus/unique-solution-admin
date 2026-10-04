@@ -21,6 +21,7 @@ use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\SaleController;
 use App\Http\Controllers\Admin\SettingController;
+use App\Http\Controllers\Admin\SplashScreenController;
 use App\Http\Controllers\Admin\StaffController;
 use Illuminate\Support\Facades\Route;
 
@@ -100,6 +101,23 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->middleware('permission:banners.create')->name('banners.duplicate');
         Route::delete('banners/{banner}', [BannerController::class, 'destroy'])
             ->middleware('permission:banners.delete')->name('banners.destroy');
+
+        Route::get('splashes', [SplashScreenController::class, 'index'])
+            ->middleware('permission:banners.view')->name('splashes.index');
+        Route::put('splashes/default', [SplashScreenController::class, 'updateDefault'])
+            ->middleware('permission:banners.update')->name('splashes.default');
+        Route::get('splashes/create', [SplashScreenController::class, 'create'])
+            ->middleware('permission:banners.create')->name('splashes.create');
+        Route::post('splashes', [SplashScreenController::class, 'store'])
+            ->middleware('permission:banners.create')->name('splashes.store');
+        Route::get('splashes/{splash}/edit', [SplashScreenController::class, 'edit'])
+            ->middleware('permission:banners.update')->name('splashes.edit');
+        Route::put('splashes/{splash}', [SplashScreenController::class, 'update'])
+            ->middleware('permission:banners.update')->name('splashes.update');
+        Route::patch('splashes/{splash}/toggle', [SplashScreenController::class, 'toggle'])
+            ->middleware('permission:banners.update')->name('splashes.toggle');
+        Route::delete('splashes/{splash}', [SplashScreenController::class, 'destroy'])
+            ->middleware('permission:banners.delete')->name('splashes.destroy');
 
         /*
         |--------------------------------------------------------------------------
