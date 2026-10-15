@@ -24,6 +24,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { catalogApi } from '@/api/catalog';
+import { BrandLogo } from '@/components/brand/BrandLogo';
 import { MenuButton } from '@/components/layout/MenuButton';
 import { ScreenAtmosphere } from '@/components/layout/ScreenAtmosphere';
 import { ProductCard } from '@/components/product/ProductCard';
@@ -319,9 +320,12 @@ export function HomeScreen() {
           </PressableScale>
         </View>
 
-        <AppText style={styles.shopHint} numberOfLines={1}>
-          {shopName}
-        </AppText>
+        <View style={styles.shopRow}>
+          <BrandLogo size={28} />
+          <AppText style={styles.shopHint} numberOfLines={1}>
+            {shopName}
+          </AppText>
+        </View>
 
         {/* Search */}
         <View style={styles.searchRow}>
@@ -543,12 +547,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...elevation.soft,
   },
-  shopHint: {
-    marginTop: 4,
+  shopRow: {
+    marginTop: 8,
     paddingHorizontal: spacing.md,
-    fontFamily: typography.bodyMedium,
-    fontSize: 12,
-    color: colors.jadeDeep,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  shopHint: {
+    flex: 1,
+    fontFamily: typography.bodySemi,
+    fontSize: 14,
+    color: colors.ink,
   },
   searchRow: {
     marginTop: 10,

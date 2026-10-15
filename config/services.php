@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'twofactor' => [
+        'api_key' => env('TWOFACTOR_API_KEY'),
+        'template' => env('TWOFACTOR_SMS_TEMPLATE', 'OTP1'),
+        'base_url' => env('TWOFACTOR_BASE_URL', 'https://2factor.in/API/V1'),
+    ],
+
 ];

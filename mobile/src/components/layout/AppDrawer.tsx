@@ -12,6 +12,7 @@ import {
 } from 'lucide-react-native';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BrandLogo } from '@/components/brand/BrandLogo';
 import { AppText, PressableScale } from '@/components/ui/primitives';
 import { useAuthStore } from '@/store/auth';
 import { useWishlistStore } from '@/store/cart';
@@ -45,6 +46,7 @@ export function AppDrawerContent() {
   return (
     <View style={[styles.root, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 12 }]}>
       <View style={styles.head}>
+        <BrandLogo size={48} />
         <View style={{ flex: 1, minWidth: 0 }}>
           <AppText variant="label">Unique Solution</AppText>
           <AppText

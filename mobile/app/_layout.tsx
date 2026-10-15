@@ -15,7 +15,7 @@ import { Stack } from 'expo-router';
 import * as NavigationBar from 'expo-navigation-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,6 +23,7 @@ import { persistOptions, queryClient } from '@/api/queryClient';
 // Compare temporarily disabled for client
 // import { CompareDock } from '@/components/catalog/CompareDock';
 import { AnalyticsProvider } from '@/components/layout/AnalyticsProvider';
+import { RemoteSplash } from '@/components/splash/RemoteSplash';
 import { AppErrorBoundary } from '@/components/layout/AppErrorBoundary';
 import { AppKeyboardProvider } from '@/components/layout/KeyboardForm';
 import { useAuthStore } from '@/store/auth';
@@ -81,15 +82,14 @@ export default function RootLayout() {
     SourceSans3_700Bold,
   });
   const loaded = serifLoaded && sansLoaded;
+  const [holdDone, setHoldDone] = useState(false);
+  const finishSplash = useCallback(() => setHoldDone(true), []);
+  const showPoster = !holdDone || !loaded;
 
   useEffect(() => {
     bootstrap();
     void loadShop();
   }, [bootstrap, loadShop]);
-
-  useEffect(() => {
-    if (loaded) SplashScreen.hideAsync().catch(() => undefined);
-  }, [loaded]);
 
   useEffect(() => {
     const Notifications = getNotifications();
@@ -113,11 +113,9 @@ export default function RootLayout() {
     }
   }, []);
 
-  if (!loaded) return null;
-
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.canvas }}>
-      <AppErrorBoundary>
+      {loaded ? <AppErrorBoundary>
         <AppKeyboardProvider>
           <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
             <AnalyticsProvider>
@@ -157,7 +155,8 @@ export default function RootLayout() {
             </AnalyticsProvider>
           </PersistQueryClientProvider>
         </AppKeyboardProvider>
-      </AppErrorBoundary>
+      </AppErrorBoundary> : null}
+      {showPoster ? <RemoteSplash onDone={finishSplash} /> : null}
     </GestureHandlerRootView>
   );
 }

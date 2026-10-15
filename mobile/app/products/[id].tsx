@@ -304,7 +304,7 @@ export default function ProductDetailScreen() {
       variant_id: selected?.id,
       price: priceVal,
     });
-    router.push(goCheckout ? '/checkout' : '/(main)/(tabs)/cart');
+    router.push('/(main)/(tabs)/cart');
   };
 
   if (!id) {
@@ -819,6 +819,7 @@ const styles = StyleSheet.create({
   selectors: {
     marginTop: 18,
     flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 12,
   },
   section: { marginTop: 22 },

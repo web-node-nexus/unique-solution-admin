@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, TextInput, View } from 'react-native';
 import { authApi } from '@/api/auth';
+import { BrandLogo } from '@/components/brand/BrandLogo';
 import { KeyboardForm } from '@/components/layout/KeyboardForm';
 import { ScreenShell, themeCard } from '@/components/layout/ScreenShell';
 import { AppButton, AppText, PressableScale } from '@/components/ui/primitives';
@@ -32,7 +33,10 @@ export default function ForgotPasswordScreen() {
         <PressableScale onPress={() => router.back()}>
           <AppText style={{ color: colors.jade, fontFamily: typography.bodySemi }}>Back</AppText>
         </PressableScale>
-        <AppText variant="label" style={{ color: colors.brass, marginTop: spacing.lg }}>
+        <View style={{ marginTop: spacing.lg, marginBottom: spacing.md }}>
+          <BrandLogo size={84} />
+        </View>
+        <AppText variant="label" style={{ color: colors.brass }}>
           Account recovery
         </AppText>
         <AppText variant="display" style={{ fontSize: 30, marginBottom: spacing.md }}>

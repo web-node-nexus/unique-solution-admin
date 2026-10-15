@@ -126,12 +126,20 @@ export default function OrderDetailScreen() {
             <AppRefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />
           }
         >
-          <View style={[themeCard.panel, styles.cardPad]}>
-            <AppText style={styles.status}>{data.order_status.toUpperCase()}</AppText>
-            <AppText variant="caption">
-              Payment: {data.payment_status} · {data.payment?.method ?? 'cod'}
-            </AppText>
-            <AppText style={styles.total}>{formatInr(data.total_amount)}</AppText>
+          <View style={[themeCard.panel, styles.heroCard]}>
+            <View style={styles.heroTop}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <View style={styles.statusPill}>
+                  <AppText style={styles.status}>
+                    {data.order_status.replace(/_/g, ' ')}
+                  </AppText>
+                </View>
+                <AppText variant="caption" style={{ marginTop: 8 }}>
+                  Payment · {data.payment_status} · {data.payment?.method ?? 'cod'}
+                </AppText>
+              </View>
+              <AppText style={styles.heroTotal}>{formatInr(data.total_amount)}</AppText>
+            </View>
           </View>
 
           <View style={[themeCard.panel, styles.cardPad]}>
@@ -164,20 +172,35 @@ export default function OrderDetailScreen() {
 
           <View style={[themeCard.panel, styles.cardPad]}>
             <AppText style={styles.heading}>Totals</AppText>
-            {(
-              [
-                ['Subtotal', data.subtotal],
-                ['Discount', data.discount],
-                ['Tax', data.tax],
-                ['Shipping', data.shipping_charge],
-                ['Total', data.total_amount],
-              ] as const
-            ).map(([label, value]) => (
-              <View key={String(label)} style={styles.line}>
-                <AppText variant="caption">{String(label)}</AppText>
-                <AppText style={styles.price}>{formatInr(Number(value ?? 0))}</AppText>
+            <View style={styles.sumRow}>
+              <AppText style={styles.sumLabel}>Subtotal</AppText>
+              <AppText style={styles.sumValue}>{formatInr(Number(data.subtotal ?? 0))}</AppText>
+            </View>
+            {Number(data.discount ?? 0) > 0 ? (
+              <View style={styles.sumRow}>
+                <AppText style={styles.sumLabel}>Discount</AppText>
+                <AppText style={[styles.sumValue, { color: colors.jade }]}>
+                  −{formatInr(Number(data.discount))}
+                </AppText>
               </View>
-            ))}
+            ) : null}
+            {Number(data.tax ?? 0) > 0 ? (
+              <View style={styles.sumRow}>
+                <AppText style={styles.sumLabel}>Tax</AppText>
+                <AppText style={styles.sumValue}>{formatInr(Number(data.tax))}</AppText>
+              </View>
+            ) : null}
+            <View style={styles.sumRow}>
+              <AppText style={styles.sumLabel}>Shipping</AppText>
+              <AppText style={styles.sumValue}>
+                {Number(data.shipping_charge ?? 0) > 0 ? formatInr(Number(data.shipping_charge)) : 'Free'}
+              </AppText>
+            </View>
+            <AppText style={styles.gstNote}>Prices include GST</AppText>
+            <View style={styles.totalBand}>
+              <AppText style={styles.totalLabel}>Total</AppText>
+              <AppText style={styles.totalAmount}>{formatInr(data.total_amount)}</AppText>
+            </View>
           </View>
 
           {(data.refunds ?? []).length ? (
@@ -302,15 +325,46 @@ export default function OrderDetailScreen() {
 
 const styles = StyleSheet.create({
   cardPad: { padding: spacing.md },
+  heroCard: { padding: spacing.md },
+  heroTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
+  statusPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.jadeSoft,
+    borderRadius: radii.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
   status: {
     fontFamily: typography.bodyBold,
-    color: colors.jade,
-    letterSpacing: 1,
-    marginBottom: 4,
+    color: colors.jadeDeep,
+    letterSpacing: 0.6,
+    fontSize: 12,
+    textTransform: 'uppercase',
   },
-  total: { fontFamily: typography.display, fontSize: 28, marginTop: 8, color: colors.jade },
-  heading: { fontFamily: typography.bodySemi, marginBottom: 6, color: colors.ink },
-  line: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 },
+  heroTotal: { fontFamily: typography.displayBold, fontSize: 22, color: colors.ink },
+  heading: { fontFamily: typography.bodySemi, marginBottom: 8, color: colors.ink, fontSize: 16 },
+  sumRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    gap: 12,
+  },
+  sumLabel: { fontFamily: typography.body, color: colors.inkMuted, fontSize: 14 },
+  sumValue: { fontFamily: typography.bodySemi, color: colors.ink, fontSize: 14 },
+  gstNote: { marginTop: 8, fontFamily: typography.body, color: colors.inkSoft, fontSize: 12 },
+  totalBand: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.jadeSoft,
+    borderRadius: radii.md,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  totalLabel: { fontFamily: typography.bodySemi, color: colors.ink, fontSize: 15 },
+  totalAmount: { fontFamily: typography.displayBold, fontSize: 20, color: colors.jadeDeep },
   itemBlock: { marginTop: 12, gap: 6 },
   reviewLink: { marginLeft: 66 },
   reviewText: { color: colors.jade, fontFamily: typography.bodySemi, fontSize: 13 },

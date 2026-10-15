@@ -1,8 +1,8 @@
 import { Check, ChevronDown } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { AppText, PressableScale } from '@/components/ui/primitives';
-import { colors, radii, spacing, typography } from '@/theme/tokens';
+import { colors, radii, typography } from '@/theme/tokens';
 
 export type DropdownOption = {
   key: string;
@@ -39,7 +39,7 @@ export function OptionDropdown({
   return (
     <View style={[styles.wrap, style]}>
       <AppText style={styles.label}>{label}</AppText>
-      <PressableScale style={styles.trigger} onPress={() => setOpen(true)}>
+      <PressableScale style={[styles.trigger, open && styles.triggerOpen]} onPress={() => setOpen((v) => !v)}>
         <View style={styles.triggerLeft}>
           {valueHex ? (
             <View
@@ -57,60 +57,57 @@ export function OptionDropdown({
             {valueLabel || placeholder}
           </AppText>
         </View>
-        <ChevronDown size={18} color={colors.inkMuted} strokeWidth={2.2} />
+        <ChevronDown
+          size={18}
+          color={colors.inkMuted}
+          strokeWidth={2.2}
+          style={{ transform: [{ rotate: open ? '180deg' : '0deg' }] }}
+        />
       </PressableScale>
 
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.sheetHead}>
-              <AppText style={styles.sheetTitle}>{label}</AppText>
-              <PressableScale onPress={() => setOpen(false)}>
-                <AppText style={styles.close}>Close</AppText>
-              </PressableScale>
-            </View>
-            <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
-              {options.map((opt) => {
-                const active = opt.key === selectedKey || opt.label === valueLabel;
-                return (
-                  <PressableScale
-                    key={opt.key}
-                    disabled={opt.disabled}
-                    style={[styles.option, active && styles.optionOn, opt.disabled && styles.optionOff]}
-                    onPress={() => {
-                      if (opt.disabled) return;
-                      onSelect(opt.key);
-                      setOpen(false);
-                    }}
-                  >
-                    <View style={styles.triggerLeft}>
-                      {opt.hex ? (
-                        <View
-                          style={[
-                            styles.swatch,
-                            {
-                              backgroundColor: String(opt.hex).startsWith('#')
-                                ? String(opt.hex)
-                                : `#${opt.hex}`,
-                            },
-                          ]}
-                        />
-                      ) : null}
-                      <AppText
-                        style={[styles.optionText, active && styles.optionTextOn]}
-                        numberOfLines={2}
-                      >
-                        {opt.label}
-                      </AppText>
-                    </View>
-                    {active ? <Check size={18} color={colors.sky} strokeWidth={2.4} /> : null}
-                  </PressableScale>
-                );
-              })}
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      {open ? (
+        <View style={styles.menu}>
+          <ScrollView style={{ maxHeight: 220 }} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+            {options.map((opt) => {
+              const active = opt.key === selectedKey || opt.label === valueLabel;
+              return (
+                <PressableScale
+                  key={opt.key}
+                  disabled={opt.disabled}
+                  style={[styles.option, active && styles.optionOn, opt.disabled && styles.optionOff]}
+                  onPress={() => {
+                    if (opt.disabled) return;
+                    onSelect(opt.key);
+                    setOpen(false);
+                  }}
+                >
+                  <View style={styles.triggerLeft}>
+                    {opt.hex ? (
+                      <View
+                        style={[
+                          styles.swatch,
+                          {
+                            backgroundColor: String(opt.hex).startsWith('#')
+                              ? String(opt.hex)
+                              : `#${opt.hex}`,
+                          },
+                        ]}
+                      />
+                    ) : null}
+                    <AppText
+                      style={[styles.optionText, active && styles.optionTextOn]}
+                      numberOfLines={2}
+                    >
+                      {opt.label}
+                    </AppText>
+                  </View>
+                  {active ? <Check size={16} color={colors.sky} strokeWidth={2.4} /> : null}
+                </PressableScale>
+              );
+            })}
+          </ScrollView>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -135,6 +132,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     minHeight: 48,
   },
+  triggerOpen: {
+    borderColor: colors.sky,
+  },
+  menu: {
+    marginTop: 4,
+    backgroundColor: colors.paper,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingVertical: 4,
+    overflow: 'hidden',
+  },
   triggerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 },
   triggerText: {
     fontFamily: typography.bodySemi,
@@ -148,36 +157,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.borderStrong,
-  },
-  backdrop: {
-    flex: 1,
-    backgroundColor: colors.overlay,
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: colors.paper,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.xl,
-    maxHeight: '70%',
-  },
-  sheetHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  sheetTitle: {
-    fontFamily: typography.bodyBold,
-    fontSize: 17,
-    color: colors.ink,
-  },
-  close: {
-    fontFamily: typography.bodySemi,
-    color: colors.sky,
-    fontSize: 14,
   },
   option: {
     flexDirection: 'row',

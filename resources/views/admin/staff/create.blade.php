@@ -29,8 +29,9 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label" for="phone">Phone</label>
-                            <input type="text" name="phone" id="phone" value="{{ old('phone') }}" class="form-control @error('phone') is-invalid @enderror">
+                            <input type="text" name="phone" id="phone" value="{{ old('phone') }}" class="form-control @error('phone') is-invalid @enderror" placeholder="10-digit mobile for delivery OTP login">
                             @error('phone')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            <div class="form-text">Required for delivery app OTP login. Use the same number the partner will enter in the app.</div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label" for="password">Password <span class="text-danger">*</span></label>

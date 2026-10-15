@@ -10,6 +10,7 @@ export type OrderLine = {
   id: number;
   product_name: string;
   quantity: number;
+  price?: number;
   subtotal?: number;
   product_id?: number | null;
   image_url?: string | null;
@@ -54,16 +55,21 @@ export function OrderProductRow({
         <AppText variant="caption">Qty {item.quantity}</AppText>
       </PressableScale>
       {showPrice ? (
-        <AppText style={styles.price} numberOfLines={1}>
-          {formatInr(item.subtotal ?? 0)}
-        </AppText>
+        <View style={styles.priceCol}>
+          <AppText style={styles.price} numberOfLines={1}>
+            {formatInr(item.subtotal ?? 0)}
+          </AppText>
+          <AppText style={styles.unit} numberOfLines={1}>
+            {formatInr(item.price ?? 0)} × {item.quantity}
+          </AppText>
+        </View>
       ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  row: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   thumbHit: { borderRadius: radii.md },
   thumb: {
     width: 56,
@@ -76,5 +82,7 @@ const styles = StyleSheet.create({
   fallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.jadeSoft },
   copy: { flex: 1, minWidth: 0, gap: 2 },
   name: { fontFamily: typography.bodySemi, color: colors.ink, fontSize: 14 },
-  price: { fontFamily: typography.bodyBold, color: colors.ink, maxWidth: 96, textAlign: 'right' },
+  priceCol: { alignItems: 'flex-end', maxWidth: 110, gap: 2 },
+  price: { fontFamily: typography.bodyBold, color: colors.ink, fontSize: 15, textAlign: 'right' },
+  unit: { fontFamily: typography.body, color: colors.inkMuted, fontSize: 11, textAlign: 'right' },
 });

@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, TextInput, View } from 'react-native';
+import { BrandLogo } from '@/components/brand/BrandLogo';
 import { KeyboardForm } from '@/components/layout/KeyboardForm';
 import { ScreenShell, themeCard } from '@/components/layout/ScreenShell';
 import { PasswordField } from '@/components/ui/PasswordField';
@@ -36,7 +37,10 @@ export default function LoginScreen() {
         <PressableScale onPress={() => router.back()}>
           <AppText style={{ color: colors.jade, fontFamily: typography.bodySemi }}>Close</AppText>
         </PressableScale>
-        <AppText variant="label" style={{ color: colors.brass, marginTop: spacing.lg }}>Welcome back</AppText>
+        <View style={{ marginTop: spacing.lg, marginBottom: spacing.md }}>
+          <BrandLogo size={84} />
+        </View>
+        <AppText variant="label" style={{ color: colors.brass }}>Welcome back</AppText>
         <AppText variant="display" style={{ fontSize: 32, marginBottom: spacing.lg }}>Sign in</AppText>
 
         <AppText variant="label">Email</AppText>

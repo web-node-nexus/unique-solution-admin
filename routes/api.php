@@ -5,6 +5,8 @@ use App\Http\Controllers\Api\AppCatalogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CustomerOrderController;
+use App\Http\Controllers\Api\DeliveryAuthController;
+use App\Http\Controllers\Api\DeliveryOrderController;
 use App\Http\Controllers\Api\DeviceTokenController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\StockAlertController;
@@ -48,6 +50,20 @@ Route::prefix('v1')->group(function () {
     Route::post('/auth/login', [AuthController::class, 'login']);
     Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
     Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
+
+    // Delivery partner app (Staff role, OTP login)
+    Route::prefix('delivery')->group(function () {
+        Route::post('/auth/send-otp', [DeliveryAuthController::class, 'sendOtp']);
+        Route::post('/auth/verify-otp', [DeliveryAuthController::class, 'verifyOtp']);
+
+        Route::middleware('auth:sanctum')->group(function () {
+            Route::get('/auth/me', [DeliveryAuthController::class, 'me']);
+            Route::post('/auth/logout', [DeliveryAuthController::class, 'logout']);
+            Route::get('/orders', [DeliveryOrderController::class, 'index']);
+            Route::get('/orders/{order}', [DeliveryOrderController::class, 'show']);
+            Route::patch('/orders/{order}/status', [DeliveryOrderController::class, 'updateStatus']);
+        });
+    });
 
     Route::post('/device-tokens', [DeviceTokenController::class, 'store']);
     Route::delete('/device-tokens', [DeviceTokenController::class, 'destroy']);

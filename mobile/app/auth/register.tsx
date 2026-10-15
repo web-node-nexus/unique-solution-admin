@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, TextInput, View } from 'react-native';
+import { BrandLogo } from '@/components/brand/BrandLogo';
 import { KeyboardForm } from '@/components/layout/KeyboardForm';
 import { ScreenShell, themeCard } from '@/components/layout/ScreenShell';
 import { PasswordField } from '@/components/ui/PasswordField';
@@ -60,7 +61,10 @@ export default function RegisterScreen() {
         <PressableScale onPress={() => router.back()}>
           <AppText style={{ color: colors.jade, fontFamily: typography.bodySemi }}>Close</AppText>
         </PressableScale>
-        <AppText variant="label" style={{ color: colors.brass, marginTop: spacing.lg }}>Unique Solution</AppText>
+        <View style={{ marginTop: spacing.lg, marginBottom: spacing.md }}>
+          <BrandLogo size={84} />
+        </View>
+        <AppText variant="label" style={{ color: colors.brass }}>Unique Solution</AppText>
         <AppText variant="display" style={{ fontSize: 32, marginBottom: spacing.lg }}>Create account</AppText>
 
         {fields.map((field) => (

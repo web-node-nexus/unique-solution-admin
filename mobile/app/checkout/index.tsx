@@ -297,11 +297,68 @@ export default function CheckoutScreen() {
           />
         }
       >
-        {/* 1. Addresses */}
         <View style={[themeCard.panel, styles.cardPad]}>
           <View style={styles.cardHead}>
             <View style={styles.stepBadge}>
               <AppText style={styles.stepNum}>1</AppText>
+            </View>
+            <Package size={16} color={colors.jade} />
+            <AppText style={styles.cardTitle}>Your items</AppText>
+          </View>
+          {lines.map((l) => {
+            const unit = sellingPrice(l.mrp, l.sale_price);
+            const lineTotal = unit * l.qty;
+            return (
+              <View key={l.key} style={styles.summaryRow}>
+                <PressableScale
+                  onPress={() => router.push(`/products/${l.productId}`)}
+                  style={styles.summaryThumbHit}
+                >
+                  {l.image_url ? (
+                    <Image
+                      source={{ uri: l.image_url }}
+                      style={styles.summaryThumb}
+                      contentFit="cover"
+                      transition={250}
+                    />
+                  ) : (
+                    <View style={[styles.summaryThumb, styles.summaryThumbFallback]}>
+                      <Package size={18} color={colors.jade} strokeWidth={1.8} />
+                    </View>
+                  )}
+                </PressableScale>
+                <PressableScale
+                  onPress={() => router.push(`/products/${l.productId}`)}
+                  style={styles.summaryCopy}
+                >
+                  <AppText style={styles.summaryName} numberOfLines={2}>
+                    {l.name}
+                  </AppText>
+                  {l.attributeLabel ? (
+                    <AppText variant="caption" numberOfLines={1}>
+                      {l.attributeLabel}
+                    </AppText>
+                  ) : null}
+                  <AppText style={styles.unitPrice}>
+                    {formatInr(unit)} each · Qty {l.qty}
+                  </AppText>
+                </PressableScale>
+                <View style={styles.priceCol}>
+                  <AppText style={styles.lineTotal}>{formatInr(lineTotal)}</AppText>
+                  <AppText style={styles.unitMath}>
+                    {formatInr(unit)} × {l.qty}
+                  </AppText>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+
+        {/* 2. Addresses */}
+        <View style={[themeCard.panel, styles.cardPad]}>
+          <View style={styles.cardHead}>
+            <View style={styles.stepBadge}>
+              <AppText style={styles.stepNum}>2</AppText>
             </View>
             <AppText style={styles.cardTitle}>Delivery address</AppText>
           </View>
@@ -358,11 +415,11 @@ export default function CheckoutScreen() {
           ) : null}
         </View>
 
-        {/* 2. Payment */}
+        {/* 3. Payment */}
         <View style={[themeCard.panel, styles.cardPad]}>
           <View style={styles.cardHead}>
             <View style={styles.stepBadge}>
-              <AppText style={styles.stepNum}>2</AppText>
+              <AppText style={styles.stepNum}>3</AppText>
             </View>
             <AppText style={styles.cardTitle}>Payment method</AppText>
           </View>
@@ -403,7 +460,7 @@ export default function CheckoutScreen() {
         <View style={[themeCard.panel, styles.cardPad]}>
           <View style={styles.cardHead}>
             <View style={styles.stepBadge}>
-              <AppText style={styles.stepNum}>3</AppText>
+              <AppText style={styles.stepNum}>4</AppText>
             </View>
             <Ticket size={16} color={colors.brass} />
             <AppText style={styles.cardTitle}>Coupon & notes</AppText>
@@ -452,72 +509,29 @@ export default function CheckoutScreen() {
         <View style={[themeCard.panel, styles.cardPad]}>
           <View style={styles.cardHead}>
             <View style={styles.stepBadge}>
-              <AppText style={styles.stepNum}>4</AppText>
+              <AppText style={styles.stepNum}>5</AppText>
             </View>
             <AppText style={styles.cardTitle}>Order summary</AppText>
           </View>
-          {lines.map((l) => (
-            <View key={l.key} style={styles.summaryRow}>
-              <PressableScale
-                onPress={() => router.push(`/products/${l.productId}`)}
-                style={styles.summaryThumbHit}
-              >
-                {l.image_url ? (
-                  <Image
-                    source={{ uri: l.image_url }}
-                    style={styles.summaryThumb}
-                    contentFit="cover"
-                    transition={250}
-                  />
-                ) : (
-                  <View style={[styles.summaryThumb, styles.summaryThumbFallback]}>
-                    <Package size={18} color={colors.jade} strokeWidth={1.8} />
-                  </View>
-                )}
-              </PressableScale>
-              <PressableScale
-                onPress={() => router.push(`/products/${l.productId}`)}
-                style={styles.summaryCopy}
-              >
-                <AppText style={styles.summaryName} numberOfLines={2}>
-                  {l.name}
-                </AppText>
-                {l.attributeLabel ? (
-                  <AppText variant="caption" numberOfLines={1}>
-                    {l.attributeLabel}
-                  </AppText>
-                ) : null}
-                <AppText variant="caption">Qty {l.qty}</AppText>
-              </PressableScale>
-              <AppText style={styles.price}>
-                {formatInr(sellingPrice(l.mrp, l.sale_price) * l.qty)}
-              </AppText>
-            </View>
-          ))}
-          <View style={styles.divider} />
-          <View style={styles.line}>
-            <AppText variant="caption">Subtotal</AppText>
-            <AppText style={styles.price}>{formatInr(cartSubtotal)}</AppText>
+          <View style={styles.sumRow}>
+            <AppText style={styles.sumLabel}>Subtotal</AppText>
+            <AppText style={styles.sumValue}>{formatInr(cartSubtotal)}</AppText>
           </View>
           {discountPreview > 0 ? (
-            <View style={styles.line}>
-              <AppText variant="caption">Discount</AppText>
-              <AppText style={[styles.price, { color: colors.jade }]}>
+            <View style={styles.sumRow}>
+              <AppText style={styles.sumLabel}>Discount</AppText>
+              <AppText style={[styles.sumValue, { color: colors.jade }]}>
                 −{formatInr(discountPreview)}
               </AppText>
             </View>
           ) : null}
-          <View style={styles.line}>
-            <AppText variant="caption">Shipping</AppText>
-            <AppText style={styles.price}>
-              {shipping > 0 ? formatInr(shipping) : 'Free'}
-            </AppText>
+          <View style={styles.sumRow}>
+            <AppText style={styles.sumLabel}>Shipping</AppText>
+            <AppText style={styles.sumValue}>{shipping > 0 ? formatInr(shipping) : 'Free'}</AppText>
           </View>
-          <AppText variant="caption" style={{ color: colors.inkSoft }}>
-            Prices include GST
-          </AppText>
-          <View style={[styles.line, { marginTop: 10 }]}>
-            <AppText style={{ fontFamily: typography.bodySemi }}>Total payable</AppText>
+          <AppText style={styles.gstNote}>Prices include GST</AppText>
+          <View style={styles.totalBand}>
+            <AppText style={styles.totalLabel}>Total payable</AppText>
             <AppText style={styles.total}>{formatInr(totalPreview)}</AppText>
           </View>
           {selected ? (
@@ -733,7 +747,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   line: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 },
-  summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
+  summaryRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 12 },
   summaryThumbHit: { borderRadius: radii.md },
   summaryThumb: {
     width: 56,
@@ -750,6 +764,31 @@ const styles = StyleSheet.create({
   },
   summaryCopy: { flex: 1, minWidth: 0, gap: 2 },
   summaryName: { fontFamily: typography.bodySemi, color: colors.ink, fontSize: 14 },
+  unitPrice: { fontFamily: typography.body, color: colors.inkMuted, fontSize: 12 },
+  priceCol: { alignItems: 'flex-end', gap: 2, maxWidth: 110 },
+  lineTotal: { fontFamily: typography.bodyBold, color: colors.ink, fontSize: 15 },
+  unitMath: { fontFamily: typography.body, color: colors.inkSoft, fontSize: 11 },
+  sumRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    gap: 12,
+  },
+  sumLabel: { fontFamily: typography.body, color: colors.inkMuted, fontSize: 14 },
+  sumValue: { fontFamily: typography.bodySemi, color: colors.ink, fontSize: 14 },
+  gstNote: { marginTop: 8, fontFamily: typography.body, color: colors.inkSoft, fontSize: 12 },
+  totalBand: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.jadeSoft,
+    borderRadius: radii.md,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  totalLabel: { fontFamily: typography.bodySemi, color: colors.ink, fontSize: 15 },
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.border,

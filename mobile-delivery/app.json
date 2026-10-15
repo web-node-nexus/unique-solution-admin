@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "US Delivery",
+    "slug": "unique-solution-delivery",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/us-app-icon.png",
+    "scheme": "usdelivery",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/default-splash.jpg",
+      "resizeMode": "cover",
+      "backgroundColor": "#012CB9"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.uniquesolution.delivery"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/us-app-icon.png"
+      },
+      "package": "com.uniquesolution.delivery",
+      "versionCode": 1,
+      "usesCleartextTraffic": true,
+      "permissions": ["INTERNET", "ACCESS_NETWORK_STATE"]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-system-ui",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/default-splash.jpg",
+          "resizeMode": "cover",
+          "backgroundColor": "#012CB9"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiUrl": "http://192.168.1.13:8002/api/v1"
+    }
+  }
+}
