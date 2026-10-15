@@ -154,7 +154,7 @@ class DeliveryAuthController extends Controller
 
     private function isDeliveryStaff(?User $user): bool
     {
-        return $user !== null && $user->is_active && $user->hasRole('Staff');
+        return $user !== null && $user->is_active && $user->hasRole('Staff', 'web');
     }
 
     /**

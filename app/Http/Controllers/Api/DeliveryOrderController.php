@@ -17,23 +17,35 @@ class DeliveryOrderController extends Controller
     /** @var list<string> */
     private const PENDING_STATUSES = ['processing', 'shipped'];
 
+    /** @var list<string> */
+    private const CLOSED_STATUSES = ['delivered', 'cancelled', 'returned'];
+
     public function index(Request $request): JsonResponse
     {
         $staff = $this->staffOrAbort($request);
+        $staffIds = $this->deliveryStaffIds($staff);
         $tab = strtolower((string) $request->query('tab', 'pending'));
 
         $query = Order::query()
-            ->where('assigned_to', $staff->id)
+            ->whereIn('assigned_to', $staffIds)
             ->with(['items', 'payments', 'user:id,name,phone'])
             ->latest('id');
 
         if ($tab === 'delivered') {
-            $query->where('order_status', 'delivered');
+            $query->whereRaw('LOWER(order_status) = ?', ['delivered']);
         } else {
-            $query->whereIn('order_status', self::PENDING_STATUSES);
+            // Anything assigned and not closed — processing/shipped/confirmed/pending.
+            $query->whereRaw('LOWER(order_status) NOT IN ('.$this->sqlList(self::CLOSED_STATUSES).')');
         }
 
         $orders = $query->paginate(30);
+
+        $assignedTotal = Order::query()->whereIn('assigned_to', $staffIds)->count();
+        $byStatus = Order::query()
+            ->whereIn('assigned_to', $staffIds)
+            ->selectRaw('LOWER(order_status) as status, COUNT(*) as total')
+            ->groupByRaw('LOWER(order_status)')
+            ->pluck('total', 'status');
 
         return response()->json([
             'success' => true,
@@ -42,6 +54,10 @@ class DeliveryOrderController extends Controller
                 'current_page' => $orders->currentPage(),
                 'last_page' => $orders->lastPage(),
                 'total' => $orders->total(),
+                'staff_id' => $staff->id,
+                'staff_ids' => $staffIds,
+                'assigned_total' => $assignedTotal,
+                'by_status' => $byStatus,
             ],
         ]);
     }
@@ -49,7 +65,7 @@ class DeliveryOrderController extends Controller
     public function show(Request $request, Order $order): JsonResponse
     {
         $staff = $this->staffOrAbort($request);
-        abort_unless((int) $order->assigned_to === (int) $staff->id, 404);
+        abort_unless(in_array((int) $order->assigned_to, $this->deliveryStaffIds($staff), true), 404);
 
         $order->load(['items', 'payments', 'user:id,name,phone', 'statusHistory']);
 
@@ -62,7 +78,7 @@ class DeliveryOrderController extends Controller
     public function updateStatus(Request $request, Order $order, OrderService $orders): JsonResponse
     {
         $staff = $this->staffOrAbort($request);
-        abort_unless((int) $order->assigned_to === (int) $staff->id, 404);
+        abort_unless(in_array((int) $order->assigned_to, $this->deliveryStaffIds($staff), true), 404);
 
         $data = $request->validate([
             'order_status' => ['required', 'string', 'in:shipped,delivered'],
@@ -70,17 +86,17 @@ class DeliveryOrderController extends Controller
         ]);
 
         $status = (string) $data['order_status'];
-        $current = (string) $order->order_status;
+        $current = strtolower(trim((string) $order->order_status));
 
-        if (! in_array($current, self::PENDING_STATUSES, true)) {
+        if (in_array($current, self::CLOSED_STATUSES, true)) {
             throw ValidationException::withMessages([
                 'order_status' => ['This order is no longer open for delivery updates.'],
             ]);
         }
 
-        if ($status === 'shipped' && $current !== 'processing') {
+        if ($status === 'shipped' && ! in_array($current, ['processing', 'confirmed', 'pending'], true)) {
             throw ValidationException::withMessages([
-                'order_status' => ['Only processing orders can be marked out for delivery.'],
+                'order_status' => ['This order cannot be marked out for delivery.'],
             ]);
         }
 
@@ -109,9 +125,52 @@ class DeliveryOrderController extends Controller
     private function staffOrAbort(Request $request): User
     {
         $user = $request->user();
-        abort_unless($user && $user->is_active && $user->hasRole('Staff'), 403);
+        abort_unless($user && $user->is_active && $user->hasRole('Staff', 'web'), 403);
 
         return $user;
+    }
+
+    /**
+     * All active Staff accounts that share this partner's phone (normalized).
+     *
+     * @return list<int>
+     */
+    private function deliveryStaffIds(User $staff): array
+    {
+        $phone = \App\Services\TwoFactorSmsService::normalizePhone((string) $staff->phone);
+
+        $ids = User::query()
+            ->role('Staff')
+            ->where('is_active', true)
+            ->whereNotNull('phone')
+            ->get(['id', 'phone'])
+            ->filter(function (User $user) use ($phone, $staff) {
+                if ((int) $user->id === (int) $staff->id) {
+                    return true;
+                }
+                if (! $phone) {
+                    return false;
+                }
+
+                return \App\Services\TwoFactorSmsService::normalizePhone((string) $user->phone) === $phone;
+            })
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        return $ids !== [] ? $ids : [(int) $staff->id];
+    }
+
+    /**
+     * @param  list<string>  $values
+     */
+    private function sqlList(array $values): string
+    {
+        return collect($values)
+            ->map(fn (string $value) => "'".str_replace("'", "''", strtolower($value))."'")
+            ->implode(', ');
     }
 
     /**
@@ -133,8 +192,8 @@ class DeliveryOrderController extends Controller
             'customer_phone' => $order->relationLoaded('user') ? $order->user?->phone : null,
             'items_count' => $order->items?->count() ?? 0,
             'created_at' => optional($order->created_at)?->toIso8601String(),
-            'can_mark_shipped' => $order->order_status === 'processing',
-            'can_mark_delivered' => in_array($order->order_status, self::PENDING_STATUSES, true),
+            'can_mark_shipped' => in_array(strtolower((string) $order->order_status), ['processing', 'confirmed', 'pending'], true),
+            'can_mark_delivered' => ! in_array(strtolower((string) $order->order_status), self::CLOSED_STATUSES, true),
         ];
 
         if ($detailed) {

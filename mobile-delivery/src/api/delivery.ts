@@ -32,13 +32,28 @@ export type DeliveryOrder = {
   }[];
 };
 
+export type OrdersMeta = {
+  current_page?: number;
+  last_page?: number;
+  total?: number;
+  staff_id?: number;
+  staff_ids?: number[];
+  assigned_total?: number;
+  by_status?: Record<string, number>;
+};
+
 export const deliveryApi = {
   sendOtp: (phone: string) => apiPost<{ phone: string; expires_in: number }>('/delivery/auth/send-otp', { phone }),
   verifyOtp: (phone: string, otp: string) =>
     apiPost<{ token: string; user: DeliveryUser }>('/delivery/auth/verify-otp', { phone, otp }),
   me: () => apiGet<DeliveryUser>('/delivery/auth/me'),
   logout: () => apiPost<null>('/delivery/auth/logout'),
-  orders: (tab: 'pending' | 'delivered') => apiGet<DeliveryOrder[]>('/delivery/orders', { tab }),
+  orders: async (tab: 'pending' | 'delivered') => {
+    const res = await apiGet<DeliveryOrder[] | { data?: DeliveryOrder[] }>('/delivery/orders', { tab });
+    const raw = res.data;
+    const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
+    return { ...res, data: list, meta: (res.meta || {}) as OrdersMeta };
+  },
   order: (id: number | string) => apiGet<DeliveryOrder>(`/delivery/orders/${id}`),
   updateStatus: (id: number | string, order_status: 'shipped' | 'delivered', remarks?: string) =>
     apiPatch<DeliveryOrder>(`/delivery/orders/${id}/status`, { order_status, remarks }),

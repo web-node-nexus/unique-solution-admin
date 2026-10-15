@@ -18,7 +18,7 @@ type ApiSuccess<T> = {
   success: boolean;
   data: T;
   message?: string;
-  meta?: Record<string, number>;
+  meta?: Record<string, unknown>;
 };
 
 let authToken: string | null = null;
