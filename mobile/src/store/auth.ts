@@ -10,6 +10,8 @@ type AuthState = {
   user: AuthUser | null;
   bootstrapped: boolean;
   bootstrap: () => Promise<void>;
+  loginWithOtp: (phone: string, otp: string, name?: string) => Promise<void>;
+  /** @deprecated */
   login: (email: string, password: string) => Promise<void>;
   register: (payload: {
     name: string;
@@ -33,7 +35,7 @@ async function afterAuth() {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       bootstrapped: false,
       bootstrap: async () => {
@@ -42,14 +44,39 @@ export const useAuthStore = create<AuthState>()(
           set({ bootstrapped: true, user: null });
           return;
         }
+
+        // Keep persisted user while refreshing — app close must not log out.
+        const cached = get().user;
+        if (cached) {
+          set({ bootstrapped: true, user: cached });
+        }
+
         try {
           const me = await authApi.me();
           set({ user: me.data, bootstrapped: true });
           await afterAuth();
-        } catch {
-          await setAuthToken(null);
-          set({ user: null, bootstrapped: true });
+        } catch (e) {
+          const msg = e instanceof Error ? e.message.toLowerCase() : '';
+          const unauthorized =
+            msg.includes('unauthenticated') ||
+            msg.includes('401') ||
+            msg.includes('unauthorized') ||
+            msg.includes('403');
+          if (unauthorized) {
+            await setAuthToken(null);
+            set({ user: null, bootstrapped: true });
+            return;
+          }
+          // Network / server blip: stay logged in with cached user + token
+          if (!cached) {
+            set({ bootstrapped: true });
+          }
         }
+      },
+      loginWithOtp: async (phone, otp, name) => {
+        const data = await authApi.verifyOtp(phone, otp, name);
+        set({ user: data.user });
+        await afterAuth();
       },
       login: async (email, password) => {
         const data = await authApi.login({ email, password });

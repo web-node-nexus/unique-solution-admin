@@ -4,13 +4,16 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\TwoFactorSmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 class AuthController extends Controller
 {
@@ -45,38 +48,151 @@ class AuthController extends Controller
 
     public function login(Request $request): JsonResponse
     {
+        throw ValidationException::withMessages([
+            'phone' => ['Password login is disabled. Sign in with mobile OTP.'],
+        ]);
+    }
+
+    /**
+     * Send login OTP to a customer mobile number (creates account on first verify).
+     */
+    public function sendOtp(Request $request, TwoFactorSmsService $sms): JsonResponse
+    {
         $data = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required', 'string'],
+            'phone' => ['required', 'string', 'max:20'],
         ]);
 
-        $user = User::query()->where('email', $data['email'])->first();
-
-        if (! $user || ! Hash::check($data['password'], $user->password)) {
+        $phone = TwoFactorSmsService::normalizePhone($data['phone']);
+        if (! $phone) {
             throw ValidationException::withMessages([
-                'email' => ['Invalid email or password.'],
+                'phone' => ['Enter a valid 10-digit Indian mobile number.'],
+            ]);
+        }
+
+        $existing = $this->findCustomerByPhone($phone);
+        if ($existing && $existing->is_active === false) {
+            throw ValidationException::withMessages([
+                'phone' => ['This account is blocked. Contact the shop.'],
+            ]);
+        }
+
+        if ($this->isStaffPhone($phone)) {
+            throw ValidationException::withMessages([
+                'phone' => ['Staff numbers must use the delivery partner app.'],
+            ]);
+        }
+
+        $throttleKey = "customer-otp-send:{$phone}";
+        if (Cache::has($throttleKey)) {
+            throw ValidationException::withMessages([
+                'phone' => ['Please wait a minute before requesting another OTP.'],
+            ]);
+        }
+
+        try {
+            $sms->sendOtp($phone);
+        } catch (RuntimeException $e) {
+            throw ValidationException::withMessages([
+                'phone' => [$e->getMessage()],
+            ]);
+        }
+
+        Cache::put("customer-otp-session:{$phone}", 1, now()->addMinutes(10));
+        Cache::put($throttleKey, 1, now()->addMinute());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'OTP sent to your phone.',
+            'data' => [
+                'phone' => $phone,
+                'expires_in' => 600,
+            ],
+        ]);
+    }
+
+    /**
+     * Verify customer OTP and issue a long-lived Sanctum token.
+     */
+    public function verifyOtp(Request $request, TwoFactorSmsService $sms): JsonResponse
+    {
+        $data = $request->validate([
+            'phone' => ['required', 'string', 'max:20'],
+            'otp' => ['required', 'string', 'min:4', 'max:8'],
+            'name' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $phone = TwoFactorSmsService::normalizePhone($data['phone']);
+        if (! $phone) {
+            throw ValidationException::withMessages([
+                'phone' => ['Enter a valid 10-digit Indian mobile number.'],
+            ]);
+        }
+
+        if (! Cache::has("customer-otp-session:{$phone}")) {
+            throw ValidationException::withMessages([
+                'otp' => ['OTP expired. Request a new one.'],
+            ]);
+        }
+
+        try {
+            $ok = $sms->verifyOtp($phone, trim($data['otp']));
+        } catch (RuntimeException $e) {
+            throw ValidationException::withMessages([
+                'otp' => [$e->getMessage()],
+            ]);
+        }
+
+        if (! $ok) {
+            throw ValidationException::withMessages([
+                'otp' => ['Invalid OTP. Try again.'],
+            ]);
+        }
+
+        Cache::forget("customer-otp-session:{$phone}");
+        Cache::forget("customer-otp-send:{$phone}");
+
+        $user = $this->findCustomerByPhone($phone);
+        if (! $user) {
+            $name = trim((string) ($data['name'] ?? ''));
+            if ($name === '') {
+                $name = 'Customer '.substr($phone, -4);
+            }
+
+            $user = User::query()->create([
+                'name' => $name,
+                'email' => $phone.'@phone.customer.local',
+                'phone' => $phone,
+                'password' => Str::random(40),
+                'role' => 'customer',
+                'is_active' => true,
             ]);
         }
 
         if ($user->is_active === false) {
             throw ValidationException::withMessages([
-                'email' => ['This account is blocked. Contact the shop.'],
+                'phone' => ['This account is blocked. Contact the shop.'],
             ]);
         }
 
         if ($user->isAdmin()) {
             throw ValidationException::withMessages([
-                'email' => ['Please use the admin panel for staff accounts.'],
+                'phone' => ['Please use the admin panel for staff accounts.'],
             ]);
         }
 
+        if (TwoFactorSmsService::normalizePhone((string) $user->phone) !== $phone) {
+            $user->update(['phone' => $phone]);
+        }
+
+        $user->tokens()->where('name', 'mobile')->delete();
         $token = $user->createToken('mobile')->plainTextToken;
 
         return response()->json([
             'success' => true,
+            'message' => 'Logged in.',
             'data' => [
                 'token' => $token,
-                'user' => $this->transformUser($user),
+                'user' => $this->transformUser($user->fresh()),
             ],
         ]);
     }
@@ -211,6 +327,27 @@ class AuthController extends Controller
         return 'pwd_reset:'.strtolower($email);
     }
 
+    private function findCustomerByPhone(string $phone10): ?User
+    {
+        return User::query()
+            ->customers()
+            ->whereNotNull('phone')
+            ->get(['id', 'name', 'email', 'phone', 'address', 'is_active', 'role'])
+            ->first(function (User $user) use ($phone10) {
+                return TwoFactorSmsService::normalizePhone((string) $user->phone) === $phone10;
+            });
+    }
+
+    private function isStaffPhone(string $phone10): bool
+    {
+        return User::query()
+            ->role(['Super Admin', 'Manager', 'Staff', 'Support'])
+            ->where('is_active', true)
+            ->whereNotNull('phone')
+            ->get(['id', 'phone'])
+            ->contains(fn (User $user) => TwoFactorSmsService::normalizePhone((string) $user->phone) === $phone10);
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -220,7 +357,7 @@ class AuthController extends Controller
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
-            'phone' => $user->phone,
+            'phone' => TwoFactorSmsService::normalizePhone((string) ($user->phone ?? '')) ?? $user->phone,
             'address' => $user->address,
         ];
     }

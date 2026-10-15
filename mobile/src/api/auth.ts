@@ -9,6 +9,19 @@ export type AuthUser = {
 };
 
 export const authApi = {
+  sendOtp: (phone: string) =>
+    apiPost<{ phone: string; expires_in: number }>('/auth/send-otp', { phone }),
+
+  verifyOtp: async (phone: string, otp: string, name?: string) => {
+    const res = await apiPost<{ token: string; user: AuthUser }>('/auth/verify-otp', {
+      phone,
+      otp,
+      name: name || undefined,
+    });
+    await setAuthToken(res.data.token);
+    return res.data;
+  },
+
   register: async (payload: {
     name: string;
     email: string;
@@ -20,11 +33,14 @@ export const authApi = {
     await setAuthToken(res.data.token);
     return res.data;
   },
+
+  /** @deprecated Password login disabled — use verifyOtp */
   login: async (payload: { email: string; password: string }) => {
     const res = await apiPost<{ token: string; user: AuthUser }>('/auth/login', payload);
     await setAuthToken(res.data.token);
     return res.data;
   },
+
   me: () => apiGet<AuthUser>('/auth/me'),
   updateProfile: (payload: {
     name?: string;

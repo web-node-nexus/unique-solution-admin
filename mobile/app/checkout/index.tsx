@@ -154,12 +154,7 @@ export default function CheckoutScreen() {
           <AppText variant="caption" style={{ textAlign: 'center' }}>
             Your bag stays saved on this phone. Sign in to choose an address and place the order.
           </AppText>
-          <AppButton label="Sign in" onPress={() => router.push('/auth/login')} />
-          <AppButton
-            label="Create account"
-            variant="ghost"
-            onPress={() => router.push('/auth/register')}
-          />
+          <AppButton label="Sign in with mobile" onPress={() => router.push('/auth/login')} />
         </View>
       </ScreenShell>
     );

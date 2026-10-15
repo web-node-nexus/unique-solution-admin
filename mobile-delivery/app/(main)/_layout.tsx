@@ -1,15 +1,19 @@
 import { Tabs } from 'expo-router';
 import { CheckCircle2, Package, UserRound } from 'lucide-react-native';
+import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@/theme/tokens';
 
 export default function MainTabs() {
   const insets = useSafeAreaInsets();
-  const bottomInset = Math.max(insets.bottom, 8);
-  const tabBarHeight = 52 + bottomInset;
+  // Extra room so labels never clip above Android gesture / 3-button nav.
+  const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 16 : 8);
+  const contentHeight = 60;
+  const tabBarHeight = contentHeight + bottomInset;
 
   return (
     <Tabs
+      safeAreaInsets={{ bottom: 0 }}
       screenOptions={{
         headerStyle: { backgroundColor: colors.paper },
         headerShadowVisible: false,
@@ -21,13 +25,21 @@ export default function MainTabs() {
           backgroundColor: colors.paper,
           borderTopColor: colors.border,
           height: tabBarHeight,
-          paddingTop: 6,
+          paddingTop: 8,
           paddingBottom: bottomInset,
         },
         tabBarItemStyle: {
-          paddingTop: 2,
+          height: contentHeight,
+          paddingTop: 4,
+          paddingBottom: 4,
         },
-        tabBarLabelStyle: { fontWeight: '700', fontSize: 11, marginBottom: 2 },
+        tabBarLabelStyle: {
+          fontWeight: '700',
+          fontSize: 11,
+          lineHeight: 14,
+          marginTop: 2,
+          marginBottom: 0,
+        },
       }}
     >
       <Tabs.Screen

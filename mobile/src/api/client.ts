@@ -58,11 +58,16 @@ async function request<T>(
   };
   if (authToken) headers.Authorization = `Bearer ${authToken}`;
 
-  const res = await fetch(url.toString(), {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(url.toString(), {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    throw new Error('Network error. Check your connection.');
+  }
 
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -70,7 +75,7 @@ async function request<T>(
       json?.message ||
       (json?.errors ? Object.values(json.errors).flat().join('\n') : null) ||
       `Request failed (${res.status})`;
-    throw new Error(msg);
+    throw new Error(String(msg));
   }
   return json as ApiSuccess<T>;
 }

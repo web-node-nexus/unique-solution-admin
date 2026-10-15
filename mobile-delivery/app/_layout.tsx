@@ -32,24 +32,22 @@ export default function RootLayout() {
     if (user && onLogin) router.replace('/(main)/pending');
   }, [ready, user, segments, router]);
 
-  if (!ready) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.canvas }}>
-        <ActivityIndicator color={colors.sky} />
-      </View>
-    );
-  }
-
   return (
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.canvas }}>
         <StatusBar style="dark" />
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.canvas } }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="login" />
-          <Stack.Screen name="(main)" />
-          <Stack.Screen name="orders/[id]" options={{ headerShown: true, title: 'Order', headerBackTitle: 'Back' }} />
-        </Stack>
+        {!ready ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.canvas }}>
+            <ActivityIndicator color={colors.sky} />
+          </View>
+        ) : (
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.canvas } }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="login" />
+            <Stack.Screen name="(main)" />
+            <Stack.Screen name="orders/[id]" options={{ headerShown: true, title: 'Order', headerBackTitle: 'Back' }} />
+          </Stack>
+        )}
       </GestureHandlerRootView>
     </SafeAreaProvider>
   );

@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   Banknote,
   FileText,
-  History,
+  // History,
   MapPin,
   Package,
   Phone,
@@ -307,6 +307,7 @@ export default function DeliveryOrderDetail() {
           </View>
         </View>
 
+        {/* Temporarily hidden — customer order history
         <View style={styles.card}>
           <View style={styles.sectionHead}>
             <History size={18} color={colors.skyDeep} strokeWidth={2.2} />
@@ -329,6 +330,7 @@ export default function DeliveryOrderDetail() {
             ))
           )}
         </View>
+        */}
 
         <PressableScale style={styles.billBtn} onPress={openBill} disabled={busy}>
           <FileText size={18} color={colors.skyDeep} strokeWidth={2.2} />

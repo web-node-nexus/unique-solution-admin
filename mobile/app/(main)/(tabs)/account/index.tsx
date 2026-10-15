@@ -148,12 +148,7 @@ export default function AccountScreen() {
             <AppText style={styles.guestCaption}>
               Track orders, save addresses, and checkout faster with COD or UPI.
             </AppText>
-            <AppButton label="Sign in" onPress={() => router.push('/auth/login')} />
-            <AppButton
-              label="Create account"
-              variant="ghost"
-              onPress={() => router.push('/auth/register')}
-            />
+            <AppButton label="Sign in with mobile" onPress={() => router.push('/auth/login')} />
           </View>
         ) : (
           <>

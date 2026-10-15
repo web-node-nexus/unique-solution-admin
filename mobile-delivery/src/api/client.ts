@@ -13,6 +13,17 @@ function resolveApiUrl(): string {
 
 export const API_URL = resolveApiUrl();
 const TOKEN_KEY = 'us-delivery-token';
+const USER_KEY = 'us-delivery-user';
+
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
 
 type ApiSuccess<T> = {
   success: boolean;
@@ -32,6 +43,21 @@ export async function setAuthToken(token: string | null): Promise<void> {
   authToken = token;
   if (token) await AsyncStorage.setItem(TOKEN_KEY, token);
   else await AsyncStorage.removeItem(TOKEN_KEY);
+}
+
+export async function getCachedUser<T>(): Promise<T | null> {
+  try {
+    const raw = await AsyncStorage.getItem(USER_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+export async function setCachedUser(user: unknown | null): Promise<void> {
+  if (user) await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
+  else await AsyncStorage.removeItem(USER_KEY);
 }
 
 export function getAuthToken(): string | null {
@@ -58,11 +84,17 @@ async function request<T>(
   };
   if (authToken) headers.Authorization = `Bearer ${authToken}`;
 
-  const res = await fetch(url.toString(), {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(url.toString(), {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch (err) {
+    const detail = err instanceof Error && err.message ? ` (${err.message})` : '';
+    throw new ApiError(`Network error. Check your connection.${detail}`, 0);
+  }
 
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -70,7 +102,7 @@ async function request<T>(
       json?.message ||
       (json?.errors ? Object.values(json.errors).flat().join('\n') : null) ||
       `Request failed (${res.status})`;
-    throw new Error(String(msg));
+    throw new ApiError(String(msg), res.status);
   }
   return json as ApiSuccess<T>;
 }
