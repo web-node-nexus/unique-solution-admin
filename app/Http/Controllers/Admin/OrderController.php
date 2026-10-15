@@ -222,6 +222,25 @@ class OrderController extends Controller
         ]);
     }
 
+    public function updateCustomerPhone(Request $request, Order $order): RedirectResponse
+    {
+        $this->authorize('update', $order);
+
+        $order->loadMissing('user');
+        $customer = $order->user;
+        if (! $customer || $customer->isAdmin()) {
+            return back()->with('error', 'This order has no customer account to update.');
+        }
+
+        $request->validate([
+            'phone' => ['required', 'string', 'max:20'],
+        ]);
+
+        CustomerController::applyCustomerPhone($customer, (string) $request->input('phone'));
+
+        return back()->with('success', 'Customer phone updated for this order.');
+    }
+
     public function updateStatus(OrderStatusRequest $request, Order $order): RedirectResponse|JsonResponse
     {
         $this->authorize('update', $order);

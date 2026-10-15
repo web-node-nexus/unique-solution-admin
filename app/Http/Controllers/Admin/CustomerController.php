@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\TwoFactorSmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Yajra\DataTables\Facades\DataTables;
 
@@ -89,5 +91,49 @@ class CustomerController extends Controller
         }
 
         return back()->with('success', "Customer {$state} successfully.");
+    }
+
+    public function updatePhone(Request $request, User $customer): RedirectResponse
+    {
+        abort_unless(auth()->user()?->can('customers.update'), 403);
+        abort_if($customer->isAdmin(), 404);
+
+        $request->validate([
+            'phone' => ['required', 'string', 'max:20'],
+        ]);
+
+        self::applyCustomerPhone($customer, (string) $request->input('phone'));
+
+        return back()->with('success', 'Customer phone updated.');
+    }
+
+    /**
+     * Normalize, validate uniqueness, and save a customer mobile number.
+     */
+    public static function applyCustomerPhone(User $customer, string $rawPhone): string
+    {
+        $phone = TwoFactorSmsService::normalizePhone($rawPhone);
+        if (! $phone) {
+            throw ValidationException::withMessages([
+                'phone' => ['Enter a valid 10-digit Indian mobile number.'],
+            ]);
+        }
+
+        $taken = User::query()
+            ->whereKeyNot($customer->id)
+            ->whereNotNull('phone')
+            ->get(['id', 'phone'])
+            ->contains(fn (User $user) => TwoFactorSmsService::normalizePhone((string) $user->phone) === $phone);
+
+        if ($taken) {
+            throw ValidationException::withMessages([
+                'phone' => ['This phone number is already used by another account.'],
+            ]);
+        }
+
+        $customer->update(['phone' => $phone]);
+        activity_log('updated', 'customers', "Customer #{$customer->id} phone set to {$phone}");
+
+        return $phone;
     }
 }

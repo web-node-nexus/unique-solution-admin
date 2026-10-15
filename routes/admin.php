@@ -254,6 +254,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->middleware('permission:orders.view')->name('orders.packing-slip');
         Route::patch('orders/{order}/status', [OrderController::class, 'updateStatus'])
             ->middleware('permission:orders.update')->name('orders.update-status');
+        Route::patch('orders/{order}/customer-phone', [OrderController::class, 'updateCustomerPhone'])
+            ->middleware('permission:orders.update')->name('orders.update-customer-phone');
         Route::get('orders/{order}', [OrderController::class, 'show'])
             ->middleware('permission:orders.view')->name('orders.show');
 
@@ -302,6 +304,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->middleware('permission:customers.view')->name('customers.show');
         Route::post('customers/{customer}/toggle-block', [CustomerController::class, 'toggleBlock'])
             ->middleware('permission:customers.update')->name('customers.toggle-block');
+        Route::patch('customers/{customer}/phone', [CustomerController::class, 'updatePhone'])
+            ->middleware('permission:customers.update')->name('customers.update-phone');
 
         /*
         |--------------------------------------------------------------------------

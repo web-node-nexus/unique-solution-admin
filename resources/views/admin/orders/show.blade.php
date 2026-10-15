@@ -20,9 +20,32 @@
                 <div class="card-body">
                     <div class="fw-semibold">{{ $order->user?->name ?? 'Guest' }}</div>
                     <div class="text-muted small">{{ $order->user?->email }}</div>
-                    <div class="text-muted small">{{ $order->user?->phone }}</div>
+                    <div class="text-muted small mb-2">{{ $order->user?->phone ?: '—' }}</div>
                     @if ($order->user)
-                        <a href="{{ route('admin.customers.show', $order->user) }}" class="small fw-semibold">View profile</a>
+                        <a href="{{ route('admin.customers.show', $order->user) }}" class="small fw-semibold d-inline-block mb-2">View profile</a>
+                        @can('orders.update')
+                            <form method="POST" action="{{ route('admin.orders.update-customer-phone', $order) }}">
+                                @csrf
+                                @method('PATCH')
+                                <label class="form-label small fw-semibold" for="order_customer_phone">Phone number</label>
+                                <div class="input-group input-group-sm">
+                                    <input
+                                        type="text"
+                                        name="phone"
+                                        id="order_customer_phone"
+                                        value="{{ old('phone', $order->user->phone) }}"
+                                        class="form-control @error('phone') is-invalid @enderror"
+                                        placeholder="10-digit mobile"
+                                        inputmode="numeric"
+                                        maxlength="15"
+                                        required
+                                    >
+                                    <button type="submit" class="btn btn-outline-primary">Update</button>
+                                </div>
+                                @error('phone')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                                <div class="form-text">Saves on the customer account (delivery OTP SMS).</div>
+                            </form>
+                        @endcan
                     @endif
                 </div>
             </div>

@@ -31,7 +31,32 @@
                 <div class="card-body">
                     <div class="fw-semibold fs-5">{{ $customer->name }}</div>
                     <div class="text-muted">{{ $customer->email }}</div>
-                    <div class="text-muted">{{ $customer->phone ?? '—' }}</div>
+                    <div class="text-muted mb-2">{{ $customer->phone ?? '—' }}</div>
+                    @can('customers.update')
+                        <form method="POST" action="{{ route('admin.customers.update-phone', $customer) }}" class="mt-2">
+                            @csrf
+                            @method('PATCH')
+                            <label class="form-label small fw-semibold" for="customer_phone">Phone number</label>
+                            <div class="input-group">
+                                <input
+                                    type="text"
+                                    name="phone"
+                                    id="customer_phone"
+                                    value="{{ old('phone', $customer->phone) }}"
+                                    class="form-control @error('phone') is-invalid @enderror"
+                                    placeholder="10-digit mobile"
+                                    inputmode="numeric"
+                                    maxlength="15"
+                                    required
+                                >
+                                <button type="submit" class="btn btn-outline-primary">
+                                    <i class="bi bi-telephone me-1" aria-hidden="true"></i>Update
+                                </button>
+                            </div>
+                            @error('phone')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                            <div class="form-text">Used for login OTP and delivery handover OTP.</div>
+                        </form>
+                    @endcan
                     <hr>
                     <div class="d-flex justify-content-between"><span>Status</span>
                         <span class="badge bg-{{ $customer->is_active ? 'success' : 'danger' }}">{{ $customer->is_active ? 'Active' : 'Blocked' }}</span>
