@@ -1,3 +1,4 @@
+import { Inbox } from 'lucide-react-native';
 import { Modal, Pressable, StyleSheet, Text, View, type TextStyle, type ViewStyle } from 'react-native';
 import { colors, radii, spacing } from '@/theme/tokens';
 
@@ -89,7 +90,9 @@ export function GhostButton({
 }) {
   return (
     <PressableScale disabled={disabled} onPress={onPress} style={styles.ghostBtn}>
-      <AppText style={[styles.ghostLabel, disabled && { color: colors.inkMuted }]}>{label}</AppText>
+      <AppText style={disabled ? [styles.ghostLabel, { color: colors.inkMuted }] : styles.ghostLabel}>
+        {label}
+      </AppText>
     </PressableScale>
   );
 }
@@ -97,6 +100,9 @@ export function GhostButton({
 export function EmptyState({ title, body }: { title: string; body: string }) {
   return (
     <View style={styles.empty}>
+      <View style={styles.emptyIcon}>
+        <Inbox size={28} color={colors.sky} strokeWidth={2.1} />
+      </View>
       <AppText style={styles.emptyTitle}>{title}</AppText>
       <AppText style={styles.emptyBody}>{body}</AppText>
     </View>
@@ -127,7 +133,7 @@ export function AppDialog({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel || onConfirm}>
       <View style={styles.dialogBackdrop}>
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={onCancel || onConfirm} />
+        <Pressable style={StyleSheet.absoluteFill} onPress={onCancel || onConfirm} />
         <View style={styles.dialogCard}>
           <View style={[styles.dialogAccent, { backgroundColor: soft }]}>
             <View style={[styles.dialogDot, { backgroundColor: accent }]} />
@@ -142,7 +148,11 @@ export function AppDialog({
             ) : null}
             <PressableScale
               onPress={onConfirm}
-              style={[styles.dialogConfirm, { backgroundColor: accent }, !cancelLabel && { flex: 1 }]}
+              style={
+                cancelLabel
+                  ? [styles.dialogConfirm, { backgroundColor: accent }]
+                  : [styles.dialogConfirm, { backgroundColor: accent, flex: 1 }]
+              }
             >
               <AppText style={styles.dialogConfirmLabel}>{confirmLabel}</AppText>
             </PressableScale>
@@ -188,6 +198,16 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     alignItems: 'center',
     gap: 8,
+    marginTop: 48,
+  },
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.skySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
   },
   emptyTitle: {
     fontSize: 17,

@@ -1,15 +1,14 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { API_URL } from '@/api/client';
-import { deliveryApi, type DeliveryOrder, type OrdersMeta } from '@/api/delivery';
+import { PackageSearch } from 'lucide-react-native';
+import { deliveryApi, type DeliveryOrder } from '@/api/delivery';
 import { OrderCard } from '@/components/OrderCard';
 import { AppText, EmptyState } from '@/components/ui';
-import { colors, spacing } from '@/theme/tokens';
+import { colors, radii, spacing } from '@/theme/tokens';
 
 export default function PendingOrdersScreen() {
   const [orders, setOrders] = useState<DeliveryOrder[]>([]);
-  const [meta, setMeta] = useState<OrdersMeta>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +19,6 @@ export default function PendingOrdersScreen() {
     try {
       const res = await deliveryApi.orders('pending');
       setOrders(res.data);
-      setMeta(res.meta || {});
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load orders.');
@@ -40,33 +38,29 @@ export default function PendingOrdersScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.sky} />
+        <ActivityIndicator color={colors.sky} size="large" />
       </View>
     );
   }
-
-  const emptyBody = error
-    ? error
-    : meta.assigned_total && meta.assigned_total > 0
-      ? `Assigned ${meta.assigned_total} order(s) but none are open. Status: ${JSON.stringify(meta.by_status || {})}`
-      : `No open orders for staff #${meta.staff_id ?? '—'}. Pull to refresh after admin assigns you.`;
 
   return (
     <FlatList
       data={orders}
       keyExtractor={(item) => String(item.id)}
       contentContainerStyle={styles.list}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={colors.sky} />}
       ListHeaderComponent={
-        <View style={{ marginBottom: 12, gap: 4 }}>
-          <AppText style={styles.hint}>Orders assigned to you that still need delivery.</AppText>
-          <AppText style={styles.api}>{API_URL}</AppText>
+        <View style={styles.banner}>
+          <PackageSearch size={18} color={colors.skyDeep} strokeWidth={2.2} />
+          <AppText style={styles.bannerText}>
+            {orders.length} open deliver{orders.length === 1 ? 'y' : 'ies'} waiting for you
+          </AppText>
         </View>
       }
       ListEmptyComponent={
         <EmptyState
-          title={error ? 'Could not load' : 'No pending orders'}
-          body={emptyBody}
+          title={error ? 'Could not load' : 'All clear'}
+          body={error || 'When admin assigns an order to you, it will show up here with product photos and address.'}
         />
       }
       renderItem={({ item }) => <OrderCard order={item} />}
@@ -76,8 +70,19 @@ export default function PendingOrdersScreen() {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  list: { padding: spacing.md, paddingBottom: 40, flexGrow: 1, gap: 0 },
-  hint: { color: colors.inkMuted, lineHeight: 20 },
-  api: { color: colors.inkMuted, fontSize: 11 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.canvas },
+  list: { padding: spacing.md, paddingBottom: 40, flexGrow: 1, backgroundColor: colors.canvas },
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.skySoft,
+    borderRadius: radii.lg,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  bannerText: { flex: 1, color: colors.skyDeep, fontWeight: '700', fontSize: 13 },
 });

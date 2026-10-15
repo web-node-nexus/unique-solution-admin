@@ -62,6 +62,9 @@ Route::prefix('v1')->group(function () {
             Route::get('/orders', [DeliveryOrderController::class, 'index']);
             Route::get('/orders/{order}', [DeliveryOrderController::class, 'show']);
             Route::patch('/orders/{order}/status', [DeliveryOrderController::class, 'updateStatus']);
+            Route::post('/orders/{order}/send-delivery-otp', [DeliveryOrderController::class, 'sendDeliveryOtp']);
+            Route::post('/orders/{order}/confirm-delivery', [DeliveryOrderController::class, 'confirmDelivery']);
+            Route::get('/orders/{order}/invoice', [DeliveryOrderController::class, 'invoice']);
         });
     });
 

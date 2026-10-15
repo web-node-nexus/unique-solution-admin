@@ -705,7 +705,7 @@ class CustomerOrderController extends Controller
 
     public function downloadInvoice(Request $request, Order $order): \Illuminate\Http\Response
     {
-        abort_unless($order->order_status === 'delivered', 403, 'Invoice is available after the order is delivered.');
+        // Signed URL already authorizes this download (customer after delivery, or delivery partner).
 
         $order->load([
             'user',

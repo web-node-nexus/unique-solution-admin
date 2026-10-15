@@ -1,17 +1,22 @@
 export const colors = {
-  ink: '#0F172A',
+  ink: '#0B1220',
   inkMuted: '#64748B',
   paper: '#FFFFFF',
-  canvas: '#F1F5F9',
+  canvas: '#EEF3FB',
+  canvasDeep: '#E2EAF6',
   sky: '#1565C0',
+  skyDeep: '#0D47A1',
   skySoft: '#E3F2FD',
-  jade: '#16A34A',
+  jade: '#159A5A',
   jadeSoft: '#DCFCE7',
-  amber: '#D97706',
-  amberSoft: '#FEF3C7',
+  amber: '#E08A00',
+  amberSoft: '#FFF4D6',
   danger: '#DC2626',
-  border: '#E2E8F0',
-  overlay: 'rgba(15, 23, 42, 0.45)',
+  dangerSoft: '#FEE2E2',
+  violet: '#6D28D9',
+  violetSoft: '#EDE9FE',
+  border: '#D7E0EC',
+  overlay: 'rgba(11, 18, 32, 0.52)',
 };
 
 export const spacing = {
@@ -25,5 +30,6 @@ export const spacing = {
 export const radii = {
   md: 12,
   lg: 16,
-  xl: 20,
+  xl: 22,
+  pill: 999,
 };
